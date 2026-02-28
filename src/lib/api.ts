@@ -94,9 +94,10 @@ export const storeProductsApi = {
   },
 
   // List store products for current merchant (optionally filter)
-  list: async (params?: { status?: 'draft' | 'published'; isActive?: boolean }) => {
+  list: async (params?: { storeId?: string; status?: 'draft' | 'published'; isActive?: boolean }) => {
     const token = getToken();
     const qs = new URLSearchParams();
+    if (params?.storeId) qs.set('storeId', params.storeId);
     if (params?.status) qs.set('status', params.status);
     if (params?.isActive !== undefined) qs.set('isActive', String(params.isActive));
 
@@ -1216,9 +1217,9 @@ const apiRequest = async <T = any>(
   // For auth endpoints, return the full response object (includes success, token, refreshToken, user, count)
   // For other endpoints, return data.data or data.user or the whole data object
   if (data.success !== undefined && (
-    data.token !== undefined || 
-    data.user !== undefined || 
-    typeof (data as any).count === 'number' || 
+    data.token !== undefined ||
+    data.user !== undefined ||
+    typeof (data as any).count === 'number' ||
     typeof (data as any).total === 'number' ||
     (data as any).pagination !== undefined
   )) {

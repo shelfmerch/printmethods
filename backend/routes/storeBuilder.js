@@ -111,7 +111,7 @@ const sanitizeBuilder = (builder) => {
 
   for (const page of sanitizedBuilder.pages) {
     if (!page.sections) continue;
-    
+
     for (const section of page.sections) {
       // Sanitize custom-html sections
       if (section.type === 'custom-html' && section.settings?.html) {
@@ -152,10 +152,11 @@ router.get('/:id/builder', protect, authorize('merchant', 'superadmin'), async (
       });
     }
 
-    // Return existing builder data or create default
-    const builderData = store.builder
+    // Return existing builder data or null to defer to frontend defaults if empty
+    const hasAnySections = store.builder && store.builder.pages && store.builder.pages.some(p => p.sections && p.sections.length > 0);
+    const builderData = hasAnySections
       ? ensureSystemPages(store.builder)
-      : createDefaultBuilder();
+      : null;
 
     return res.json({
       success: true,
@@ -336,7 +337,7 @@ router.delete('/:id/builder', protect, authorize('merchant', 'superadmin'), asyn
     }
 
     // Reset to default
-    store.builder = createDefaultBuilder();
+    store.builder = undefined;
     store.useBuilder = false;
     store.builderLastPublishedAt = null;
     await store.save();
@@ -344,7 +345,7 @@ router.delete('/:id/builder', protect, authorize('merchant', 'superadmin'), asyn
     return res.json({
       success: true,
       message: 'Builder reset to default',
-      data: store.builder,
+      data: null,
     });
   } catch (error) {
     console.error('Error resetting store builder:', error);

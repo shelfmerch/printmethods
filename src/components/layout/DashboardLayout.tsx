@@ -402,12 +402,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <DropdownMenuLabel>Switch Store</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {stores.map((store) => {
-                  const isSelected =
-                    activeStore &&
-                    (activeStore.id === store.id ||
-                      activeStore._id === store._id ||
-                      activeStore.id === store._id ||
-                      activeStore._id === store.id);
+                  const isSelected = activeStore && (activeStore._id || activeStore.id) === (store._id || store.id);
 
                   return (
                     <DropdownMenuItem
@@ -416,7 +411,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         selectStoreById(store.id || store._id || '');
                         setIsSidebarOpen(false);
                       }}
-                      className="flex items-center justify-between cursor-pointer"
+                      className={`flex items-center justify-between cursor-pointer ${isSelected ? 'bg-muted font-medium' : ''}`}
                     >
                       <div className="flex flex-col">
                         <span className="font-medium">{store.storeName}</span>
@@ -424,7 +419,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           {store.subdomain}.shelfmerch.com
                         </span>
                       </div>
-                      {isSelected && <Check className="h-4 w-4" />}
+                      {isSelected && <Check className="h-4 w-4 text-primary" />}
                     </DropdownMenuItem>
                   );
                 })}

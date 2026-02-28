@@ -71,8 +71,8 @@ const StoreProductSchema = new mongoose.Schema({
     url: { type: String, required: true },
     position: { type: Number, required: true },
     isPrimary: { type: Boolean, default: false },
-    imageType: { 
-      type: String, 
+    imageType: {
+      type: String,
       enum: ['lifestyle', 'flat-front', 'flat-back', 'size-chart', 'detail', 'other'],
       default: 'other'
     },

@@ -322,25 +322,55 @@ export const defaultGlobalStyles = {
   spacing: 'normal' as const,
 };
 
-export const createDefaultBuilder = (): StoreBuilder => ({
-  version: '1.0',
-  pages: [
-    {
-      id: 'home',
-      name: 'Home',
-      slug: '/',
-      isSystemPage: true,
-      sections: [],
-    },
-    {
-      id: 'product',
-      name: 'Product Page',
-      slug: '/product',
-      isSystemPage: true,
-      sections: [],
-    },
-  ],
-  activePageId: 'home',
-  globalStyles: defaultGlobalStyles,
-  draft: true,
-});
+export const createDefaultBuilder = (): StoreBuilder => {
+  const getComponent = (type: string) => componentLibrary.find((c) => c.type === type)!;
+
+  const createSection = (type: string, order: number, idSuffix: string, overrides = {}) => {
+    const component = getComponent(type);
+    return {
+      id: `${type}-${idSuffix}`,
+      type: component.type,
+      order,
+      visible: true,
+      settings: { ...component.defaultSettings, ...((overrides as any).settings || {}) },
+      styles: { ...component.defaultStyles, ...((overrides as any).styles || {}) },
+    };
+  };
+
+  return {
+    version: '1.0',
+    pages: [
+      {
+        id: 'home',
+        name: 'Home',
+        slug: '/',
+        isSystemPage: true,
+        sections: [
+          createSection('header', 0, 'default'),
+          createSection('announcement-bar', 1, 'default'),
+          createSection('hero', 2, 'default', { styles: { backgroundColor: '#f3f4f6' } }),
+          createSection('text', 3, 'default', { settings: { heading: 'About Us', content: '<p>Tell your story here. Add your brand message and connect with customers.</p>' } }),
+          createSection('product-grid', 4, 'default', { settings: { heading: 'Featured Products' } }),
+          createSection('image', 5, 'default'),
+          createSection('footer', 6, 'default'),
+        ],
+      },
+      {
+        id: 'product',
+        name: 'Product Page',
+        slug: '/product',
+        isSystemPage: true,
+        sections: [
+          createSection('header', 0, 'product'),
+          createSection('announcement-bar', 1, 'product'),
+          createSection('product-details', 2, 'product'),
+          createSection('product-recommendations', 3, 'product'),
+          createSection('footer', 4, 'product'),
+        ],
+      },
+    ],
+    activePageId: 'home',
+    globalStyles: defaultGlobalStyles,
+    draft: true,
+  };
+};

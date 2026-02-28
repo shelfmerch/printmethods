@@ -27,9 +27,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { selectedStore, stores } = useStore();
+  const { selectedStore, stores, loading: storesLoading } = useStore();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -86,10 +88,11 @@ const Dashboard = () => {
     const loadSP = async () => {
       try {
         setSpLoading(true);
-        const resp = await storeProductsApi.list(spFilter);
+        const storeIdForFilter = selectedStore?.id || selectedStore?._id;
+        const resp = await storeProductsApi.list({ ...spFilter, storeId: storeIdForFilter as string });
         if (resp.success) {
           let products = resp.data || [];
-          // Filter by selected store if one is selected
+          // Double check filter if storeId was provided (just in case)
           if (selectedStore) {
             const storeId = selectedStore.id || selectedStore._id;
             products = products.filter((sp: any) => {
@@ -288,9 +291,7 @@ const Dashboard = () => {
       savedPreviewImages: designData.previewImagesByView || {},
       displacementSettings: designData.displacementSettings || { scaleX: 20, scaleY: 20, contrastBoost: 1.5 },
       primaryColorHex: designData.primaryColorHex || null,
-
-      // We might want to pass storeProductId if we supported updating existing products in DesignEditor
-      // But for now, we just restore the state.
+      storeProductId: sp._id,
     };
 
     // Save to sessionStorage
@@ -338,39 +339,34 @@ const Dashboard = () => {
   };
 
   const totalProductsCount = useMemo(() => {
-    return storeProducts.reduce((sum, sp) => {
-      if (Array.isArray(sp.variantsSummary) && sp.variantsSummary.length > 0) {
-        return sum + sp.variantsSummary.length;
-      }
-      return sum + 1;
-    }, 0);
+    return storeProducts.length;
   }, [storeProducts]);
 
   const tableData = useMemo(() => {
-    const flattened: any[] = [];
-    storeProducts.forEach((sp) => {
+    return storeProducts.map((sp) => {
+      let displayVariant = '';
       if (Array.isArray(sp.variantsSummary) && sp.variantsSummary.length > 0) {
-        sp.variantsSummary.forEach((v: any) => {
-          flattened.push({
-            ...sp,
-            _displayVariantId: v._id,
-            displayTitle: sp.title || 'Untitled',
-            displayVariant: `${v.size || ''} ${v.color || ''}`.trim(),
-            displayPrice: v.sellingPrice || sp.sellingPrice,
-            isVariant: true
-          });
-        });
-      } else {
-        flattened.push({
-          ...sp,
-          displayTitle: sp.title || 'Untitled',
-          displayVariant: '',
-          displayPrice: sp.sellingPrice,
-          isVariant: false
-        });
+        // Group variants by color to show a summary like "3 sizes, 2 colors"
+        const colors = new Set(sp.variantsSummary.map((v: any) => v.color).filter(Boolean));
+        const sizes = new Set(sp.variantsSummary.map((v: any) => v.size).filter(Boolean));
+
+        if (colors.size > 0 && sizes.size > 0) {
+          displayVariant = `${sizes.size} size${sizes.size > 1 ? 's' : ''}, ${colors.size} color${colors.size > 1 ? 's' : ''}`;
+        } else if (sizes.size > 0) {
+          displayVariant = `${sizes.size} size${sizes.size > 1 ? 's' : ''}`;
+        } else if (colors.size > 0) {
+          displayVariant = `${colors.size} color${colors.size > 1 ? 's' : ''}`;
+        }
       }
+
+      return {
+        ...sp,
+        displayTitle: sp.title || 'Untitled',
+        displayVariant,
+        displayPrice: sp.sellingPrice,
+        isVariant: false
+      };
     });
-    return flattened;
   }, [storeProducts]);
 
   const stats = [
@@ -387,17 +383,25 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout >
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background text-foreground">
         <div className="flex items-center justify-between mb-8">
           <div className="flex-1">
             <div className="flex items-center gap-4 mb-2">
-              <h1 className="text-3xl font-bold">Welcome back!</h1>
+              {storesLoading ? (
+                <Skeleton className="h-9 w-64" />
+              ) : (
+                <h1 className="text-3xl font-bold">Welcome back!</h1>
+              )}
             </div>
-            <p className="text-muted-foreground">
-              {selectedStore
-                ? `Here's what's happening with ${selectedStore.storeName} today.`
-                : "Select a store from the sidebar to view its dashboard."}
-            </p>
+            {storesLoading ? (
+              <Skeleton className="h-4 w-96 mt-2" />
+            ) : (
+              <p className="text-muted-foreground">
+                {selectedStore
+                  ? `Here's what's happening with ${selectedStore.storeName} today.`
+                  : "Select a store from the sidebar to view its dashboard."}
+              </p>
+            )}
           </div>
           <Link to="/products">
             <Button size="lg" className="gap-2">
@@ -408,14 +412,18 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        {selectedStore && (
+        {(selectedStore || storesLoading) && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {stats.map((stat) => (
               <Card key={stat.label} className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                    <p className="text-3xl font-bold">{stat.value}</p>
+                    {spLoading || storesLoading ? (
+                      <Skeleton className="h-9 w-24 mt-1" />
+                    ) : (
+                      <p className="text-3xl font-bold">{stat.value}</p>
+                    )}
                   </div>
                   <stat.icon className={`h-8 w-8 ${stat.color}`} />
                 </div>
@@ -425,8 +433,8 @@ const Dashboard = () => {
         )}
 
 
-        {/* No Stores Message */}
-        {!selectedStore && (
+        {/* No Stores Message or Loading state */}
+        {!selectedStore && !storesLoading && (
           <Card className="p-12 text-center mb-8">
             <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-2xl font-bold mb-2">No Store Selected</h2>
@@ -437,134 +445,185 @@ const Dashboard = () => {
         )}
 
         {/* Products Display (Store Products from backend) */}
-        {selectedStore && storeProducts.length > 0 ? (
-          <Card className="p-0 overflow-hidden">
-            <div className="px-6 pt-6 pb-4 flex flex-col gap-2">
-              <h2 className="text-xl font-bold">Your Products</h2>
-              <p className="text-sm text-muted-foreground">
-                Manage drafts saved from the designer. Publish them to your storefront when ready.
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-t text-sm">
-                <thead className="bg-muted/60 text-muted-foreground">
-                  <tr className="text-left">
-                    <th className="px-6 py-3"><Checkbox
-                      checked={selectedProducts.length === storeProducts.length && storeProducts.length > 0}
-                      onCheckedChange={(checked) => setSelectedProducts(Boolean(checked) ? storeProducts.map((sp: any) => sp._id) : [])}
-                      aria-label="Select all products"
-                    /></th>
-                    <th className="px-2 py-3 font-medium">Product</th>
-                    <th className="px-2 py-3 font-medium hidden md:table-cell">Created</th>
-                    <th className="px-2 py-3 font-medium hidden lg:table-cell">Price</th>
-                    <th className="px-2 py-3 font-medium hidden lg:table-cell">Mockup</th>
-                    <th className="px-2 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {tableData.map((sp: any) => {
-                    // Extract previewImagesByView - it's an object with mockup IDs as keys and image URLs as values
-                    const previewImagesByView = sp.designData?.previewImagesByView || sp.previewImagesByView || {};
-                    const previewImageUrls = Object.values(previewImagesByView).filter((url): url is string =>
-                      typeof url === 'string' && url.length > 0
-                    );
-                    const mockup = previewImageUrls[0] || undefined;
-                    const isSelected = selectedProducts.includes(sp._id);
-                    const rowKey = sp._displayVariantId ? `${sp._id}-${sp._displayVariantId}` : sp._id;
-
-                    return (
-                      <tr key={rowKey} className="hover:bg-muted/20 transition-colors">
-                        <td className="px-6 py-3 align-middle">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => setSelectedProducts(prev => Boolean(checked) ? [...new Set([...prev, sp._id])] : prev.filter(id => id !== sp._id))}
-                            aria-label={`Select ${sp.displayTitle || 'Untitled'}`}
-                          />
-                        </td>
-                        <td className="px-2 py-4 align-middle">
-                          <div
-                            className="flex items-center gap-3 cursor-pointer"
-                            onClick={() => handleEditProduct(sp)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                handleEditProduct(sp);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <div className="h-14 w-14 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
-                              {mockup ? (
-                                <img src={mockup} alt={sp.displayTitle || 'Untitled'} className="h-full w-full object-cover" />
-                              ) : (
-                                <Package className="h-6 w-6 text-muted-foreground" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium leading-tight line-clamp-1">{sp.displayTitle || 'Untitled'}</p>
-                              {sp.displayVariant && (
-                                <p className="text-xs font-semibold text-primary">{sp.displayVariant}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground line-clamp-1">Status: {sp.status}</p>
+        {(selectedStore || storesLoading) ? (
+          (spLoading || (storesLoading && storeProducts.length === 0)) ? (
+            <Card className="p-0 overflow-hidden">
+              <div className="px-6 pt-6 pb-4">
+                <Skeleton className="h-7 w-48 mb-2" />
+                <Skeleton className="h-4 w-96" />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-t">
+                  <thead className="bg-muted/60">
+                    <tr className="text-left">
+                      <th className="px-6 py-3 w-12"><Skeleton className="h-4 w-4" /></th>
+                      <th className="px-2 py-3"><Skeleton className="h-4 w-24" /></th>
+                      <th className="px-2 py-3 hidden md:table-cell"><Skeleton className="h-4 w-20" /></th>
+                      <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></th>
+                      <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></th>
+                      <th className="px-2 py-3 text-right"><Skeleton className="h-4 w-24 ml-auto" /></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <tr key={i} className="border-t">
+                        <td className="px-6 py-4"><Skeleton className="h-4 w-4" /></td>
+                        <td className="px-2 py-4">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-14 w-14 rounded-md" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-20" />
                             </div>
                           </div>
                         </td>
-                        <td className="px-2 py-4 align-middle hidden md:table-cell text-muted-foreground">
-                          {new Date(sp.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-2 py-4 align-middle hidden lg:table-cell text-muted-foreground">
-                          ₹{Number(sp.displayPrice || 0).toFixed(2)}
-                        </td>
-                        <td className="px-2 py-4 align-middle hidden lg:table-cell text-muted-foreground">
-                          {mockup ? 'Preview saved' : 'No mockup'}
-                        </td>
-                        <td className="px-2 py-4 align-middle">
+                        <td className="px-2 py-4 hidden md:table-cell"><Skeleton className="h-4 w-20" /></td>
+                        <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></td>
+                        <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></td>
+                        <td className="px-2 py-4 text-right">
                           <div className="flex justify-end gap-2">
-                            {/* ... existing actions ... */}
-                            {sp.status === 'draft' ? (
-                              <Button size="sm" variant="outline" onClick={() => handlePublishClick(sp)}>Publish</Button>
-                            ) : (
-                              <Button size="sm" variant="secondary" onClick={() => updateStoreProduct(sp._id, { status: 'draft' })}>Mark Draft</Button>
-                            )}
-                            <Button size="sm" variant="outline" onClick={() => updateStoreProduct(sp._id, { isActive: !sp.isActive })}>
-                              {sp.isActive ? 'Deactivate' : 'Activate'}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditProduct(sp);
-                            }}>
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => deleteStoreProduct(sp._id)}>Delete</Button>
+                            <Skeleton className="h-8 w-16" />
+                            <Skeleton className="h-8 w-16" />
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {selectedProducts.length > 0 && (
-              <div className="border-t bg-muted/40 px-6 py-4 text-sm text-muted-foreground flex flex-wrap items-center gap-3">
-                <span>{selectedProducts.length} selected</span>
-                <span className="text-xs">Use the actions above to publish, deactivate, or delete.</span>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </Card>
-        ) : selectedStore ? (
-          <Card className="p-12 text-center">
-            <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">No products yet</h2>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Start by creating your first product. Choose from our catalog and customize it with your designs.
-            </p>
-            <Link to="/products">
-              <Button size="lg">
-                Browse Product Catalog
-              </Button>
-            </Link>
-          </Card>
+            </Card>
+          ) : storeProducts.length > 0 ? (
+            <Card className="p-0 overflow-hidden">
+              <div className="px-6 pt-6 pb-4 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Your Products</h2>
+                  {spLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Manage drafts saved from the designer. Publish them to your storefront when ready.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-t text-sm">
+                  {/* ... existing table header ... */}
+                  <thead className="bg-muted/60 text-muted-foreground">
+                    <tr className="text-left">
+                      <th className="px-6 py-3"><Checkbox
+                        checked={selectedProducts.length === storeProducts.length && storeProducts.length > 0}
+                        onCheckedChange={(checked) => setSelectedProducts(Boolean(checked) ? storeProducts.map((sp: any) => sp._id) : [])}
+                        aria-label="Select all products"
+                      /></th>
+                      <th className="px-2 py-3 font-medium">Product</th>
+                      <th className="px-2 py-3 font-medium hidden md:table-cell">Created</th>
+                      <th className="px-2 py-3 font-medium hidden lg:table-cell">Price</th>
+                      <th className="px-2 py-3 font-medium hidden lg:table-cell">Mockup</th>
+                      <th className="px-2 py-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y text-muted-foreground/80">
+                    {tableData.map((sp: any) => {
+                      // Extract previewImagesByView - it's an object with mockup IDs as keys and image URLs as values
+                      const previewImagesByView = sp.designData?.previewImagesByView || sp.previewImagesByView || {};
+                      const previewImageUrls = Object.values(previewImagesByView).filter((url): url is string =>
+                        typeof url === 'string' && url.length > 0
+                      );
+                      const mockup = previewImageUrls[0] || undefined;
+                      const isSelected = selectedProducts.includes(sp._id);
+                      const rowKey = sp._displayVariantId ? `${sp._id}-${sp._displayVariantId}` : sp._id;
+
+                      return (
+                        <tr key={rowKey} className="hover:bg-muted/20 transition-colors">
+                          <td className="px-6 py-3 align-middle">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => setSelectedProducts(prev => Boolean(checked) ? [...new Set([...prev, sp._id])] : prev.filter(id => id !== sp._id))}
+                              aria-label={`Select ${sp.displayTitle || 'Untitled'}`}
+                            />
+                          </td>
+                          <td className="px-2 py-4 align-middle">
+                            <div
+                              className="flex items-center gap-3 cursor-pointer"
+                              onClick={() => handleEditProduct(sp)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault();
+                                  handleEditProduct(sp);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
+                            >
+                              <div className="h-14 w-14 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
+                                {mockup ? (
+                                  <img src={mockup} alt={sp.displayTitle || 'Untitled'} className="h-full w-full object-cover" />
+                                ) : (
+                                  <Package className="h-6 w-6 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground leading-tight line-clamp-1">{sp.displayTitle || 'Untitled'}</p>
+                                {sp.displayVariant && (
+                                  <p className="text-xs font-semibold text-primary">{sp.displayVariant}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground line-clamp-1">Status: {sp.status}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-2 py-4 align-middle hidden md:table-cell">
+                            {new Date(sp.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-2 py-4 align-middle hidden lg:table-cell">
+                            ₹{Number(sp.displayPrice || 0).toFixed(2)}
+                          </td>
+                          <td className="px-2 py-4 align-middle hidden lg:table-cell">
+                            {mockup ? 'Preview saved' : 'No mockup'}
+                          </td>
+                          <td className="px-2 py-4 align-middle">
+                            <div className="flex justify-end gap-2 text-foreground">
+                              {sp.status === 'draft' ? (
+                                <Button size="sm" variant="outline" onClick={() => handlePublishClick(sp)}>Publish</Button>
+                              ) : (
+                                <Button size="sm" variant="secondary" onClick={() => updateStoreProduct(sp._id, { status: 'draft' })}>Mark Draft</Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={() => updateStoreProduct(sp._id, { isActive: !sp.isActive })}>
+                                {sp.isActive ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditProduct(sp);
+                              }}>
+                                Edit
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => deleteStoreProduct(sp._id)}>Delete</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {selectedProducts.length > 0 && (
+                <div className="border-t bg-muted/40 px-6 py-4 text-sm text-muted-foreground flex flex-wrap items-center gap-3">
+                  <span>{selectedProducts.length} selected</span>
+                  <span className="text-xs">Use the actions above to publish, deactivate, or delete.</span>
+                </div>
+              )}
+            </Card>
+          ) : (
+            <Card className="p-12 text-center">
+              <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h2 className="text-2xl font-bold mb-2">No products yet</h2>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Start by creating your first product. Choose from our catalog and customize it with your designs.
+              </p>
+              <Link to="/products">
+                <Button size="lg">
+                  Browse Product Catalog
+                </Button>
+              </Link>
+            </Card>
+          )
         ) : null}
 
         {/* Publish Dialog */}
