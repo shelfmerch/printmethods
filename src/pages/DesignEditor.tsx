@@ -255,6 +255,7 @@ const DesignEditor: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileToolStage, setMobileToolStage] = useState<'none' | 'menu' | 'detail'>('none');
   const [fetchedPlaceholders, setFetchedPlaceholders] = useState<Placeholder[]>([]);
+  const [storeProductId, setStoreProductId] = useState<string | null>(null);
 
   // Track if selection is from adding an asset (to prevent auto-opening properties on mobile)
   const isAddingAssetRef = useRef(false);
@@ -905,6 +906,9 @@ const DesignEditor: React.FC = () => {
         if (typeof designState.primaryColorHex === 'string' || designState.primaryColorHex === null) {
           setPrimaryColorHex(designState.primaryColorHex);
         }
+        if (designState.storeProductId) {
+          setStoreProductId(designState.storeProductId);
+        }
         // Mark that we restored from session so other effects don't wipe selections
         restoredFromSessionRef.current = true;
         // Clear the saved state after restoring
@@ -993,7 +997,6 @@ const DesignEditor: React.FC = () => {
 
   // Track if we're currently saving a preview to avoid duplicate saves
   const [isSavingPreview, setIsSavingPreview] = useState(false);
-  const [storeProductId, setStoreProductId] = useState<string | null>(null);
 
   // Get current view data
   const currentViewData = useMemo(() => {
@@ -2737,6 +2740,7 @@ const DesignEditor: React.FC = () => {
       // --- CREATE DRAFT IN DATABASE ---
       // Create a draft store product with the entire elements array
       const draftPayload = {
+        _id: storeProductId,
         catalogProductId,
         sellingPrice,
         status: 'draft' as const,
@@ -2762,13 +2766,14 @@ const DesignEditor: React.FC = () => {
         return;
       }
 
-      const storeProductId = draftResponse.data?.storeProduct?._id || draftResponse.data?._id;
-      if (!storeProductId) {
+      const draftId = draftResponse.data?.storeProduct?._id || draftResponse.data?._id;
+      if (!draftId) {
         toast.error('Failed to get draft ID from server response');
         return;
       }
 
-      console.log('Draft created with storeProductId:', storeProductId);
+      console.log('Draft created with storeProductId:', draftId);
+      setStoreProductId(draftId);
 
       // --- NEW MOCKUP GENERATION FLOW ---
 
@@ -2805,7 +2810,7 @@ const DesignEditor: React.FC = () => {
         saveStateForReturn();
         navigate('/mockups-library', {
           state: {
-            storeProductId, // Pass the draft ID
+            storeProductId: draftId, // Pass the draft ID
             productId: catalogProductId,
             baseSellingPrice: sellingPrice,
             title: product?.catalogue?.name,
@@ -2823,7 +2828,7 @@ const DesignEditor: React.FC = () => {
         toast.success('Design ready. Continue in Listing editor to finish publishing.');
         navigate('/listing-editor', {
           state: {
-            storeProductId, // Pass the draft ID
+            storeProductId: draftId, // Pass the draft ID
             productId: catalogProductId,
             baseSellingPrice: sellingPrice,
             title: product?.catalogue?.name,
@@ -2840,7 +2845,7 @@ const DesignEditor: React.FC = () => {
     } finally {
       setIsPublishing(false);
     }
-  }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings]);
+  }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings, storeProductId]);
 
   const handleSave = async () => {
     try {

@@ -221,7 +221,6 @@ const ListingEditor = () => {
           const key = `${normalizedSize}__${normalizedColor}`;
 
           // Production cost: prefer basePrice (DB field), fallback to price (transformed)
-          // Requirement: productionCost MUST come from basePrice
           const basePrice = typeof v.basePrice === 'number' && Number.isFinite(v.basePrice)
             ? v.basePrice
             : undefined;
@@ -229,10 +228,9 @@ const ListingEditor = () => {
             ? v.price
             : undefined;
 
-          // Use basePrice if available (DB field), otherwise use price (if backend transformed it)
+          // Use basePrice if available, otherwise price
           const cost = basePrice !== undefined ? basePrice : (price !== undefined ? price : 0);
 
-          // SKU: backend may transform skuTemplate -> sku, but check both
           const sku = v.sku || v.skuTemplate || '';
 
           map[key] = {
@@ -240,23 +238,6 @@ const ListingEditor = () => {
             id: v._id || v.id,
             sku,
           };
-
-          console.log('[ListingEditor] Mapped catalog variant:', {
-            originalSize: v.size,
-            originalColor: v.color,
-            normalizedKey: key,
-            basePrice,
-            price,
-            finalCost: cost,
-            sku,
-            id: v._id || v.id,
-          });
-        });
-
-        console.log('[ListingEditor] Final variantCostMap:', {
-          keyCount: Object.keys(map).length,
-          keys: Object.keys(map),
-          sampleEntry: Object.entries(map)[0],
         });
 
         if (!isCancelled) {
@@ -276,12 +257,13 @@ const ListingEditor = () => {
   // Preserve user-entered retailPrice using ref
   useEffect(() => {
     const incoming = state?.variants || [];
+    const draftVariants = (draftData?.variantsSummary || draftData?.variants || []) as any[];
 
     console.log('[ListingEditor] Recompute variantRows:', {
       incomingCount: incoming.length,
       variantCostMapKeys: Object.keys(variantCostMap).length,
       existingRowsCount: variantRows.length,
-      sampleIncoming: incoming[0],
+      draftVariantsCount: draftVariants.length,
     });
 
     if (!incoming.length) {
@@ -291,20 +273,12 @@ const ListingEditor = () => {
 
     const rows: VariantRow[] = incoming.map((v) => {
       // Normalize keys for matching
-      const normalizedSize = norm(v.size || '');
-      const normalizedColor = norm(v.color || '');
-      const key = `${normalizedSize}__${normalizedColor}`;
+      const ns = norm(v.size || '');
+      const nc = norm(v.color || '');
+      const key = `${ns}__${nc}`;
       const mapped = variantCostMap[key];
 
-      console.log('[ListingEditor] Processing variant:', {
-        originalSize: v.size,
-        originalColor: v.color,
-        normalizedKey: key,
-        foundInMap: !!mapped,
-        mappedData: mapped,
-      });
-
-      // Production cost (base price) – MUST come from CatalogProductVariant.basePrice
+      // Production cost from catalog
       const costFromCatalog = mapped?.cost;
       const costSource = Number.isFinite(costFromCatalog as number)
         ? (costFromCatalog as number)
@@ -313,64 +287,48 @@ const ListingEditor = () => {
           : 0;
       const cost = costSource || 0;
 
-      console.log('[ListingEditor] Cost resolution:', {
-        costFromCatalog,
-        costFromIncoming: v.productionCost,
-        finalCost: cost,
-      });
-
-      // Retail price: preserve user-entered value if exists, otherwise use default
+      // Retail price priority:
+      // 1. User-entered (preserved in ref)
+      // 2. Existing draft price (if editing)
+      // 3. Default to cost (0 profit constraint)
       const rowKey = `${v.size}__${v.color}`;
       const preservedRetailPrice = retailPriceRef.current[rowKey];
 
       let defaultRetail = 0;
       if (preservedRetailPrice !== undefined && Number.isFinite(preservedRetailPrice)) {
-        // User has entered a price, preserve it
         defaultRetail = preservedRetailPrice;
-        console.log('[ListingEditor] Preserving user-entered retailPrice:', preservedRetailPrice);
       } else {
-        // Default retail price = base price (production cost)
-        defaultRetail = cost;
+        // Find existing match in draft data
+        const existing = draftVariants.find(
+          (dv) => norm(dv.size || '') === ns && norm(dv.color || '') === nc
+        );
+        if (existing && Number.isFinite(existing.sellingPrice)) {
+          defaultRetail = existing.sellingPrice;
+        } else {
+          // Default to exactly cost (0 profit constraint applied automatically per requirements)
+          defaultRetail = cost;
+        }
       }
-      //   // No user entry yet, use default
-      //   if (Number.isFinite(v.price as number)) {
-      //     defaultRetail = v.price as number;
-      //   } else if (Number.isFinite(state?.baseSellingPrice as number)) {
-      //     defaultRetail = state!.baseSellingPrice as number;
-      //   } else if (cost > 0) {
-      //     defaultRetail = parseFloat((cost / 0.6).toFixed(2));
-      //   }
-      // }
 
       const row: VariantRow = {
-        // Prefer mapped?.id (catalogProductVariantId from cost map) over v.id
-        // mapped?.id is guaranteed to be a CatalogProductVariant ID
         id: mapped?.id || v.id,
         size: v.size,
         color: v.color,
-        // SKU from catalog variant, or fallback
         sku: mapped?.sku || v.sku || '',
         productionCost: parseFloat(cost.toFixed(2)),
         retailPrice: defaultRetail,
       };
 
-      // Store retail price in ref for preservation
-      if (defaultRetail > 0) {
+      if (defaultRetail > 0 && !retailPriceRef.current[rowKey]) {
+        // Only seed initially so manual zeroing is supported
         retailPriceRef.current[rowKey] = defaultRetail;
       }
 
       return row;
     });
 
-    console.log('[ListingEditor] Final rows created:', {
-      count: rows.length,
-      sampleRow: rows[0],
-      allCosts: rows.map(r => r.productionCost),
-      allSkus: rows.map(r => r.sku),
-    });
-
     setVariantRows(rows);
-  }, [state?.variants, state?.baseSellingPrice, variantCostMap]);
+  }, [state?.variants, variantCostMap, draftData]);
 
   // Update ref when user edits retail price
   useEffect(() => {
@@ -496,8 +454,15 @@ const ListingEditor = () => {
           }));
       }
 
-      const selectedStoreIdsArray = Array.from(selectedStoreIds);
-      console.log(`[ListingEditor] ${targetStatus === 'published' ? 'Publishing' : 'Saving draft'} to stores:`, selectedStoreIdsArray);
+      // If it's an existing edit, derive existing storeId accurately
+      let targetStoreIdsArray = Array.from(selectedStoreIds);
+      if (storeProductId && draftData?.storeId) {
+        const designatedStoreId = draftData.storeId._id || draftData.storeId;
+        targetStoreIdsArray = [designatedStoreId.toString()];
+        console.log('[ListingEditor] Targeting singular existing store from draft context:', targetStoreIdsArray);
+      } else {
+        console.log(`[ListingEditor] ${targetStatus === 'published' ? 'Publishing' : 'Saving draft'} to targeted stores:`, targetStoreIdsArray);
+      }
 
       const catalogProductId = draftData?.catalogProductId || state?.productId;
       if (!catalogProductId) {
@@ -509,13 +474,13 @@ const ListingEditor = () => {
       let successCount = 0;
       const errors: string[] = [];
 
-      // For each selected store, upsert (create or update) the StoreProduct
-      for (const storeId of selectedStoreIdsArray) {
+      // For each targeted store, upsert (create or update) the StoreProduct
+      for (const storeId of targetStoreIdsArray) {
         try {
           // Check if this is the store with the existing draft (storeProductId)
           const isExistingDraft = storeProductId &&
             draftData?.storeId &&
-            String(draftData.storeId) === String(storeId);
+            (String(draftData.storeId._id || draftData.storeId) === String(storeId));
 
           if (isExistingDraft && storeProductId) {
             // Update existing draft
@@ -561,14 +526,14 @@ const ListingEditor = () => {
       }
 
       // Report results
-      if (successCount === selectedStoreIdsArray.length) {
+      if (successCount === targetStoreIdsArray.length) {
         if (targetStatus === 'published') {
           toast.success(`Product published to ${successCount} store${successCount > 1 ? 's' : ''}!`);
         } else {
           toast.success('Product saved as draft');
         }
       } else if (successCount > 0) {
-        toast.warning(`Saved to ${successCount}/${selectedStoreIdsArray.length} stores. ${errors.join(', ')}`);
+        toast.warning(`Saved to ${successCount}/${targetStoreIdsArray.length} stores. ${errors.join(', ')}`);
       } else {
         toast.error('Failed to save: ' + errors.join(', '));
       }
@@ -638,14 +603,7 @@ const ListingEditor = () => {
               </p>
             </div>
           </div>
-          {/* <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleSaveDraft} disabled={isSavingDraft || isPublishing}>
-              {isSavingDraft ? 'Saving...' : 'Save as draft'}
-            </Button>
-            <Button onClick={handlePublish} disabled={isPublishing || isSavingDraft}>
-              {isPublishing ? 'Publishing…' : 'Publish'}
-            </Button>
-          </div> */}
+          {/* Publish action controls mapped separately per design requirements if needed */}
         </div>
       </header>
 

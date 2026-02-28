@@ -24,7 +24,9 @@ import {
   Loader2,
   Check,
   ChevronsUpDown,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import {
   Command,
@@ -77,6 +79,11 @@ const StoreCheckoutPage: React.FC = () => {
   const [stateOpen, setStateOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
 
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
+
   // Constants
   const NAME_REGEX = /^[a-zA-Z\s']+$/;
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,9 +108,34 @@ const StoreCheckoutPage: React.FC = () => {
     load();
   }, [subdomain]);
 
+  const { isAuthenticated, customer, sendPhoneVerificationOtp, confirmPhoneVerificationOtp } = useStoreAuth();
 
+  const handleSendPhoneOtp = async () => {
+    if (!shippingInfo.phone || shippingInfo.phone.length !== 10) {
+      toast.error('Please enter a valid 10-digit phone number first');
+      return;
+    }
+    setSendingPhoneOtp(true);
+    const success = await sendPhoneVerificationOtp(subdomain!, shippingInfo.phone);
+    if (success) {
+      setShowPhoneVerify(true);
+    }
+    setSendingPhoneOtp(false);
+  };
 
-  const { isAuthenticated, customer } = useStoreAuth();
+  const handleVerifyPhoneOtp = async () => {
+    if (phoneOtp.length !== 6) {
+      toast.error('Please enter a 6-digit code');
+      return;
+    }
+    setVerifyingPhone(true);
+    const success = await confirmPhoneVerificationOtp(subdomain!, phoneOtp);
+    if (success) {
+      setShowPhoneVerify(false);
+      setPhoneOtp('');
+    }
+    setVerifyingPhone(false);
+  };
 
   useEffect(() => {
     if (store && !isAuthenticated) {
@@ -384,13 +416,10 @@ const StoreCheckoutPage: React.FC = () => {
 
     if (customer) {
       if (customer.signupMethod === 'email' && !phoneVerified) {
-        toast.error("Phone number verification is required to proceed with checkout.", {
-          description: "Please verify your phone number in your Profile.",
-          action: {
-            label: "Go to Profile",
-            onClick: () => navigate(buildStorePath('/profile', subdomain || ''))
-          }
+        toast.error("Phone number verification is required.", {
+          description: "Please enter and verify your phone number in the Shipping information section.",
         });
+        document.getElementById('phone')?.focus();
         return;
       }
 
@@ -615,22 +644,6 @@ const StoreCheckoutPage: React.FC = () => {
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                {/* Verification Message */}
-                {customer && (
-                  (customer.signupMethod === 'email' && !customer.isPhoneVerified)
-                ) && (
-                    <div className="sm:col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 mb-2">
-                      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-bold text-amber-900">Verification Required</p>
-                        <p className="text-xs text-amber-700">
-                          Phone number verification is required to proceed with checkout.
-                          <Link to={buildStorePath('/profile', subdomain || '')} className="ml-1 font-bold underline">Go to Profile</Link>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                 {/* Saved Address Selection */}
                 {customer && customer.addresses && customer.addresses.length > 0 && (
                   <div className="sm:col-span-2 mb-2">
@@ -706,7 +719,7 @@ const StoreCheckoutPage: React.FC = () => {
                 <div>
                   <Label htmlFor="phone">Phone *</Label>
                   <div className="flex relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium pointer-events-none select-none">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium pointer-events-none select-none z-10">
                       +91
                     </span>
                     <Input
@@ -716,11 +729,77 @@ const StoreCheckoutPage: React.FC = () => {
                       value={shippingInfo.phone}
                       onChange={handlePhoneChange}
                       placeholder="9876543210"
-                      className={cn("pl-11", errors.phone && "border-destructive")}
+                      className={cn("pl-11 pr-24", errors.phone && "border-destructive")}
                       required
+                      disabled={customer && customer.signupMethod === 'email' && customer.isPhoneVerified}
                     />
+                    {customer && customer.signupMethod === 'email' && (
+                      customer.isPhoneVerified ? (
+                        <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
+                      ) : (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <span className="group relative">
+                            <Info className="h-4 w-4 text-amber-500 cursor-help" />
+                            <span className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 text-center">
+                              Please verify your phone number to proceed.
+                            </span>
+                          </span>
+                          {!showPhoneVerify && shippingInfo.phone.length === 10 && (
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-green-600 font-semibold"
+                              onClick={handleSendPhoneOtp}
+                              disabled={sendingPhoneOtp}
+                            >
+                              Verify
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
                   </div>
                   {errors.phone && <p className="text-destructive text-xs mt-1">{errors.phone}</p>}
+
+                  {showPhoneVerify && (
+                    <div className="mt-2 p-3 bg-muted/30 rounded-xl border border-dashed border-border">
+                      <Label htmlFor="otp-phone" className="text-xs">Enter 6-digit Code</Label>
+                      <div className="flex gap-2 mt-1.5">
+                        <Input
+                          id="otp-phone"
+                          placeholder="000000"
+                          value={phoneOtp}
+                          onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="h-9 tracking-widest text-center text-sm font-bold max-w-[120px]"
+                          maxLength={6}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-9 shrink-0 bg-green-600 hover:bg-green-700 text-white font-semibold"
+                          onClick={handleVerifyPhoneOtp}
+                          disabled={verifyingPhone || phoneOtp.length !== 6}
+                        >
+                          {verifyingPhone ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                          Confirm
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 shrink-0"
+                          onClick={() => {
+                            setShowPhoneVerify(false);
+                            setPhoneOtp('');
+                          }}
+                          disabled={verifyingPhone}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">

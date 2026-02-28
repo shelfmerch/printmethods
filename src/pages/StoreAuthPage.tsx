@@ -74,9 +74,10 @@ const StoreAuthPage = () => {
 
     useEffect(() => {
         if (isAuthenticated && store) {
-            window.location.href = 'https://store.shelfmerch.com';
+            const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', store.subdomain);
+            navigate(redirectUrl, { state: location.state });
         }
-    }, [isAuthenticated, store]);
+    }, [isAuthenticated, store, navigate, location.state, redirectPath]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -163,7 +164,8 @@ const StoreAuthPage = () => {
                 } else {
                     toast.success('Account created!');
                 }
-                window.location.href = 'https://store.shelfmerch.com';
+                const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', subdomain);
+                navigate(redirectUrl, { state: location.state });
             }
         } catch (err) {
             toast.error('Verification failed');
@@ -175,7 +177,7 @@ const StoreAuthPage = () => {
 
     const handleGoogleSignIn = () => {
         if (!subdomain) return;
-        const redirectUrl = buildStorePath(`/${redirectPath}`, subdomain);
+        const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', subdomain);
         sessionStorage.setItem('storeAuthRedirect', redirectUrl);
         sessionStorage.setItem('storeAuthSubdomain', subdomain);
         window.location.href = `${API_BASE_URL}/api/auth/google`;

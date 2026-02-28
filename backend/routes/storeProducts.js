@@ -31,9 +31,20 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       return res.status(400).json({ success: false, message: 'catalogProductId and sellingPrice are required' });
     }
 
+    const { id, _id } = req.body;
+    const spId = id || _id;
+
     // Resolve store
     let store = null;
-    if (storeId) {
+    let existingSp = null;
+
+    if (spId && mongoose.Types.ObjectId.isValid(spId)) {
+      existingSp = await StoreProduct.findById(spId);
+    }
+
+    if (existingSp) {
+      store = await Store.findById(existingSp.storeId);
+    } else if (storeId) {
       if (!mongoose.Types.ObjectId.isValid(storeId)) {
         return res.status(400).json({ success: false, message: 'Invalid storeId' });
       }
@@ -77,8 +88,6 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
 
     // Resolve StoreProduct: If ID provided, update; otherwise create new.
     // This avoids overwriting other listings of the same catalog product.
-    const { id, _id } = req.body;
-    const spId = id || _id;
 
     let storeProduct;
     if (spId && mongoose.Types.ObjectId.isValid(spId)) {
@@ -395,15 +404,28 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
 // @access  Private (merchant, superadmin)
 router.get('/', protect, authorize('merchant', 'superadmin'), async (req, res) => {
   try {
-    const { status, isActive } = req.query;
+    const { status, isActive, storeId } = req.query;
 
     let storeFilter = {};
     if (req.user.role !== 'superadmin') {
       storeFilter.merchant = req.user._id;
     }
 
-    const stores = await Store.find({ ...storeFilter, isActive: true }, { _id: 1 });
-    const storeIds = stores.map(s => s._id);
+    let storeIds = [];
+    if (storeId) {
+      // If storeId is provided, verify it belongs to the merchant
+      if (!mongoose.Types.ObjectId.isValid(storeId)) {
+        return res.status(400).json({ success: false, message: 'Invalid storeId' });
+      }
+      const store = await Store.findOne({ ...storeFilter, _id: storeId, isActive: true }, { _id: 1 });
+      if (!store) {
+        return res.status(404).json({ success: false, message: 'Store not found or not owned by you' });
+      }
+      storeIds = [store._id];
+    } else {
+      const stores = await Store.find({ ...storeFilter, isActive: true }, { _id: 1 });
+      storeIds = stores.map(s => s._id);
+    }
 
     const spFilter = { storeId: { $in: storeIds } };
     if (status) spFilter.status = status;
