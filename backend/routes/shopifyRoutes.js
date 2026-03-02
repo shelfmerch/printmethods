@@ -55,14 +55,14 @@ async function ensureWebhook(shop, accessToken, topic, address) {
       'Content-Type': 'application/json'
     };
 
-    // 1. Fetch existing webhooks
+    // 1. Fetch existing webhooks to avoid duplicates
     const getResponse = await axios.get(url, { headers });
     const existingWebhooks = getResponse.data.webhooks || [];
 
     // 2. Check if same topic + address already exists
     const existing = existingWebhooks.find(wh => wh.topic === topic && wh.address === address);
     if (existing) {
-      console.log(`[Shopify Webhook] Reusing existing ${topic} for ${shop}:`, existing.id);
+      console.log(`[Shopify Webhook] Reuse ${topic} | ${shop}:`, existing.id);
       return existing.id;
     }
 
@@ -72,10 +72,10 @@ async function ensureWebhook(shop, accessToken, topic, address) {
       { webhook: { topic, address, format: 'json' } },
       { headers }
     );
-    console.log(`[Shopify Webhook] Created ${topic} for ${shop}:`, postResponse.data.webhook.id);
+    console.log(`[Shopify Webhook] Create ${topic} | ${shop}:`, postResponse.data.webhook.id);
     return postResponse.data.webhook.id;
   } catch (error) {
-    console.error(`[Shopify Webhook Error] Failed to ensure ${topic} for ${shop}:`, error.response?.data || error.message);
+    console.error(`[Shopify Webhook] FAIL ${topic} | ${shop}:`, error.response?.data || error.message);
     return null;
   }
 }
@@ -211,7 +211,7 @@ router.get('/callback', async (req, res) => {
 
     // REGISTER WEBHOOKS (Idempotent)
     try {
-      const publicBase = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
+      const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
       const webhooksToRegister = [
         { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/webhooks/app-uninstalled' },
         { topic: 'orders/create', key: 'orders_create', path: '/api/shopify/webhooks/orders-create' },
@@ -222,15 +222,21 @@ router.get('/callback', async (req, res) => {
       ];
 
       for (const wh of webhooksToRegister) {
-        const webhookId = await ensureWebhook(sanitizedShop, access_token, wh.topic, `${publicBase}${wh.path}`);
-        if (webhookId) {
-          if (!store.webhookIds) store.webhookIds = new Map();
-          store.webhookIds.set(wh.key, webhookId.toString());
+        try {
+          const webhookId = await ensureWebhook(sanitizedShop, access_token, wh.topic, `${publicBase}${wh.path}`);
+          if (webhookId) {
+            if (!store.webhookIds) store.webhookIds = new Map();
+            store.webhookIds.set(wh.key, webhookId.toString());
+          }
+        } catch (innerErr) {
+          console.error(`[Shopify Callback] Loop error for ${wh.topic}:`, innerErr.message);
         }
       }
+      
+      store.markModified('webhookIds');
       await store.save();
     } catch (whErr) {
-      console.error('[Shopify Callback] Webhook registration failed:', whErr.message);
+      console.error('[Shopify Callback] Webhook process failed:', whErr.message);
     }
 
     res.clearCookie('shopify_state', { path: '/', signed: true });
