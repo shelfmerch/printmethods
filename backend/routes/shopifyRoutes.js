@@ -49,7 +49,7 @@ const handleShopifyError = (error, res) => {
  */
 async function ensureWebhook(shop, accessToken, topic, address) {
   try {
-    const url = `https://${shop}/admin/api/2024-01/webhooks.json`;
+    const url = `https://${shop}/admin/api/2026-01/webhooks.json`;
     const headers = {
       'X-Shopify-Access-Token': accessToken,
       'Content-Type': 'application/json'
@@ -67,16 +67,25 @@ async function ensureWebhook(shop, accessToken, topic, address) {
     }
 
     // 3. Create if not found
-    const postResponse = await axios.post(
-      url,
-      { webhook: { topic, address, format: 'json' } },
-      { headers }
-    );
-    console.log(`[Shopify Webhook] Create ${topic} | ${shop}:`, postResponse.data.webhook.id);
-    return postResponse.data.webhook.id;
+    try {
+      const postResponse = await axios.post(
+        url,
+        { webhook: { topic, address, format: 'json' } },
+        { headers }
+      );
+      console.log(`[Shopify Webhook] Create ${topic} | ${shop}:`, postResponse.data.webhook.id);
+      return postResponse.data.webhook.id;
+    } catch (postError) {
+      console.error(`[Shopify Webhook FAIL] topic: ${topic}, address: ${address}`);
+      console.error(`Status: ${postError.response?.status}`);
+      console.error(`Response: ${JSON.stringify(postError.response?.data || postError.message)}`);
+      throw postError; 
+    }
   } catch (error) {
-    console.error(`[Shopify Webhook] FAIL ${topic} | ${shop}:`, error.response?.data || error.message);
-    return null;
+    if (!error.response) {
+      console.error(`[Shopify Webhook Error] ${topic} | ${shop}:`, error.message);
+    }
+    throw error;
   }
 }
 
@@ -225,16 +234,16 @@ router.get('/callback', async (req, res) => {
         try {
           const webhookId = await ensureWebhook(sanitizedShop, access_token, wh.topic, `${publicBase}${wh.path}`);
           if (webhookId) {
-            if (!store.webhookIds) store.webhookIds = new Map();
-            store.webhookIds.set(wh.key, webhookId.toString());
+            store.webhookIds ??= new Map();
+            store.webhookIds.set(wh.key, String(webhookId));
+            await store.save(); 
           }
         } catch (innerErr) {
           console.error(`[Shopify Callback] Loop error for ${wh.topic}:`, innerErr.message);
         }
       }
       
-      store.markModified('webhookIds');
-      await store.save();
+      console.log('[Shopify Callback] Webhook Registration Summary:', [...store.webhookIds.entries()]);
     } catch (whErr) {
       console.error('[Shopify Callback] Webhook process failed:', whErr.message);
     }
