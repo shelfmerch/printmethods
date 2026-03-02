@@ -2792,5 +2792,21 @@ export const api = {
     apiRequest<T>(endpoint, { method: 'DELETE' }),
 };
 
+// Shopify Publish API
+export const shopifyApi = {
+  listConnectedShops: () => apiRequest<{ success: boolean; data: Array<{ shop: string; isActive: boolean }> }>('/api/shopify/stores'),
+  publishProduct: (payload: {
+    shop: string;
+    storeProductId?: string;
+    title: string;
+    description?: string;
+    galleryImages: Array<{ url: string }>;
+    variants: Array<{ size: string; color: string; sku: string; price: number }>;
+  }) => apiRequest<{ ok: boolean; shop: string; shopifyProductId: string }>('/api/shopify/publish-product', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+};
+
 export { getToken, removeTokens, apiRequest };
 

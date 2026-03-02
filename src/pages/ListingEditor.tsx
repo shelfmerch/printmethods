@@ -19,7 +19,14 @@ import {
 } from '@/components/ui/table';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { storeApi, storeProductsApi, catalogVariantsApi } from '@/lib/api';
+import { storeApi, storeProductsApi, catalogVariantsApi, shopifyApi } from '@/lib/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Normalize key for matching: trim, lowercase, collapse spaces
 const norm = (str: string): string => {
@@ -157,6 +164,28 @@ const ListingEditor = () => {
       }
     };
     fetchStores();
+  }, []);
+
+  // Fetch connected Shopify stores on mount
+  useEffect(() => {
+    const fetchShopifyStores = async () => {
+      setIsShopifyLoading(true);
+      try {
+        const response = await shopifyApi.listConnectedShops();
+        if (response.success && Array.isArray(response.data)) {
+          setShopifyStores(response.data);
+          // Pre-select first store if available
+          if (response.data.length > 0) {
+            setSelectedShop(response.data[0].shop);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch Shopify stores:', error);
+      } finally {
+        setIsShopifyLoading(false);
+      }
+    };
+    fetchShopifyStores();
   }, []);
 
   // Load catalog variant costs (production basePrice) and SKU template
@@ -341,6 +370,13 @@ const ListingEditor = () => {
   }, [variantRows]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  // --- SHOPIFY PUBLISH STATE ---
+  const [shopifyStores, setShopifyStores] = useState<Array<{ shop: string; isActive: boolean }>>([]);
+  const [selectedShop, setSelectedShop] = useState<string>('');
+  const [isShopifyLoading, setIsShopifyLoading] = useState(false);
+  const [isShopifyPublishing, setIsShopifyPublishing] = useState(false);
+  const [shopifyResult, setShopifyResult] = useState<{ shopifyProductId: string } | null>(null);
 
   const hasVariantData = variantRows.length > 0;
 
@@ -571,6 +607,74 @@ const ListingEditor = () => {
   const handlePublish = () => {
     saveProduct('published');
   };
+
+  // --- SHOPIFY PUBLISH HANDLER ---
+  const handleShopifyPublish = async () => {
+    if (!selectedShop) {
+      toast.error('Please select a Shopify store');
+      return;
+    }
+    if (!title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    if (!state?.galleryImages || state.galleryImages.length === 0 || !state.galleryImages[0]?.url) {
+      toast.error('At least one gallery image is required');
+      return;
+    }
+    if (variantRows.length === 0) {
+      toast.error('At least one variant is required');
+      return;
+    }
+    if (pricingSummary && pricingSummary.minProfit < 0) {
+      toast.error('Cannot publish with negative profit');
+      return;
+    }
+
+    setIsShopifyPublishing(true);
+    setShopifyResult(null);
+
+    try {
+      const payload = {
+        shop: selectedShop,
+        storeProductId: storeProductId || undefined,
+        title: title.trim(),
+        description: description || '',
+        galleryImages: state.galleryImages.map(img => ({ url: img.url })),
+        variants: variantRows.map(r => ({
+          size: r.size,
+          color: r.color,
+          sku: r.sku,
+          price: r.retailPrice,
+        })),
+      };
+
+      const response = await shopifyApi.publishProduct(payload);
+
+      if (response.ok && response.shopifyProductId) {
+        setShopifyResult({ shopifyProductId: response.shopifyProductId });
+        toast.success(`Product published to Shopify! ID: ${response.shopifyProductId}`);
+      } else {
+        toast.error('Failed to publish to Shopify');
+      }
+    } catch (error: any) {
+      console.error('Shopify publish error:', error);
+      toast.error(error?.message || 'Failed to publish to Shopify');
+    } finally {
+      setIsShopifyPublishing(false);
+    }
+  };
+
+  // Disable Shopify publish button conditions
+  const isShopifyPublishDisabled =
+    !selectedShop ||
+    !title.trim() ||
+    !state?.galleryImages ||
+    state.galleryImages.length === 0 ||
+    !state.galleryImages[0]?.url ||
+    variantRows.length === 0 ||
+    (pricingSummary !== null && pricingSummary.minProfit < 0) ||
+    isShopifyPublishing;
 
   if (isLoadingDraft) {
     return (
@@ -897,6 +1001,64 @@ const ListingEditor = () => {
               <p className="text-sm text-muted-foreground">No stores connected yet.</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Go to Stores page to create or connect a store.
+              </p>
+            </div>
+          )}
+        </Card>
+
+        {/* Publish to Shopify */}
+        <Card className="p-6 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">Publish to Shopify</h2>
+            <p className="text-sm text-muted-foreground">
+              Publish this product directly to your connected Shopify store as a draft.
+            </p>
+          </div>
+
+          {isShopifyLoading ? (
+            <div className="flex items-center gap-2 py-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span className="text-sm text-muted-foreground">Loading Shopify stores...</span>
+            </div>
+          ) : shopifyStores.length > 0 ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="shopify-store">Select Shopify store</Label>
+                <Select value={selectedShop} onValueChange={setSelectedShop}>
+                  <SelectTrigger id="shopify-store" className="w-full">
+                    <SelectValue placeholder="Select a Shopify store" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shopifyStores.map((store) => (
+                      <SelectItem key={store.shop} value={store.shop}>
+                        {store.shop}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleShopifyPublish}
+                disabled={isShopifyPublishDisabled}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                {isShopifyPublishing ? 'Publishing to Shopify...' : 'Publish to Shopify'}
+              </Button>
+
+              {shopifyResult && (
+                <div className="bg-green-50 border border-green-200 text-green-800 text-sm p-3 rounded-lg">
+                  <p className="font-medium">Successfully published to Shopify!</p>
+                  <p className="text-xs mt-1">Product ID: {shopifyResult.shopifyProductId}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-4 border rounded-lg bg-muted/20">
+              <p className="text-sm text-muted-foreground">No Shopify stores connected.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Connect your Shopify store to publish products directly.
               </p>
             </div>
           )}

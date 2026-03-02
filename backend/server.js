@@ -42,6 +42,7 @@ const adminWithdrawalsRoutes = require('./routes/adminWithdrawals');
 const reviewsRoutes = require('./routes/reviews');
 const { tenantResolver } = require('./middleware/tenantResolver');
 const storeRedirect = require('./middleware/storeRedirect');
+const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
 
 const { WHITELISTED_DOMAINS } = require('./utils/security');
 
@@ -241,6 +242,7 @@ app.use('/api/admin/wallet', adminWalletRoutes);
 app.use('/api/merchant', merchantWithdrawalsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
+app.use('/api/shopify', shopifyPublishRoutes);
 
 // 404 handler
 app.use((req, res) => {
