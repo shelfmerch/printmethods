@@ -9,7 +9,6 @@ import ManageStoreDialog from '@/components/ManageStoreDialog';
 import { storeApi, storeProductsApi } from '@/lib/api';
 import type { Store as StoreType } from '@/types';
 import { toast } from 'sonner';
-import logo from "@/assets/logo.webp";
 import {
   Package,
   Store,
@@ -25,7 +24,6 @@ import {
   Paintbrush,
   CheckCircle2,
   Loader2,
-  Trash2,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -58,10 +56,6 @@ const Stores = () => {
   const [newStoreName, setNewStoreName] = useState('');
   const [newStoreDescription, setNewStoreDescription] = useState('');
   const [isCreatingStore, setIsCreatingStore] = useState(false);
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [storeToDelete, setStoreToDelete] = useState<StoreType | null>(null);
-  const [isDeletingStore, setIsDeletingStore] = useState(false);
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -177,7 +171,7 @@ const Stores = () => {
 
       const newStore = createResp.data;
       toast.success('Store created successfully!');
-
+      
       // Refresh stores list
       const response = await storeApi.listMyStores();
       if (response.success) {
@@ -196,40 +190,14 @@ const Stores = () => {
     }
   };
 
-  const handleDeleteStore = async () => {
-    if (!storeToDelete) return;
-    setIsDeletingStore(true);
-    try {
-      const resp = await storeApi.delete(storeToDelete.id);
-      if (resp.success) {
-        toast.success('Store deleted successfully');
-        setStores((prev) => prev.filter(s => s.id !== storeToDelete.id));
-        setDeleteDialogOpen(false);
-        setStoreToDelete(null);
-      } else {
-        throw new Error(resp.message || 'Failed to delete store');
-      }
-    } catch (error: any) {
-      console.error('Error deleting store:', error);
-      toast.error(error.message || 'Error deleting store');
-    } finally {
-      setIsDeletingStore(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="hidden lg:block w-64 border-r bg-muted/10 p-6 space-y-8 sticky top-0 h-screen overflow-y-auto">
         <Link to="/" className="flex items-center space-x-2">
-          {/* <span className="font-heading text-xl font-bold text-foreground">
+          <span className="font-heading text-xl font-bold text-foreground">
             Shelf<span className="text-primary">Merch</span>
-          </span> */}
-          <img
-            src={logo}
-            alt="logo"
-            className="w-40 rounded-3xl shadow-2xl"
-          />
+          </span>
         </Link>
 
         <nav className="space-y-2">
@@ -299,7 +267,7 @@ const Stores = () => {
                   Create New Store
                 </Button>
               </div>
-
+              
               {stores.length === 0 ? (
                 <Card className="p-12 text-center">
                   <Store className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -315,63 +283,52 @@ const Stores = () => {
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {stores.map((store) => (
-                    <Card key={store.id} className="p-6 flex flex-col justify-between gap-4 border-l-4 border-l-primary">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-bold text-lg">{store.storeName}</h3>
-                          <p className="text-sm text-muted-foreground">{store.subdomain}.shelfmerch.com</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {store.useBuilder && (
-                            <Badge variant="secondary" className="text-xs flex items-center gap-1 bg-green-100 text-green-700 border-green-200">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Builder
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-xs">Active</Badge>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                            onClick={() => {
-                              setStoreToDelete(store);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                  <Card key={store.id} className="p-6 flex flex-col justify-between gap-4 border-l-4 border-l-primary">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-bold text-lg">{store.storeName}</h3>
+                        <p className="text-sm text-muted-foreground">{store.subdomain}.shelfmerch.com</p>
                       </div>
+                      <div className="flex items-center gap-2">
+                        {store.useBuilder && (
+                          <Badge variant="secondary" className="text-xs flex items-center gap-1 bg-green-100 text-green-700 border-green-200">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Builder
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-xs">Active</Badge>
+                      </div>
+                    </div>
 
-                      {store.builderLastPublishedAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Last published: {new Date(store.builderLastPublishedAt).toLocaleDateString()}
-                        </p>
-                      )}
+                    {store.builderLastPublishedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last published: {new Date(store.builderLastPublishedAt).toLocaleDateString()}
+                      </p>
+                    )}
 
-                      <div className="flex flex-col gap-2 pt-2">
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" className="flex-1" asChild>
-                            <a href={getStoreUrl(store.subdomain)} target="_blank" rel="noreferrer">
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Visit Store
-                            </a>
-                          </Button>
-                          <Button variant="default" size="sm" className="flex-1" onClick={() => toast.info('Dashboard coming soon')}>
-                            Dashboard
-                          </Button>
-                        </div>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => navigate(`/stores/${store.id}/builder`)}
-                        >
-                          <Paintbrush className="w-4 h-4 mr-2" />
-                          Customize Storefront
+                    <div className="flex flex-col gap-2 pt-2">
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="flex-1" asChild>
+                          <a href={getStoreUrl(store.subdomain)} target="_blank" rel="noreferrer">
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Visit Store
+                          </a>
+                        </Button>
+                        <Button variant="default" size="sm" className="flex-1" onClick={() => toast.info('Dashboard coming soon')}>
+                          Dashboard
                         </Button>
                       </div>
-                    </Card>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => navigate(`/stores/${store.id}/builder`)}
+                      >
+                        <Paintbrush className="w-4 h-4 mr-2" />
+                        Customize Storefront
+                      </Button>
+                    </div>
+                  </Card>
                   ))}
                 </div>
               )}
@@ -574,51 +531,6 @@ const Stores = () => {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Store Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Delete Store</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-semibold text-foreground">{storeToDelete?.storeName}</span>?
-              This action cannot be undone and all associated products and settings will be permanently removed.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-3 pt-4 border-t mt-4">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setStoreToDelete(null);
-              }}
-              disabled={isDeletingStore}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              className="flex-1 gap-2"
-              onClick={handleDeleteStore}
-              disabled={isDeletingStore}
-            >
-              {isDeletingStore ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 };
