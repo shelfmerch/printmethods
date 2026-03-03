@@ -101,6 +101,7 @@ const StoreProductPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { cart, cartCount, addToCart, updateQuantity, removeFromCart, isCartOpen, setIsCartOpen } = useCart();
 
+
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string>('');
@@ -118,6 +119,8 @@ const StoreProductPage = () => {
   const [colorToSizesMap, setColorToSizesMap] = useState<Record<string, Set<string>>>({});
   // Track which colors are available for each size
   const [sizeToColorsMap, setSizeToColorsMap] = useState<Record<string, Set<string>>>({});
+  // Track isActive status: color -> size -> boolean
+  const [variantAvailabilityMap, setVariantAvailabilityMap] = useState<Record<string, Record<string, boolean>>>({});
 
   const theme = store ? getTheme(store.theme) : getTheme('modern');
 
@@ -255,15 +258,8 @@ const StoreProductPage = () => {
                 ? sp.price
                 : 0;
 
-          // Derive price from variants if they exist for consistency
-          if (Array.isArray(sp.variantsSummary) && sp.variantsSummary.length > 0) {
-            const variantPrices = sp.variantsSummary
-              .map((v: any) => v.sellingPrice)
-              .filter((p: any) => typeof p === 'number' && p > 0);
-            if (variantPrices.length > 0) {
-              basePrice = Math.min(...variantPrices);
-            }
-          }
+          // basePrice is already set to sp.sellingPrice or sp.price above
+
 
           const primaryImage =
             sp.previewImagesUrl?.find((img: any) => img.isPrimary)?.url ||
@@ -287,6 +283,7 @@ const StoreProductPage = () => {
           // Track which color/size combinations are available
           const availabilityMap: Record<string, Set<string>> = {}; // color -> Set of sizes
           const sizeToColorsMap: Record<string, Set<string>> = {}; // size -> Set of colors
+          const availabilityStatusMap: Record<string, Record<string, boolean>> = {};
 
           variantDocs.forEach((v) => {
             // Handle populated StoreProductVariant structure
@@ -341,11 +338,15 @@ const StoreProductPage = () => {
 
             if (!priceMap[color]) priceMap[color] = {};
             priceMap[color][size] = variantPrice;
+
+            if (!availabilityStatusMap[color]) availabilityStatusMap[color] = {};
+            availabilityStatusMap[color][size] = v.isActive !== false;
           });
 
           setColorHexMap(hexMap);
           setColorToSizesMap(availabilityMap);
           setSizeToColorsMap(sizeToColorsMap);
+          setVariantAvailabilityMap(availabilityStatusMap);
 
           // Only include colors and sizes that have at least one available variant
           const colors = Array.from(colorSet.values());
@@ -496,7 +497,7 @@ const StoreProductPage = () => {
       return;
     }
 
-    addToCart(product, { color: selectedColor, size: selectedSize }, quantity);
+    addToCart(product, { color: selectedColor, size: selectedSize }, quantity, effectivePrice);
   }, [product, quantity, selectedColor, selectedSize, addToCart]);
 
 
@@ -552,7 +553,7 @@ const StoreProductPage = () => {
       return;
     }
 
-    addToCart(product, { color: selectedColor, size: selectedSize }, 1);
+    addToCart(product, { color: selectedColor, size: selectedSize }, 1, effectivePrice);
     setIsCartOpen(false);
 
     if (isAuthenticated) {
@@ -902,29 +903,33 @@ const StoreProductPage = () => {
                 {availableColors.map((color) => {
                   const hex = getColorHex(color);
                   const isSelected = selectedColor === color;
-                  // Check if this color has any available sizes
-                  const hasSizes = colorToSizesMap[color]?.size > 0;
+                  // Check if this color has any sizes populated at all
+                  const hasPopulatedSizes = colorToSizesMap[color]?.size > 0;
+                  // Check if at least one variant of this color is active
+                  const hasActiveSizes = Object.values(variantAvailabilityMap[color] || {}).some(active => active);
+
+                  const isAvailable = hasPopulatedSizes && hasActiveSizes;
 
                   return (
                     <button
                       key={color}
                       onClick={() => {
-                        if (hasSizes) {
+                        if (isAvailable) {
                           setSelectedColor(color);
                         }
                       }}
-                      disabled={!hasSizes}
+                      disabled={!isAvailable}
                       className={cn(
                         "relative w-10 h-10 rounded-full border-2 transition-all",
-                        !hasSizes
+                        !isAvailable
                           ? 'opacity-40 cursor-not-allowed grayscale'
                           : isSelected
                             ? 'border-primary ring-2 ring-primary/30 hover:scale-110'
                             : 'border-border hover:border-primary/50 hover:scale-110'
                       )}
                       style={{ backgroundColor: hex }}
-                      title={!hasSizes ? `${color} - No sizes available` : color}
-                      aria-label={!hasSizes ? `${color} color (no sizes available)` : `Select ${color} color`}
+                      title={!isAvailable ? `${color} - Out of Stock` : color}
+                      aria-label={!isAvailable ? `${color} color (out of stock)` : `Select ${color} color`}
                     >
                       {isSelected && (
                         <Check
@@ -935,7 +940,7 @@ const StoreProductPage = () => {
                           strokeWidth={3}
                         />
                       )}
-                      {!hasSizes && (
+                      {!isAvailable && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-xs text-muted-foreground">×</span>
                         </div>
@@ -967,20 +972,32 @@ const StoreProductPage = () => {
                 <div className="flex flex-wrap gap-2">
                   {availableSizes.map((size) => {
                     const isSelected = selectedSize === size;
+                    const isActive = variantAvailabilityMap[selectedColor]?.[size] !== false;
+
                     return (
                       <button
                         key={size}
-                        onClick={() => setSelectedSize(size)}
+                        onClick={() => {
+                          if (isActive) {
+                            setSelectedSize(size);
+                          }
+                        }}
+                        disabled={!isActive}
                         className={cn(
                           "min-w-[3rem] px-3 py-2 rounded-md border text-sm font-medium transition-all",
-                          isSelected
-                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                            : "border-border hover:border-primary/50 hover:bg-accent"
+                          !isActive
+                            ? "opacity-40 cursor-not-allowed grayscale bg-muted/50 border-dashed"
+                            : isSelected
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "border-border hover:border-primary/50 hover:bg-accent"
                         )}
-                        title={size}
-                        aria-label={`Select ${size} size`}
+                        title={isActive ? size : `${size} - Out of Stock`}
+                        aria-label={isActive ? `Select ${size} size` : `${size} size (out of stock)`}
                       >
                         {size}
+                        {!isActive && (
+                          <span className="block text-[8px] leading-tight font-bold text-destructive -mt-0.5">Out of Stock</span>
+                        )}
                       </button>
                     );
                   })}
@@ -1018,22 +1035,32 @@ const StoreProductPage = () => {
             </div>
 
             <div className="flex gap-3">
-              <Button
-                size="lg"
-                className="flex-1 text-base font-semibold shadow-md active:scale-[0.98] transition-all"
-                onClick={handleAddToCartClick}
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Add to Cart
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="flex-1 text-base font-semibold border-2 hover:bg-accent/50"
-                onClick={handleBuyNow}
-              >
-                Buy it now
-              </Button>
+              {(() => {
+                const isSelectedOos = selectedColor && selectedSize && variantAvailabilityMap[selectedColor]?.[selectedSize] === false;
+
+                return (
+                  <>
+                    <Button
+                      size="lg"
+                      className="flex-1 text-base font-semibold shadow-md active:scale-[0.98] transition-all"
+                      onClick={handleAddToCartClick}
+                      disabled={isSelectedOos || isLoading}
+                    >
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      {isSelectedOos ? 'Out of Stock' : 'Add to Cart'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="flex-1 text-base font-semibold border-2 hover:bg-accent/50"
+                      onClick={handleBuyNow}
+                      disabled={isSelectedOos || isLoading}
+                    >
+                      Buy Now
+                    </Button>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -1380,10 +1407,19 @@ const StoreProductPage = () => {
             <span className="text-xl font-bold hidden sm:block" style={{ color: theme.colors.primary }}>
               ₹{effectivePrice.toFixed(2)}
             </span>
-            <Button size="lg" onClick={handleAddToCartClick} className="gap-2">
+            <Button
+              size="lg"
+              onClick={handleAddToCartClick}
+              className="gap-2"
+              disabled={selectedColor && selectedSize && variantAvailabilityMap[selectedColor]?.[selectedSize] === false || isLoading}
+            >
               <ShoppingCart className="h-4 w-4" />
-              <span className="hidden sm:inline">Add to Cart</span>
-              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">
+                {selectedColor && selectedSize && variantAvailabilityMap[selectedColor]?.[selectedSize] === false ? 'Out of Stock' : 'Add to Cart'}
+              </span>
+              <span className="sm:hidden">
+                {selectedColor && selectedSize && variantAvailabilityMap[selectedColor]?.[selectedSize] === false ? 'OOS' : 'Add'}
+              </span>
             </Button>
           </div>
         </div>

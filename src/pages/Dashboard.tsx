@@ -17,6 +17,14 @@ import { getProducts } from '@/lib/localStorage';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Order } from '@/types';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -45,6 +53,10 @@ const Dashboard = () => {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [productToPublish, setProductToPublish] = useState<any>(null);
   const [targetStoreIds, setTargetStoreIds] = useState<string[]>([]);
+
+  // OOS variants popup state
+  const [oosDialogOpen, setOosDialogOpen] = useState(false);
+  const [productForOos, setProductForOos] = useState<any>(null);
 
   const storageKey = useMemo(() => `products_storage`, []);
 
@@ -461,6 +473,7 @@ const Dashboard = () => {
                       <th className="px-2 py-3 hidden md:table-cell"><Skeleton className="h-4 w-20" /></th>
                       <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></th>
                       <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></th>
+                      <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-20" /></th>
                       <th className="px-2 py-3 text-right"><Skeleton className="h-4 w-24 ml-auto" /></th>
                     </tr>
                   </thead>
@@ -480,6 +493,7 @@ const Dashboard = () => {
                         <td className="px-2 py-4 hidden md:table-cell"><Skeleton className="h-4 w-20" /></td>
                         <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></td>
                         <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></td>
+                        <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-20" /></td>
                         <td className="px-2 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             <Skeleton className="h-8 w-16" />
@@ -517,6 +531,7 @@ const Dashboard = () => {
                       <th className="px-2 py-3 font-medium hidden md:table-cell">Created</th>
                       <th className="px-2 py-3 font-medium hidden lg:table-cell">Price</th>
                       <th className="px-2 py-3 font-medium hidden lg:table-cell">Mockup</th>
+                      <th className="px-2 py-3 font-medium hidden lg:table-cell">Inventory</th>
                       <th className="px-2 py-3 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
@@ -577,6 +592,27 @@ const Dashboard = () => {
                           </td>
                           <td className="px-2 py-4 align-middle hidden lg:table-cell">
                             {mockup ? 'Preview saved' : 'No mockup'}
+                          </td>
+                          <td className="px-2 py-4 align-middle hidden lg:table-cell">
+                            {(() => {
+                              const variants = sp.variantsSummary || [];
+                              const oosCount = variants.filter((v: any) => v.isActive === false).length;
+                              if (oosCount > 0) {
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setProductForOos(sp);
+                                      setOosDialogOpen(true);
+                                    }}
+                                    className="text-xs font-semibold text-destructive hover:underline"
+                                  >
+                                    {oosCount} out of stock
+                                  </button>
+                                );
+                              }
+                              return <span className="text-xs text-green-600">All in stock</span>;
+                            })()}
                           </td>
                           <td className="px-2 py-4 align-middle">
                             <div className="flex justify-end gap-2 text-foreground">
@@ -668,6 +704,60 @@ const Dashboard = () => {
               <Button onClick={confirmPublish} disabled={targetStoreIds.length === 0}>
                 Publish to {targetStoreIds.length} Store{targetStoreIds.length !== 1 ? 's' : ''}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Out of Stock Variants Dialog – Printify-style */}
+        <Dialog open={oosDialogOpen} onOpenChange={setOosDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Out of stock variants</DialogTitle>
+              <DialogDescription>
+                These variants are out of stock for "{productForOos?.displayTitle || productForOos?.title}"
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Size</TableHead>
+                      <TableHead className="font-semibold">Color</TableHead>
+                      <TableHead className="font-semibold">Alternative providers</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(productForOos?.variantsSummary || [])
+                      .filter((v: any) => v.isActive === false)
+                      .map((v: any, idx: number) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium">{v.size}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-3.5 h-3.5 rounded-full border border-border flex-shrink-0"
+                                style={{ backgroundColor: v.colorHex || '#ccc' }}
+                              />
+                              <span>{v.color}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">–</TableCell>
+                        </TableRow>
+                      ))}
+                    {(productForOos?.variantsSummary || []).filter((v: any) => v.isActive === false).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
+                          No out-of-stock variants
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOosDialogOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

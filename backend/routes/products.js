@@ -255,6 +255,10 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
         basePrice: undefined // Remove basePrice to avoid confusion
       };
     });
+    productResponse.pricing = {
+      ...(productResponse.pricing || {}),
+      gst: product.gst
+    };
     productResponse.availableSizes = [...new Set(createdVariants.map(v => v.size))];
     productResponse.availableColors = [...new Set(createdVariants.map(v => v.color))];
 
@@ -397,6 +401,10 @@ router.get('/', protect, async (req, res) => {
           attributes: p.attributes,
           basePrice: p.basePrice
         },
+        pricing: {
+          ...(p.pricing ? (p.pricing.toObject ? p.pricing.toObject() : p.pricing) : {}),
+          gst: p.gst
+        },
         variants: transformedVariants,
         availableSizes: [...new Set(transformedVariants.map(v => v.size))],
         availableColors: [...new Set(transformedVariants.map(v => v.color))]
@@ -419,14 +427,22 @@ router.get('/', protect, async (req, res) => {
 
     console.log(`Found ${transformedProducts.length} products out of ${total} total`);
 
+    let finalProducts = transformedProducts;
+    let finalTotal = total;
+
+    if (req.query.hasActiveVariantsOnly === 'true') {
+      finalProducts = transformedProducts.filter(p => p.variants && p.variants.length > 0);
+      finalTotal = finalProducts.length;
+    }
+
     res.json({
       success: true,
-      data: transformedProducts,
+      data: finalProducts,
       pagination: {
         page: parseInt(String(page)),
         limit: parseInt(String(limit)),
-        total,
-        pages: Math.ceil(total / parseInt(String(limit)))
+        total: finalTotal,
+        pages: Math.ceil(finalTotal / parseInt(String(limit)))
       }
     });
   } catch (error) {
@@ -575,6 +591,10 @@ router.get('/catalog/active', async (req, res) => {
           attributes: p.attributes,
           basePrice: p.basePrice
         },
+        pricing: {
+          ...(p.pricing ? (p.pricing.toObject ? p.pricing.toObject() : p.pricing) : {}),
+          gst: p.gst
+        },
         variants: transformedVariants,
         availableSizes: [...new Set(transformedVariants.map(v => v.size))],
         availableColors: [...new Set(transformedVariants.map(v => v.color))]
@@ -621,10 +641,10 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Fetch variants from separate collection - only active variants
+    // Fetch ALL variants from separate collection (including OOS) so the admin
+    // edit form can correctly show and preserve the isActive toggle state
     const variants = await CatalogProductVariant.find({
       catalogProductId: product._id,
-      isActive: true
     }).sort({ size: 1, color: 1 });
 
     // Transform to old structure for backward compatibility
@@ -650,6 +670,10 @@ router.get('/:id', async (req, res) => {
         basePrice: undefined // Remove basePrice to avoid confusion
       };
     });
+    productResponse.pricing = {
+      ...(productResponse.pricing || {}),
+      gst: product.gst
+    };
     productResponse.availableSizes = [...new Set(variants.map(v => v.size))];
     productResponse.availableColors = [...new Set(variants.map(v => v.color))];
     productResponse.gst = product.gst; // Ensure gst is included
@@ -767,36 +791,58 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (variants && Array.isArray(variants)) {
       console.log(`Updating catalog variants for product ${product._id}...`);
 
-      // Delete existing variants for this product
-      await CatalogProductVariant.deleteMany({ catalogProductId: product._id });
-
-      // Create new variants
+      // Upsert each variant by (catalogProductId, size, color) to preserve IDs.
+      // This is critical: StoreProductVariant records hold references to these IDs.
+      // If we delete+recreate, those references become orphaned and the store page
+      // can no longer populate variant data (size, color, price, etc.).
       if (variants.length > 0) {
-        const catalogVariants = variants.map(v => ({
-          catalogProductId: product._id,
-          size: v.size,
-          color: v.color,
-          colorHex: v.colorHex,
-          skuTemplate: v.sku || `${product.productTypeCode}-${v.size}-${v.color}`,
-          basePrice: v.price !== undefined ? v.price : undefined,
-          isActive: v.isActive !== false,
-          viewImages: v.viewImages || { front: '', back: '', left: '', right: '' }
-        }));
-
         try {
-          updatedVariants = await CatalogProductVariant.insertMany(catalogVariants, {
-            ordered: false
+          updatedVariants = await Promise.all(
+            variants.map(async (v) => {
+              const filter = {
+                catalogProductId: product._id,
+                size: v.size,
+                color: v.color,
+              };
+              const update = {
+                $set: {
+                  catalogProductId: product._id,
+                  size: v.size,
+                  color: v.color,
+                  colorHex: v.colorHex,
+                  skuTemplate: v.sku || `${product.productTypeCode}-${v.size}-${v.color}`,
+                  basePrice: v.price !== undefined ? v.price : undefined,
+                  isActive: v.isActive !== false,
+                  viewImages: v.viewImages || { front: '', back: '', left: '', right: '' },
+                },
+              };
+              return CatalogProductVariant.findOneAndUpdate(filter, update, {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true,
+              });
+            })
+          );
+
+          // Delete variants that are no longer in the submitted list
+          const keepIds = updatedVariants.filter(Boolean).map(v => v._id);
+          await CatalogProductVariant.deleteMany({
+            catalogProductId: product._id,
+            _id: { $nin: keepIds },
           });
-          console.log(`Successfully updated ${updatedVariants.length} catalog variants`);
+
+          console.log(`Successfully upserted ${updatedVariants.length} catalog variants`);
         } catch (variantError) {
-          console.error('Error updating catalog variants:', variantError);
+          console.error('Error upserting catalog variants:', variantError);
         }
+      } else {
+        // Variants array is empty — remove all
+        await CatalogProductVariant.deleteMany({ catalogProductId: product._id });
       }
     } else {
-      // Fetch existing variants if not updating them - only active variants
+      // Fetch existing variants if not updating them — include ALL variants (even OOS)
       updatedVariants = await CatalogProductVariant.find({
         catalogProductId: product._id,
-        isActive: true
       }).sort({ size: 1, color: 1 });
     }
 
@@ -823,6 +869,10 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
         basePrice: undefined // Remove basePrice to avoid confusion
       };
     });
+    productResponse.pricing = {
+      ...(productResponse.pricing || {}),
+      gst: product.gst
+    };
     productResponse.availableSizes = [...new Set(updatedVariants.map(v => v.size))];
     productResponse.availableColors = [...new Set(updatedVariants.map(v => v.color))];
 

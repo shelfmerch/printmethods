@@ -57,6 +57,7 @@ import {
 import { FilterSidebar } from '@/pages/FilterSidebar';
 import { CategorySidebar } from '@/components/CategorySidebar';
 import { formatPrice } from '@/utils/formatPrice';
+import { cn } from '@/lib/utils';
 
 type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'newest' | 'oldest';
 type ViewMode = 'grid' | 'list';
@@ -252,15 +253,8 @@ const StoreProductsPage: React.FC = () => {
                   ? sp.price
                   : 0;
 
-            // Derive price from variants if they exist (ensures list view matches detail page)
-            if (Array.isArray(sp.variantsSummary) && sp.variantsSummary.length > 0) {
-              const variantPrices = sp.variantsSummary
-                .map((v: any) => v.sellingPrice)
-                .filter((p: any) => typeof p === 'number' && p > 0);
-              if (variantPrices.length > 0) {
-                basePrice = Math.min(...variantPrices);
-              }
-            }
+            // basePrice is already set to sp.sellingPrice or sp.price above
+
 
             const catalogProduct =
               sp.catalogProductId && typeof sp.catalogProductId === 'object'
@@ -1014,18 +1008,32 @@ const StoreProductsPage: React.FC = () => {
                       >
                         {/* Product Image */}
                         <div className="relative w-32 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-muted/50">
-                          {product.mockupUrl ? (
-                            <img
-                              src={product.mockupUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="h-10 w-10 text-muted-foreground/40" />
-                            </div>
-                          )}
+                          {(() => {
+                            const isOOS = product.variantsSummary?.every(v => v.isActive === false) && (product.variantsSummary?.length || 0) > 0;
+                            return (
+                              <>
+                                {isOOS && (
+                                  <div className="absolute top-2 left-2 z-10">
+                                    <span className="bg-destructive text-white text-[10px] font-bold px-2 py-0.5 rounded shadow text-xs uppercase tracking-wider">
+                                      Sold Out
+                                    </span>
+                                  </div>
+                                )}
+                                {product.mockupUrl ? (
+                                  <img
+                                    src={product.mockupUrl}
+                                    alt={product.name}
+                                    className={cn("w-full h-full object-cover group-hover:scale-105 transition-transform duration-500", isOOS && "opacity-50 grayscale")}
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="h-10 w-10 text-muted-foreground/40" />
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                           {product.compareAtPrice && product.compareAtPrice > product.price && (
                             <div className="absolute top-2 left-2">
                               <Badge className="bg-red-500 text-white text-xs px-2 py-0.5">
@@ -1058,17 +1066,6 @@ const StoreProductsPage: React.FC = () => {
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              {/* <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 rounded-full hover:bg-red-50 hover:text-red-500"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toast.success('Added to wishlist');
-                                }}
-                              >
-                                <Heart className="h-4 w-4" />
-                              </Button> */}
                               <Button
                                 size="sm"
                                 className="rounded-full px-5"

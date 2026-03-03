@@ -373,7 +373,7 @@ export const ProductPricingSection = ({ data, variants, onChange }: ProductPrici
         }}
         onSave={handleSavePrice}
         specificPrice={editingPrice}
-        taxRate={data.taxRate}
+        taxRate={gstConfig.slab}
       />
     </div>
   );
