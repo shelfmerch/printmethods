@@ -123,7 +123,26 @@ app.use(session({
 app.use('/api/razorpay', razorpayWebhookRoutes);
 
 // Webhook raw body handlers (MUST be before express.json and routes that use them)
-app.use('/api/shopify/oauth/webhooks', express.raw({ type: 'application/json' }));
+app.use(['/api/shopify/webhooks', '/api/shopify/oauth/webhooks'], express.raw({ type: 'application/json' }));
+
+// ✅ Webhook aliases (old Shopify webhook URLs -> existing handlers in shopifyRoutes)
+// NOTE: keep this BEFORE express.json and BEFORE 404 handler
+const shopifyOAuthRoutes = require('./routes/shopifyRoutes');
+
+// forward helper
+function forwardToOAuth(targetPath) {
+  return (req, res, next) => {
+    // preserve raw body already parsed by express.raw()
+    req.url = targetPath; // rewrite URL for the router
+    shopifyOAuthRoutes.handle(req, res, next);
+  };
+}
+
+app.post('/api/shopify/webhooks/app-uninstalled', forwardToOAuth('/webhooks/app-uninstalled'));
+app.post('/api/shopify/webhooks/orders-create', forwardToOAuth('/webhooks/orders-create'));
+app.post('/api/shopify/webhooks/orders-paid', forwardToOAuth('/webhooks/orders-paid'));
+app.post('/api/shopify/webhooks/orders-updated', forwardToOAuth('/webhooks/orders-updated'));
+
 
 // Body parser middleware - Increased limit for base64 images
 app.use(express.json({ limit: '50mb' }));
