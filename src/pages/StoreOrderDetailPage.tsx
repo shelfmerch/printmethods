@@ -40,9 +40,14 @@ interface OrderItem {
 interface OrderDetail {
     _id: string;
     createdAt: string;
-    total: number;
     status: string;
     orderStatus?: string;
+    subtotal?: number;
+    shipping?: number;
+    tax?: number;
+    total: number;
+    shippingAmount?: number;
+    gstAmount?: number;
     payment?: {
         method?: string;
     };
@@ -252,12 +257,19 @@ const StoreOrderDetailPage: React.FC = () => {
                                         <div className="flex flex-col gap-2">
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Subtotal</span>
-                                                <span className="font-medium">₹{(order.total || 0).toLocaleString()}</span>
+                                                <span className="font-medium">₹{(order.subtotal || order.items.reduce((sum, i) => sum + (i.price * i.quantity), 0)).toLocaleString()}</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Shipping</span>
-                                                <span className="font-medium text-green-600">FREE</span>
+                                                <span className="font-medium">₹{(order.shippingAmount ?? order.shipping ?? 0).toLocaleString()}</span>
                                             </div>
+                                            {/* Tax hidden from customer view as per request */}
+                                            {/* {(order.gstAmount ?? order.tax ?? 0) > 0 && (
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">Tax</span>
+                                                    <span className="font-medium">₹{(order.gstAmount ?? order.tax ?? 0).toLocaleString()}</span>
+                                                </div>
+                                            )} */}
                                             <div className="flex justify-between items-center pt-2 border-t mt-2">
                                                 <span className="font-bold text-lg">Order Total</span>
                                                 <span className="font-black text-xl text-green-600">₹{(order.total || 0).toLocaleString()}</span>

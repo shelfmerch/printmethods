@@ -112,21 +112,19 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
         <div className="mb-6">
           <div className="flex items-center justify-center gap-4 mb-4">
             <div
-              className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                step >= 1
+              className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${step >= 1
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-muted-foreground/30 text-muted-foreground'
-              }`}
+                }`}
             >
               1
             </div>
             <div className="w-16 h-0.5 bg-border" />
             <div
-              className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                step >= 2
+              className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${step >= 2
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-muted-foreground/30 text-muted-foreground'
-              }`}
+                }`}
             >
               2
             </div>

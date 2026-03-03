@@ -38,10 +38,22 @@ export interface Product {
     categoryId?: string;
     subcategoryIds?: string[];
     productTypeCode?: string;
+    gst?: {
+      slab: number;
+      mode: 'EXCLUSIVE' | 'INCLUSIVE';
+      hsn: string;
+    };
     attributes?: Record<string, any>;
     sampleMockups?: any[];
     sizeChart?: SizeChartData;
   };
+  variantsSummary?: Array<{
+    size: string;
+    color: string;
+    colorHex: string;
+    isActive: boolean;
+    basePrice?: number;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +66,7 @@ export interface CartItem {
     color: string;
     size: string;
   };
+  price?: number;
 }
 
 export interface Cart {

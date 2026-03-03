@@ -95,22 +95,22 @@ const generateFulfillmentInvoice = async (order) => {
       });
     }
 
-    // 3. Calculate invoice total
-    // Merchant's shipping cost (ShelfMerch might charge differently than what merchant charges customer)
-    // For now, let's say merchant pays same shipping or a base warehouse fee
-    const merchantShippingCost = order.shipping * 0.8; // Example: merchant pays 80% of what customer paid for shipping as raw cost
-    const tax = totalProductionCost * 0.12; // Example tax rate
+    // 3. Calculate invoice total using values from order snapshot if available
+    // Fallback to calculations if snapshot is missing (for legacy orders)
+    const merchantShippingCost = order.shippingAmount !== undefined ? order.shippingAmount : (order.shipping * 0.8);
+    const tax = order.gstAmount !== undefined ? order.gstAmount : (totalProductionCost * 0.12);
+    // grandTotal (deduction from profit) SHOULD include base cost + shipping + tax
     const grandTotal = totalProductionCost + merchantShippingCost + tax;
     const invoiceAmountPaise = Math.round(grandTotal * 100);
 
-    // 4. Credit merchant's wallet with profit FIRST (customer payment - production cost)
+    // 4. Credit merchant's wallet with profit: Total Paid - (Production Cost + GST + Shipping Cost)
     // Profit is credited regardless because customer payment is already received
-    // This ensures merchant gets their earnings even if they don't have enough balance for production cost
     let profitCreditedPaise = 0;
     if (order.total && order.total > 0) {
       try {
-        const customerPaymentPaise = Math.round(order.total * 100);
-        const profitPaise = customerPaymentPaise - invoiceAmountPaise;
+        const totalPaid = order.total;
+        const profit = totalPaid - grandTotal;
+        const profitPaise = Math.round(profit * 100);
 
         if (profitPaise > 0) {
           const profitIdempotencyKey = `order_profit_${order._id}_${Date.now()}`;
@@ -125,20 +125,20 @@ const generateFulfillmentInvoice = async (order) => {
               referenceType: 'ORDER',
               referenceId: order._id.toString(),
               idempotencyKey: profitIdempotencyKey,
-              description: `Profit from order ${order._id} (Customer paid: ₹${order.total.toFixed(2)}, Production cost: ₹${grandTotal.toFixed(2)})`,
+              description: `Profit from order ${order._id} (Paid: ₹${totalPaid.toFixed(2)}, Cost+GST+Ship: ₹${grandTotal.toFixed(2)})`,
               orderId: order._id,
               meta: {
-                customerPaymentPaise,
-                productionCostPaise: invoiceAmountPaise,
+                totalPaidPaise: Math.round(totalPaid * 100),
+                productionCostPaise: Math.round(totalProductionCost * 100),
+                gstAmountPaise: Math.round(tax * 100),
+                shippingAmountPaise: Math.round(merchantShippingCost * 100),
                 profitPaise,
-                orderTotal: order.total,
               },
             }
-            // No session passed
           );
 
           profitCreditedPaise = profitPaise;
-          console.log(`[Invoice] ✓ Credited ${profitPaise} paise profit to merchant wallet (Order: ₹${order.total.toFixed(2)}, Cost: ₹${grandTotal.toFixed(2)})`);
+          console.log(`[Invoice] ✓ Credited ${profitPaise} paise profit to merchant wallet (Order: ₹${totalPaid.toFixed(2)}, Cost: ₹${grandTotal.toFixed(2)})`);
         } else {
           console.log(`[Invoice] ⚠ No profit to credit (Order total: ₹${order.total.toFixed(2)}, Production cost: ₹${grandTotal.toFixed(2)})`);
         }
@@ -323,14 +323,50 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
     }
     await customer.save();
 
-    // 2) Compute totals (mirror frontend for now)
-    const subtotal = cart.reduce(
-      (sum, item) => sum + (item.product?.price || 0) * (item.quantity || 0),
-      0
-    );
-    const shipping = cart.length > 0 ? 5.99 : 0;
-    const tax = subtotal * 0.08;
-    const total = subtotal + shipping + tax;
+    // 2) Compute totals and capture financial snapshot
+    let subtotal = 0;
+    let totalProductionCost = 0;
+    let maxGstSlab = 0;
+
+    for (const item of cart) {
+      const storeProductId = item.product?.id || item.product?._id;
+      const sp = await StoreProduct.findById(storeProductId);
+      if (sp) {
+        // Use variant-specific price from cart if available, else fallback to store product base price
+        const itemPrice = typeof item.price === 'number' ? item.price : sp.sellingPrice;
+        subtotal += itemPrice * item.quantity;
+
+        // Fetch production cost and GST from catalog product
+        const cp = await CatalogProduct.findById(sp.catalogProductId);
+        if (cp) {
+          // Look for variant-specific production cost (basePrice)
+          let unitProductionCost = cp.basePrice;
+          if (item.variant && (item.variant.size || item.variant.color)) {
+            const variant = await CatalogProductVariant.findOne({
+              catalogProductId: cp._id,
+              size: item.variant.size,
+              color: item.variant.color
+            });
+            if (variant && variant.basePrice !== undefined) {
+              unitProductionCost = variant.basePrice;
+            }
+          }
+          totalProductionCost += unitProductionCost * item.quantity;
+
+          if (cp.gst && cp.gst.slab > maxGstSlab) {
+            maxGstSlab = cp.gst.slab;
+          }
+        }
+      }
+    }
+
+    const shipping = cart.length > 0 ? 45 : 0; // Standard shipping or from checkout
+    const gstPercentage = maxGstSlab;
+    const gstAmount = subtotal * (gstPercentage / 100);
+    const total = subtotal + shipping; // Customer only pays subtotal + shipping
+
+    const productionCostValue = totalProductionCost + shipping + gstAmount;
+    const calculatedProfit = total - productionCostValue;
 
     // 3) Build order items
     const orderItems = cart.map((item) => ({
@@ -339,7 +375,7 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
       mockupUrl: item.product?.mockupUrls?.[0] || item.product?.mockupUrl,
       mockupUrls: item.product?.mockupUrls || [],
       quantity: item.quantity,
-      price: item.product?.price,
+      price: typeof item.price === 'number' ? item.price : item.product?.price,
       variant: item.variant,
     }));
 
@@ -351,9 +387,18 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
       items: orderItems,
       subtotal,
       shipping,
-      tax,
+      tax: gstAmount,
       total,
       shippingAddress: shippingInfo,
+      // Financial Snapshot
+      productBaseCost: totalProductionCost,
+      sellingPrice: subtotal,
+      gstPercentage,
+      gstAmount,
+      shippingAmount: shipping,
+      totalPaid: total,
+      productionCost: productionCostValue,
+      calculatedProfit,
       // Default to cod for direct placement if not specified
       payment: {
         method: 'cod'
@@ -377,11 +422,11 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
 // Helper function to compute order totals (reusable)
 const computeOrderTotals = (cart, shipping = 0, tax = null) => {
   const subtotal = cart.reduce(
-    (sum, item) => sum + (item.product?.price || 0) * (item.quantity || 0),
+    (sum, item) => sum + (typeof item.price === 'number' ? item.price : (item.product?.price || 0)) * (item.quantity || 0),
     0
   );
   const calculatedTax = tax !== null ? tax : subtotal * 0.08;
-  const total = subtotal + shipping + calculatedTax;
+  const total = subtotal + shipping; // Customer only pays subtotal + shipping, no tax
   return { subtotal, shipping, tax: calculatedTax, total };
 };
 
@@ -546,8 +591,50 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
       });
     }
 
-    // Compute order totals (should match the order used for Razorpay)
-    const { subtotal, shipping: finalShipping, tax: finalTax, total } = computeOrderTotals(cart, shipping, tax);
+    // Compute order totals and capture financial snapshot
+    let subtotal = 0;
+    let totalProductionCost = 0;
+    let maxGstSlab = 0;
+
+    for (const item of cart) {
+      const storeProductId = item.product?.id || item.product?._id;
+      const sp = await StoreProduct.findById(storeProductId);
+      if (sp) {
+        // Use variant-specific price from cart if available, else fallback to store product base price
+        const itemPrice = typeof item.price === 'number' ? item.price : sp.sellingPrice;
+        subtotal += itemPrice * item.quantity;
+
+        // Fetch production cost and GST from catalog product
+        const cp = await CatalogProduct.findById(sp.catalogProductId);
+        if (cp) {
+          // Look for variant-specific production cost (basePrice)
+          let unitProductionCost = cp.basePrice;
+          if (item.variant && (item.variant.size || item.variant.color)) {
+            const variant = await CatalogProductVariant.findOne({
+              catalogProductId: cp._id,
+              size: item.variant.size,
+              color: item.variant.color
+            });
+            if (variant && variant.basePrice !== undefined) {
+              unitProductionCost = variant.basePrice;
+            }
+          }
+          totalProductionCost += unitProductionCost * item.quantity;
+
+          if (cp.gst && cp.gst.slab > maxGstSlab) {
+            maxGstSlab = cp.gst.slab;
+          }
+        }
+      }
+    }
+
+    const finalShipping = shipping || (cart.length > 0 ? 45 : 0);
+    const gstPercentage = maxGstSlab;
+    const gstAmount = subtotal * (gstPercentage / 100);
+    const total = subtotal + finalShipping; // Customer only pays subtotal + shipping
+
+    const productionCostTotal = totalProductionCost + finalShipping + gstAmount;
+    const calculatedProfit = total - productionCostTotal;
 
     // Build order items
     const orderItems = cart.map((item) => ({
@@ -556,7 +643,7 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
       mockupUrl: item.product?.mockupUrls?.[0] || item.product?.mockupUrl,
       mockupUrls: item.product?.mockupUrls || [],
       quantity: item.quantity,
-      price: item.product?.price,
+      price: typeof item.price === 'number' ? item.price : item.product?.price,
       variant: item.variant,
     }));
 
@@ -569,10 +656,19 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
       items: orderItems,
       subtotal,
       shipping: finalShipping,
-      tax: finalTax,
+      tax: gstAmount,
       total,
       shippingAddress: shippingInfo,
       status: 'paid', // Payment verified, mark as paid
+      // Financial Snapshot
+      productBaseCost: totalProductionCost,
+      sellingPrice: subtotal,
+      gstPercentage,
+      gstAmount,
+      shippingAmount: finalShipping,
+      totalPaid: total,
+      productionCost: productionCostTotal,
+      calculatedProfit,
       payment: {
         method: 'razorpay',
         razorpayOrderId: razorpay_order_id,

@@ -133,10 +133,11 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
     // storefronts and dashboards can quickly read per-variant pricing.
     const allVariants = await StoreProductVariant.find({
       storeProductId: storeProduct._id,
-      isActive: true,
+      // We now include even inactive variants in the summary so they can be greyed out
+      // but we filter them at reading time if needed.
     }).populate({
       path: 'catalogProductVariantId',
-      select: 'size color colorHex basePrice skuTemplate',
+      select: 'size color colorHex basePrice skuTemplate isActive',
     });
 
     storeProduct.variantsSummary = allVariants
@@ -151,6 +152,7 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
           sku: v.sku || cv.skuTemplate,
           sellingPrice: typeof v.sellingPrice === 'number' ? v.sellingPrice : undefined,
           basePrice: typeof cv.basePrice === 'number' ? cv.basePrice : undefined,
+          isActive: v.isActive && cv.isActive, // Active only if both are active
         };
       });
 
@@ -259,7 +261,7 @@ router.get('/public/:storeId/:productId', async (req, res) => {
     })
       .populate({
         path: 'catalogProductId',
-        select: '_id name description categoryId subcategoryIds productTypeCode',
+        select: '_id name description categoryId subcategoryIds productTypeCode gst',
         lean: true
       })
       .lean();
@@ -271,9 +273,9 @@ router.get('/public/:storeId/:productId', async (req, res) => {
     // Fetch variants for this product and populate catalog variant details (size/color)
     let variants = await StoreProductVariant.find({
       storeProductId: storeProduct._id,
-      isActive: true,
+      // Removed isActive: true to include OOS variants for storefront grey-out
     })
-      .populate({ path: 'catalogProductVariantId', select: 'size color colorHex skuTemplate basePrice' })
+      .populate({ path: 'catalogProductVariantId', select: 'size color colorHex skuTemplate basePrice isActive' })
       .lean();
 
     // If no store-specific variants exist, fall back to catalog product variants
@@ -303,7 +305,9 @@ router.get('/public/:storeId/:productId', async (req, res) => {
         // Build query - filter by selected colors/sizes if they exist
         const variantQuery = {
           catalogProductId: catalogProductId,
-          isActive: true,
+          // We include even inactive ones so storefront can grey them out
+          // but if we only want to show products that have AT LEAST ONE active variant 
+          // we might need different logic. For now, let's include all within selection.
         };
 
         if (hasSelectedColors) {
@@ -315,7 +319,7 @@ router.get('/public/:storeId/:productId', async (req, res) => {
         }
 
         const catalogVariants = await CatalogProductVariant.find(variantQuery)
-          .select('_id size color colorHex skuTemplate basePrice')
+          .select('_id size color colorHex skuTemplate basePrice isActive')
           .lean();
 
         console.log('[StoreProducts] Found catalog variants:', catalogVariants.length, catalogVariants.map(cv => ({ size: cv.size, color: cv.color })));
@@ -333,13 +337,14 @@ router.get('/public/:storeId/:productId', async (req, res) => {
               colorHex: cv.colorHex,
               skuTemplate: cv.skuTemplate,
               basePrice: cv.basePrice,
+              isActive: cv.isActive,
             },
             size: cv.size,
             color: cv.color,
             colorHex: cv.colorHex,
             sku: cv.skuTemplate,
             sellingPrice: basePrice, // Use store product's selling price
-            isActive: true,
+            isActive: cv.isActive,
           }));
 
           console.log('[StoreProducts] Mapped variants:', variants.length, variants.map(v => ({ size: v.size, color: v.color })));
@@ -351,6 +356,14 @@ router.get('/public/:storeId/:productId', async (req, res) => {
       }
     } else {
       console.log('[StoreProducts] Using store-specific variants:', variants.length);
+      // Compute effective isActive: a variant is only active if BOTH
+      // the store variant AND the catalog variant are active.
+      // Without this, an admin marking a catalog variant OOS would not
+      // be reflected on the store page (store variant isActive stays true).
+      variants = variants.map(v => ({
+        ...v,
+        isActive: (v.isActive !== false) && (v.catalogProductVariantId?.isActive !== false),
+      }));
     }
 
     return res.json({
@@ -434,6 +447,53 @@ router.get('/', protect, authorize('merchant', 'superadmin'), async (req, res) =
     const products = await StoreProduct.find(spFilter)
       .sort({ updatedAt: -1 })
       .lean();
+
+    // Live-refresh variantsSummary.isActive from catalog variants so the
+    // dashboard always reflects current stock, even if the product was
+    // published before a variant went out of stock.
+    if (products.length > 0) {
+      const productIds = products.map(p => p._id);
+
+      // Fetch all store variants for these products in one query
+      const storeVariants = await StoreProductVariant.find({
+        storeProductId: { $in: productIds },
+      }).populate({
+        path: 'catalogProductVariantId',
+        select: 'size color colorHex basePrice skuTemplate isActive',
+      }).lean();
+
+      // Index by storeProductId for quick lookup
+      const variantsByProduct = {};
+      storeVariants.forEach(sv => {
+        const spId = sv.storeProductId.toString();
+        if (!variantsByProduct[spId]) variantsByProduct[spId] = [];
+        variantsByProduct[spId].push(sv);
+      });
+
+      // Patch each product's variantsSummary with live isActive
+      products.forEach(product => {
+        const spId = product._id.toString();
+        const liveVariants = variantsByProduct[spId];
+        if (!liveVariants || liveVariants.length === 0) return;
+
+        product.variantsSummary = liveVariants
+          .filter(sv => sv.catalogProductVariantId)
+          .map(sv => {
+            const cv = sv.catalogProductVariantId;
+            return {
+              catalogProductVariantId: cv._id,
+              size: cv.size,
+              color: cv.color,
+              colorHex: cv.colorHex,
+              sku: sv.sku || cv.skuTemplate,
+              sellingPrice: typeof sv.sellingPrice === 'number' ? sv.sellingPrice : undefined,
+              basePrice: typeof cv.basePrice === 'number' ? cv.basePrice : undefined,
+              // Live join: OOS if either the store variant or catalog variant is inactive
+              isActive: sv.isActive !== false && cv.isActive !== false,
+            };
+          });
+      });
+    }
 
     return res.json({ success: true, data: products });
   } catch (error) {
@@ -710,13 +770,13 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       updatedVariants = updatedVariants.filter(Boolean);
     }
 
-    // Rebuild embedded variantsSummary from active StoreProductVariant docs
+    // Rebuild embedded variantsSummary from ALL StoreProductVariant docs
+    // (include inactive ones so dashboard can show OOS), joining live catalog isActive
     const allVariants = await StoreProductVariant.find({
       storeProductId: sp._id,
-      isActive: true,
     }).populate({
       path: 'catalogProductVariantId',
-      select: 'size color colorHex basePrice skuTemplate',
+      select: 'size color colorHex basePrice skuTemplate isActive',
     });
 
     sp.variantsSummary = allVariants
@@ -731,6 +791,8 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
           sku: v.sku || cv.skuTemplate,
           sellingPrice: typeof v.sellingPrice === 'number' ? v.sellingPrice : undefined,
           basePrice: typeof cv.basePrice === 'number' ? cv.basePrice : undefined,
+          // isActive: true only if BOTH the store variant AND the catalog variant are active
+          isActive: v.isActive !== false && cv.isActive !== false,
         };
       });
 

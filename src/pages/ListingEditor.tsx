@@ -61,6 +61,7 @@ interface VariantRow {
   sku: string;
   retailPrice: number;
   productionCost: number;
+  isActive?: boolean;
 }
 
 const ListingEditor = () => {
@@ -74,7 +75,7 @@ const ListingEditor = () => {
   const [draftData, setDraftData] = useState<any>(null);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [variantCostMap, setVariantCostMap] = useState<
-    Record<string, { cost: number; id?: string; sku?: string }>
+    Record<string, { cost: number; id?: string; sku?: string; isActive?: boolean }>
   >({});
 
   // Load draft from database if storeProductId is provided
@@ -242,7 +243,7 @@ const ListingEditor = () => {
           return;
         }
 
-        const map: Record<string, { cost: number; id?: string; sku?: string }> = {};
+        const map: Record<string, { cost: number; id?: string; sku?: string; isActive?: boolean }> = {};
         data.forEach((v: any) => {
           // Normalize keys for matching
           const normalizedSize = norm(v.size || '');
@@ -266,6 +267,7 @@ const ListingEditor = () => {
             cost,
             id: v._id || v.id,
             sku,
+            isActive: v.isActive !== false, // Default to true if missing
           };
         });
 
@@ -346,6 +348,7 @@ const ListingEditor = () => {
         sku: mapped?.sku || v.sku || '',
         productionCost: parseFloat(cost.toFixed(2)),
         retailPrice: defaultRetail,
+        isActive: mapped?.isActive !== false,
       };
 
       if (defaultRetail > 0 && !retailPriceRef.current[rowKey]) {
@@ -833,7 +836,7 @@ const ListingEditor = () => {
                 </TableHeader>
                 <TableBody>
                   {hasVariantData ? (
-                    variantRows.map((variant) => {
+                    variantRows.filter((variant) => variant.isActive !== false).map((variant) => {
                       const profit = variant.retailPrice - variant.productionCost;
                       const margin =
                         variant.retailPrice > 0
@@ -844,7 +847,13 @@ const ListingEditor = () => {
                         <TableRow key={variant.id || `${variant.size}-${variant.color}-${variant.sku}`}>
                           <TableCell className="font-medium">{variant.size}</TableCell>
                           <TableCell>{variant.color}</TableCell>
-                          <TableCell>All in stock</TableCell>
+                          <TableCell>
+                            {variant.isActive === false ? (
+                              <span className="text-destructive font-semibold">Out of stock</span>
+                            ) : (
+                              <span className="text-green-600 dark:text-green-400">In stock</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-mono text-xs">{variant.sku}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

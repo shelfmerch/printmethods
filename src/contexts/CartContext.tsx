@@ -4,7 +4,7 @@ import { CartItem, Product } from '@/types';
 
 interface CartContextType {
     cart: CartItem[];
-    addToCart: (product: Product, variant: { color: string; size: string }, quantity: number) => void;
+    addToCart: (product: Product, variant: { color: string; size: string }, quantity: number, price?: number) => void;
     removeFromCart: (productId: string, variant: { color: string; size: string }) => void;
     updateQuantity: (productId: string, variant: { color: string; size: string }, quantity: number) => void;
     clearCart: () => void;
@@ -55,7 +55,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children, subdomain 
         localStorage.setItem(`cart_${subdomain}`, JSON.stringify(cart));
     }, [cart, subdomain]);
 
-    const addToCart = (product: Product, variant: { color: string; size: string }, quantity: number) => {
+    const addToCart = (product: Product, variant: { color: string; size: string }, quantity: number, price?: number) => {
         setCart((prevCart) => {
             const existingIndex = prevCart.findIndex(
                 (item) =>
@@ -64,9 +64,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children, subdomain 
                     item.variant.size === variant.size
             );
 
+            const variantPrice = price !== undefined ? price : product.price;
+
             if (existingIndex >= 0) {
                 const newCart = [...prevCart];
                 newCart[existingIndex].quantity += quantity;
+                // Update price if it was 0 or undefined
+                if (!newCart[existingIndex].price || newCart[existingIndex].price === 0) {
+                    newCart[existingIndex].price = variantPrice;
+                }
                 toast.success(`Updated ${product.name} quantity`);
                 return newCart;
             } else {
@@ -78,6 +84,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children, subdomain 
                         product,
                         quantity,
                         variant,
+                        price: variantPrice
                     },
                 ];
             }
@@ -123,7 +130,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children, subdomain 
     };
 
     const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
-    const cartTotal = cart.reduce((total, item) => total + (item.product.price || 0) * item.quantity, 0);
+    const cartTotal = cart.reduce((total, item) => total + (item.price || item.product.price || 0) * item.quantity, 0);
 
     return (
         <CartContext.Provider

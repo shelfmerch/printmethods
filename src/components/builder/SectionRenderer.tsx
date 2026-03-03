@@ -172,16 +172,24 @@ const ProductCard: React.FC<{
   onClick?: () => void;
 }> = ({ product, layout, showPrice = true, showAddToCart = true, onClick }) => {
   const primaryImage = product.mockupUrl || product.mockupUrls?.[0];
+  const isOOS = product.variantsSummary?.every(v => v.isActive === false) && (product.variantsSummary?.length || 0) > 0;
 
   if (layout === 'list') {
     return (
       <Card
-        className={cn('p-3 sm:p-4 transition-shadow flex gap-3 sm:gap-4', onClick && 'cursor-pointer hover:shadow-lg')}
+        className={cn('p-3 sm:p-4 transition-shadow flex gap-3 sm:gap-4 relative', onClick && 'cursor-pointer hover:shadow-lg')}
         onClick={onClick}
       >
-        <div className="w-24 h-24 bg-muted rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+        <div className="w-24 h-24 bg-muted rounded flex-shrink-0 flex items-center justify-center overflow-hidden relative">
+          {isOOS && (
+            <div className="absolute top-1 left-1 z-10">
+              <span className="bg-destructive text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm shadow-sm uppercase tracking-wider">
+                Sold Out
+              </span>
+            </div>
+          )}
           {primaryImage ? (
-            <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
+            <img src={primaryImage} alt={product.name} className={cn("w-full h-full object-cover", isOOS && "opacity-50 grayscale")} />
           ) : (
             <Package className="h-8 w-8 text-muted-foreground" />
           )}
@@ -196,8 +204,8 @@ const ProductCard: React.FC<{
           )}
         </div>
         {showAddToCart && (
-          <Button size="sm" className="self-center flex-shrink-0">
-            Add to Cart
+          <Button size="sm" className="self-center flex-shrink-0" disabled={isOOS}>
+            {isOOS ? 'Out of Stock' : 'Add to Cart'}
           </Button>
         )}
       </Card>
@@ -207,12 +215,19 @@ const ProductCard: React.FC<{
   // Grid and Carousel cards
   return (
     <Card
-      className={cn('p-3 sm:p-4 transition-shadow', onClick && 'cursor-pointer hover:shadow-lg')}
+      className={cn('p-3 sm:p-4 transition-shadow relative', onClick && 'cursor-pointer hover:shadow-lg')}
       onClick={onClick}
     >
-      <div className="aspect-square bg-muted mb-4 rounded flex items-center justify-center overflow-hidden">
+      <div className="aspect-square bg-muted mb-4 rounded flex items-center justify-center overflow-hidden relative">
+        {isOOS && (
+          <div className="absolute top-2 left-2 z-10">
+            <span className="bg-destructive text-white text-[10px] font-bold px-2 py-0.5 rounded shadow text-xs uppercase tracking-wider">
+              Sold Out
+            </span>
+          </div>
+        )}
         {primaryImage ? (
-          <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
+          <img src={primaryImage} alt={product.name} className={cn("w-full h-full object-cover", isOOS && "opacity-50 grayscale")} />
         ) : (
           <Package className="h-12 w-12 text-muted-foreground" />
         )}
@@ -222,8 +237,8 @@ const ProductCard: React.FC<{
         <p className="text-lg font-bold mt-2">{formatPrice(product.price)}</p>
       )}
       {showAddToCart && (
-        <Button size="sm" className="w-full mt-3">
-          Add to Cart
+        <Button size="sm" className="w-full mt-3" disabled={isOOS}>
+          {isOOS ? 'Out of Stock' : 'Add to Cart'}
         </Button>
       )}
     </Card>

@@ -273,7 +273,14 @@ const AdminProductCreation = () => {
           }
 
           if (product.pricing) {
-            setPricingData(product.pricing);
+            setPricingData({
+              ...product.pricing,
+              gst: product.pricing.gst || product.gst || {
+                slab: 18,
+                mode: 'EXCLUSIVE',
+                hsn: '',
+              },
+            });
           }
 
           if (product.stocks) {

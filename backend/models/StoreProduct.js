@@ -64,6 +64,11 @@ const StoreProductSchema = new mongoose.Schema({
       type: Number,
       min: 0,
     },
+    // Whether this variant is currently in stock (derived from catalog + store variant isActive)
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   }],
   // Store-specific gallery images (optional, falls back to catalog)
   galleryImages: [{
