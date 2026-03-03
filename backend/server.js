@@ -43,6 +43,7 @@ const reviewsRoutes = require('./routes/reviews');
 const { tenantResolver } = require('./middleware/tenantResolver');
 const storeRedirect = require('./middleware/storeRedirect');
 const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
+const shopifyRoutes = require('./routes/shopifyRoutes');
 
 // Public API routes (mounted at /api to support /api/v1, /api/v2, etc.)
 app.use('/api', require('./public-api'));
@@ -274,9 +275,14 @@ app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
 
 app.use('/api/shopify', shopifyPublishRoutes);
-app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
+app.use('/api/shopify/oauth', shopifyRoutes);
 
-app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
+// Backward-compatible webhook route for existing installations
+app.post('/api/shopify/webhooks/app-uninstalled', express.raw({ type: 'application/json' }), (req, res, next) => {
+  // Forward to the same handler mounted under /api/shopify/oauth
+  req.url = '/webhooks/app-uninstalled';
+  shopifyRoutes(req, res, next);
+});
 
 
 
