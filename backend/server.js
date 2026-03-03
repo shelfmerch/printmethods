@@ -151,6 +151,12 @@ app.get('/api/shopify/status', (req, res) => {
   const suffix = qs ? `?${qs}` : '';
   res.redirect(302, `/api/shopify/oauth/status${suffix}`);
 });
+app.post('/api/shopify/link-account', (req, res) => {
+  const qs = req.originalUrl.split('?')[1];
+  const suffix = qs ? `?${qs}` : '';
+  // 307 to preserve method and body
+  res.redirect(307, `/api/shopify/oauth/link-account${suffix}`);
+});
 app.use('/api/shopify/auth', require('./routes/shopifyRoutes'));
 
 
