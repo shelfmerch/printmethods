@@ -2795,7 +2795,7 @@ export const api = {
 
 // Shopify Publish API
 export const shopifyApi = {
-  listConnectedShops: () => apiRequest<{ success: boolean; data: Array<{ shop: string; isActive: boolean }> }>('/api/shopify/stores'),
+  listConnectedShops: () => apiRequest<{ success: boolean; data: Array<{ shop: string; isActive: boolean }> }>('/shopify/stores'),
   publishProduct: (payload: {
     shop: string;
     storeProductId?: string;
@@ -2803,7 +2803,7 @@ export const shopifyApi = {
     description?: string;
     galleryImages: Array<{ url: string }>;
     variants: Array<{ size: string; color: string; sku: string; price: number }>;
-  }) => apiRequest<{ ok: boolean; shop: string; shopifyProductId: string }>('/api/shopify/publish-product', {
+  }) => apiRequest<{ ok: boolean; shop: string; shopifyProductId: string }>('/shopify/publish-product', {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
