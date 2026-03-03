@@ -222,12 +222,12 @@ router.get('/callback', async (req, res) => {
     try {
       const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
       const webhooksToRegister = [
-        { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/webhooks/app-uninstalled' },
-        { topic: 'orders/create', key: 'orders_create', path: '/api/shopify/webhooks/orders-create' },
-        { topic: 'orders/paid', key: 'orders_paid', path: '/api/shopify/webhooks/orders-paid' },
-        { topic: 'orders/updated', key: 'orders_updated', path: '/api/shopify/webhooks/orders-updated' },
-        { topic: 'products/create', key: 'products_create', path: '/api/shopify/webhooks/products-create' },
-        { topic: 'products/update', key: 'products_update', path: '/api/shopify/webhooks/products-update' },
+        { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/oauth/webhooks/app-uninstalled' },
+        { topic: 'orders/create', key: 'orders_create', path: '/api/shopify/oauth/webhooks/orders-create' },
+        { topic: 'orders/paid', key: 'orders_paid', path: '/api/shopify/oauth/webhooks/orders-paid' },
+        { topic: 'orders/updated', key: 'orders_updated', path: '/api/shopify/oauth/webhooks/orders-updated' },
+        { topic: 'products/create', key: 'products_create', path: '/api/shopify/oauth/webhooks/products-create' },
+        { topic: 'products/update', key: 'products_update', path: '/api/shopify/oauth/webhooks/products-update' },
       ];
 
       for (const wh of webhooksToRegister) {

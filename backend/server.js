@@ -125,7 +125,7 @@ app.use(session({
 app.use('/api/razorpay', razorpayWebhookRoutes);
 
 // Webhook raw body handlers (MUST be before express.json and routes that use them)
-app.use('/api/shopify/webhooks', express.raw({ type: 'application/json' }));
+app.use('/api/shopify/oauth/webhooks', express.raw({ type: 'application/json' }));
 
 // Body parser middleware - Increased limit for base64 images
 app.use(express.json({ limit: '50mb' }));
