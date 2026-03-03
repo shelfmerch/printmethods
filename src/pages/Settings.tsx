@@ -181,11 +181,13 @@ const Settings = () => {
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your account and store preferences
-          </p>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Settings</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your account, store preferences, and developer tools.
+            </p>
+          </div>
         </div>
 
         {/* Store Settings (store-aware via StoreContext) */}
@@ -325,26 +327,28 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* Notifications */}
-        {/* <Card className="p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Notifications</h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Order Updates</p>
-                <p className="text-sm text-muted-foreground">Get notified when orders are placed</p>
-              </div>
-              <Button variant="outline" size="sm">Enable</Button>
+        {/* Developer Settings shortcut */}
+        <Card className="p-6 mb-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Developer Settings</h2>
+              <p className="text-sm text-muted-foreground">
+                Access API documentation and manage Personal Access Tokens for integrations.
+              </p>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Marketing Emails</p>
-                <p className="text-sm text-muted-foreground">Receive tips and updates from ShelfMerch</p>
-              </div>
-              <Button variant="outline" size="sm">Enable</Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.open('/api/v1/docs', '_blank', 'noopener,noreferrer')}
+              >
+                View API Docs
+              </Button>
+              <Button onClick={() => navigate('/settings/developer')}>
+                Open Developer Settings
+              </Button>
             </div>
           </div>
-        </Card> */}
+        </Card>
 
         {/* Danger Zone */}
         {selectedStore && (

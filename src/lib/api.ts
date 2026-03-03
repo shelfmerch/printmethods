@@ -2809,5 +2809,64 @@ export const shopifyApi = {
   }),
 };
 
+// Developer Personal Access Tokens API (Public API v1)
+export interface PersonalAccessToken {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  type: 'personal_access_token';
+  planCode: string;
+  lastUsedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+  revokedAt?: string;
+}
+
+export interface CreatePatResponse {
+  id: string;
+  name: string;
+  key: string; // Full PAT value (returned once)
+  keyPrefix: string;
+  scopes: string[];
+  type: 'personal_access_token';
+  createdAt: string;
+  expiresAt?: string;
+}
+
+export const developerPatApi = {
+  list: async (): Promise<PersonalAccessToken[]> => {
+    const response = await apiRequest<{
+      data: PersonalAccessToken[];
+    }>('/v1/auth/tokens/personal');
+    return response.data;
+  },
+
+  create: async (payload: { name: string; scopes: string[]; expiresInDays?: number }): Promise<CreatePatResponse> => {
+    const body: any = {
+      name: payload.name,
+      scopes: payload.scopes,
+    };
+    if (payload.expiresInDays && payload.expiresInDays > 0) {
+      body.expires_in_days = payload.expiresInDays;
+    }
+
+    const response = await apiRequest<{
+      data: CreatePatResponse;
+    }>('/v1/auth/tokens/personal', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    return response.data;
+  },
+
+  revoke: async (id: string): Promise<void> => {
+    await apiRequest(`/v1/auth/tokens/personal/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export { getToken, removeTokens, apiRequest };
 

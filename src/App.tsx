@@ -432,6 +432,8 @@ import Orders from "./pages/Orders";
 import Stores from "./pages/Stores";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import DeveloperDashboard from "./pages/DeveloperDashboard";
+import PersonalAccessTokensPage from "./pages/PersonalAccessTokens";
 import Customers from "./pages/Customers";
 import Admin from '@/pages/Admin';
 import AdminOrderDetail from '@/pages/AdminOrderDetail';
@@ -681,6 +683,22 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings/developer"
+                      element={
+                        <ProtectedRoute>
+                          <DeveloperDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings/developer/tokens"
+                      element={
+                        <ProtectedRoute>
+                          <PersonalAccessTokensPage />
                         </ProtectedRoute>
                       }
                     />
