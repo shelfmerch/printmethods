@@ -44,6 +44,9 @@ const { tenantResolver } = require('./middleware/tenantResolver');
 const storeRedirect = require('./middleware/storeRedirect');
 const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
 
+// Public API routes (mounted at /api to support /api/v1, /api/v2, etc.)
+app.use('/api', require('./public-api'));
+
 const { WHITELISTED_DOMAINS } = require('./utils/security');
 
 // CORS configuration - MUST BE FIRST
@@ -74,7 +77,7 @@ const corsOptions = {
 
 // Apply CORS middleware (handles preflight OPTIONS requests automatically)
 app.use(cors(corsOptions));
-app.use(cookieParser(process.env.COOKIE_SECRET || process.env.JWT_SECRET)); 
+app.use(cookieParser(process.env.COOKIE_SECRET || process.env.JWT_SECRET));
 // Security middleware (after CORS)
 app.use((req, res, next) => {
   // Explicitly remove X-Frame-Options to allow embedding (Shopify uses CSP frame-ancestors)
@@ -129,6 +132,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use('/api/shopify/auth', require('./routes/shopifyRoutes'));
+
 // Cron Job for Shopify Sync (Every 2 minutes) — gated by CRON_ENABLED
 const cron = require('node-cron');
 const { syncForShop } = require('./services/shopifySync');
@@ -203,7 +207,7 @@ app.get('/api/_debug/version', (req, res) => {
     timestamp: new Date().toISOString(),
     node_version: process.version,
     // Add dummy commit for now, usually this would be injected by CI/CD
-    version: '1.0.1-shopify-fix-v3' 
+    version: '1.0.1-shopify-fix-v3'
   });
 });
 
@@ -241,7 +245,9 @@ app.use('/api/admin/wallet', adminWalletRoutes);
 app.use('/api/merchant', merchantWithdrawalsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
-app.use('/api/shopify', shopifyPublishRoutes);
+app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
+
+
 
 // 404 handler
 app.use((req, res) => {
@@ -352,7 +358,7 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     // Run one-time migrations
     await runShopifyIndexMigration();
 
