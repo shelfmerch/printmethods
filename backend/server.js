@@ -123,7 +123,7 @@ app.use(session({
 app.use('/api/razorpay', razorpayWebhookRoutes);
 
 // Webhook raw body handlers (MUST be before express.json and routes that use them)
-app.use(['/api/shopify/webhooks', '/api/shopify/oauth/webhooks'], express.raw({ type: 'application/json' }));
+app.use(['/api/shopify/webhooks', '/api/shopify/oauth/webhooks'], express.raw({ type: '*/*' })); // Match any content-type for webhooks to ensure we catch it
 
 // ✅ Webhook aliases (old Shopify webhook URLs -> existing handlers in shopifyRoutes)
 // NOTE: keep this BEFORE express.json and BEFORE 404 handler
@@ -132,9 +132,27 @@ const shopifyOAuthRoutes = require('./routes/shopifyRoutes');
 // forward helper
 function forwardToOAuth(targetPath) {
   return (req, res, next) => {
+    console.log(`[DEBUG] Webhook hit: ${req.method} ${req.originalUrl} -> ${targetPath}`);
+    console.log(`[DEBUG] Content-Type: ${req.get('content-type')}`);
+    console.log(`[DEBUG] Body type: ${typeof req.body}, isBuffer: ${Buffer.isBuffer(req.body)}`);
+
+    if (!Buffer.isBuffer(req.body)) {
+      console.warn('[DEBUG] Body is NOT a Buffer. Raw parsing might have failed or been bypassed!');
+    }
+
     // preserve raw body already parsed by express.raw()
     req.url = targetPath; // rewrite URL for the router
-    shopifyOAuthRoutes.handle(req, res, next);
+    
+    // Use the router directly as middleware
+    shopifyOAuthRoutes(req, res, (err) => {
+        if (err) {
+            console.error('[DEBUG] Forwarding error:', err);
+            return next(err);
+        }
+        // If it falls through the router, log it
+        console.warn(`[DEBUG] Webhook forward fell through for: ${targetPath}`);
+        next();
+    });
   };
 }
 
@@ -142,6 +160,7 @@ app.post('/api/shopify/webhooks/app-uninstalled', forwardToOAuth('/webhooks/app-
 app.post('/api/shopify/webhooks/orders-create', forwardToOAuth('/webhooks/orders-create'));
 app.post('/api/shopify/webhooks/orders-paid', forwardToOAuth('/webhooks/orders-paid'));
 app.post('/api/shopify/webhooks/orders-updated', forwardToOAuth('/webhooks/orders-updated'));
+
 
 
 // Body parser middleware - Increased limit for base64 images
