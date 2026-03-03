@@ -141,6 +141,16 @@ app.get('/api/shopify/callback', (req, res) => {
   const suffix = qs ? `?${qs}` : '';
   res.redirect(302, `/api/shopify/oauth/callback${suffix}`);
 });
+app.get('/api/shopify/start', (req, res) => {
+  const qs = req.originalUrl.split('?')[1];
+  const suffix = qs ? `?${qs}` : '';
+  res.redirect(302, `/api/shopify/oauth/start${suffix}`);
+});
+app.get('/api/shopify/status', (req, res) => {
+  const qs = req.originalUrl.split('?')[1];
+  const suffix = qs ? `?${qs}` : '';
+  res.redirect(302, `/api/shopify/oauth/status${suffix}`);
+});
 app.use('/api/shopify/auth', require('./routes/shopifyRoutes'));
 
 
