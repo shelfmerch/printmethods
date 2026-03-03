@@ -127,8 +127,16 @@ app.use('/api/shopify/webhooks', express.raw({ type: 'application/json' }));
 // Body parser middleware - Increased limit for base64 images
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-app.use('/api/shopify/auth', require('./routes/shopifyRoutes'));
+app.get('/api/shopify/auth', (req, res) => {
+  const qs = req.originalUrl.split('?')[1];
+  const suffix = qs ? `?${qs}` : '';
+  res.redirect(302, `/api/shopify/oauth/start${suffix}`);
+});
+app.get('/api/shopify/callback', (req, res) => {
+  const qs = req.originalUrl.split('?')[1];
+  const suffix = qs ? `?${qs}` : '';
+  res.redirect(302, `/api/shopify/oauth/callback${suffix}`);
+});
 // Cron Job for Shopify Sync (Every 2 minutes) — gated by CRON_ENABLED
 const cron = require('node-cron');
 const { syncForShop } = require('./services/shopifySync');
@@ -242,6 +250,7 @@ app.use('/api/merchant', merchantWithdrawalsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
 app.use('/api/shopify', shopifyPublishRoutes);
+app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
 
 // 404 handler
 app.use((req, res) => {
@@ -416,4 +425,3 @@ const startServer = async () => {
 startServer();
 
 module.exports = app;
-
