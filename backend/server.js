@@ -128,8 +128,7 @@ app.use('/api/shopify/webhooks', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
-
+app.use('/api/shopify/auth', require('./routes/shopifyRoutes'));
 // Cron Job for Shopify Sync (Every 2 minutes) — gated by CRON_ENABLED
 const cron = require('node-cron');
 const { syncForShop } = require('./services/shopifySync');
