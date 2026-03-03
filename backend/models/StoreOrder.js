@@ -81,6 +81,15 @@ const StoreOrderSchema = new mongoose.Schema(
       razorpayPaymentId: String,
       razorpaySignature: String,
     },
+    // Financial Snapshot for Invoice and Profit
+    productBaseCost: Number, // Sum of (CatalogProduct.basePrice * quantity)
+    sellingPrice: Number,    // Sum of (StoreProduct.sellingPrice * quantity)
+    gstPercentage: Number,   // GST % at time of order
+    gstAmount: Number,       // Actual GST amount in INR
+    shippingAmount: Number,  // Actual shipping in INR
+    totalPaid: Number,       // Final total customer paid
+    productionCost: Number,  // Total cost to manufacturer (basePrice + tax + etc if applicable)
+    calculatedProfit: Number, // Profit for the merchant
     // Merchant Fulfillment Payment
     fulfillmentPayment: {
       status: {

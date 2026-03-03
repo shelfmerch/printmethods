@@ -1,5 +1,6 @@
 import { ArrowRight, Package } from "lucide-react";
 import { Product } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface EnhancedProductCardProps {
   product: Product;
@@ -27,17 +28,26 @@ const EnhancedProductCard = ({ product, onProductClick, onAddToCart }: EnhancedP
     }
   };
 
+  const isOOS = product.variantsSummary?.every(v => v.isActive === false) && (product.variantsSummary?.length || 0) > 0;
+
   return (
     <article
       className="product-card group bg-card rounded-2xl overflow-hidden border border-border/50 hover:shadow-lg transition-all cursor-pointer"
       onClick={() => onProductClick(product)}
     >
       <div className="product-image-wrapper aspect-[4/5] bg-muted relative overflow-hidden">
+        {isOOS && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="bg-destructive text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg uppercase tracking-wider">
+              Sold Out
+            </span>
+          </div>
+        )}
         {mockup ? (
           <img
             src={mockup}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className={cn("w-full h-full object-cover group-hover:scale-105 transition-transform duration-300", isOOS && "opacity-50 grayscale")}
             loading="lazy"
           />
         ) : (
@@ -74,10 +84,11 @@ const EnhancedProductCard = ({ product, onProductClick, onAddToCart }: EnhancedP
             {formattedPrice}
           </span>
           <button
-            className="btn-outline-store !px-4 !py-1.5 text-sm"
+            className={cn("btn-outline-store !px-4 !py-1.5 text-sm", isOOS && "opacity-50 cursor-not-allowed pointer-events-none")}
             onClick={handleAddToCart}
+            disabled={isOOS}
           >
-            Add to Cart
+            {isOOS ? 'Out of Stock' : 'Add to Cart'}
           </button>
         </div>
       </div>

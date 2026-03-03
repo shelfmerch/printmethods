@@ -117,22 +117,22 @@ const EnhancedFooter = ({ storeName, description, storeSlug }: EnhancedFooterPro
                   About Us
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link
                   to="/support/contact-us"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Contact
                 </Link>
-              </li>
-              <li>
+              </li> */}
+              {/* <li>
                 <Link
                   to="/about/careers"
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Careers
                 </Link>
-              </li>
+              </li> */}
             </ul>
           </div>
         </div>

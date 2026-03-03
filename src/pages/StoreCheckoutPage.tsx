@@ -178,9 +178,21 @@ const StoreCheckoutPage: React.FC = () => {
 
   const theme = store ? getTheme(store.theme) : getTheme('modern');
 
-  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0), [cart]);
-  const tax = subtotal * 0.08;
-  const total = subtotal + shipping + tax;
+  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + (item.price || item.product.price || 0) * item.quantity, 0), [cart]);
+
+  // Dynamic Tax (GST) Calculation based on product slabs
+  const tax = useMemo(() => {
+    let maxGstSlab = 0;
+    cart.forEach(item => {
+      const slab = item.product.catalogProduct?.gst?.slab || 0;
+      if (slab > maxGstSlab) {
+        maxGstSlab = slab;
+      }
+    });
+    return subtotal * (maxGstSlab / 100);
+  }, [cart, subtotal]);
+
+  const total = subtotal + shipping;
 
   // Remove default shipping effect that sets it to ₹150
 
@@ -446,14 +458,11 @@ const StoreCheckoutPage: React.FC = () => {
     try {
       setProcessing(true);
 
-      const orderSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-      const orderTax = orderSubtotal * 0.08;
-
       const createResp = await checkoutApi.createRazorpayOrder(subdomain!, {
         cart,
         shippingInfo,
         shipping,
-        tax: orderTax,
+        tax,
       });
 
       if (!createResp.success || !createResp.data?.razorpayOrder) {
@@ -495,7 +504,7 @@ const StoreCheckoutPage: React.FC = () => {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               shipping,
-              tax: orderTax,
+              tax,
             });
 
             if (!verifyResp.success || !verifyResp.data) {
@@ -990,7 +999,7 @@ const StoreCheckoutPage: React.FC = () => {
                       </p>
                       <p className="text-xs text-muted-foreground">Qty {item.quantity}</p>
                     </div>
-                    <p className="font-semibold">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-semibold">₹{((item.price || item.product.price || 0) * item.quantity).toFixed(2)}</p>
                   </div>
                 ))}
               </div>
@@ -1022,10 +1031,7 @@ const StoreCheckoutPage: React.FC = () => {
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Taxes (8%)</span>
-                  <span>₹{tax.toFixed(2)}</span>
-                </div>
+                {/* Taxes hidden from user as per request */}
                 <Separator className="my-2" />
                 <div className="flex justify-between text-base font-semibold">
                   <span>Total</span>

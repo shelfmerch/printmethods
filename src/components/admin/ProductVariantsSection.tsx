@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -154,21 +154,54 @@ export const ProductVariantsSection = ({
     colors: COLOR_OPTIONS,
   };
 
+  // Keep a ref to the latest variants so the auto-gen effect can read them
+  // without causing the effect to re-run when only variants change.
+  const variantsRef = useRef<ProductVariant[]>(variants);
+  useEffect(() => {
+    variantsRef.current = variants;
+  });
+
+  // Track previous sizes/colors so we only regenerate when they actually change
+  const prevSizesRef = useRef<string[]>([]);
+  const prevColorsRef = useRef<string[]>([]);
+
   // Auto-generate variants when sizes or colors change
   useEffect(() => {
+    const prevSizes = prevSizesRef.current;
+    const prevColors = prevColorsRef.current;
+
+    // Skip if sizes and colors haven't actually changed (e.g. initial DB load fires this)
+    const sizesChanged =
+      prevSizes.length !== availableSizes.length ||
+      availableSizes.some((s, i) => s !== prevSizes[i]);
+    const colorsChanged =
+      prevColors.length !== availableColors.length ||
+      availableColors.some((c, i) => c !== prevColors[i]);
+
+    // Always update refs
+    prevSizesRef.current = availableSizes;
+    prevColorsRef.current = availableColors;
+
+    // If neither changed (e.g. just variants updated), don't regenerate
+    if (!sizesChanged && !colorsChanged) return;
+
     if (availableSizes.length === 0 || availableColors.length === 0) {
       onVariantsChange([]);
       return;
     }
 
+    // Read latest variants from ref to avoid stale closure
+    const currentVariants = variantsRef.current;
+
     const newVariants: ProductVariant[] = [];
     availableSizes.forEach((size) => {
       availableColors.forEach((color) => {
-        const existingVariant = variants.find(
+        const existingVariant = currentVariants.find(
           v => v.size === size && v.color === color
         );
 
         if (existingVariant) {
+          // Preserve ALL existing fields, including isActive
           newVariants.push(existingVariant);
         } else {
           // Generate SKU: BASE-SIZE-COLOR (e.g., PROD-M-WHITE)
@@ -180,7 +213,7 @@ export const ProductVariantsSection = ({
             color,
             colorHex: hex,
             sku,
-            price: undefined, // Admin will set price manually
+            price: undefined,
             isActive: true,
           });
         }
@@ -192,10 +225,9 @@ export const ProductVariantsSection = ({
       availableSizes.includes(v.size) && availableColors.includes(v.color)
     );
 
-    console.log('[ProductVariantsSection] variant auto-gen effect triggered', { availableSizes, availableColors, existingVariantsCount: variants.length });
+    console.log('[ProductVariantsSection] variant auto-gen effect triggered', { availableSizes, availableColors, existingVariantsCount: currentVariants.length });
     onVariantsChange(validVariants);
     console.log('[ProductVariantsSection] after onVariantsChange', { validVariantsWithImages: validVariants.filter(v => v.viewImages && Object.values(v.viewImages).some(url => url)).length });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableSizes, availableColors, baseSku]);
 
   const handleSizeToggle = (size: string, checked: boolean) => {

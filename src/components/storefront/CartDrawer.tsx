@@ -24,7 +24,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   onCheckout,
 }) => {
   const { isAuthenticated } = useStoreAuth();
-  const subtotal = cart.reduce((sum, item) => sum + (item.product.price || 0) * (item.quantity || 0), 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price || item.product.price || 0) * (item.quantity || 0), 0);
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
@@ -50,7 +50,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-4 py-4">
                 {cart.map((item) => {
                   const mockup = item.product.mockupUrls?.[0] || item.product.mockupUrl;
-                  const price = item.product.price || 0;
+                  const price = item.price || item.product.price || 0;
                   return (
                     <div
                       key={`${item.productId}-${item.variant.color}-${item.variant.size}`}

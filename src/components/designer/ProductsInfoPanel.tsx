@@ -244,6 +244,17 @@ export const ProductInfoPanel: React.FC<{
       return variantPriceMap[color]?.[size] || product?.catalogue?.basePrice;
     };
 
+    const allAvailableColors = product?.availableColors || [];
+    const availableSizes = product?.availableSizes || [];
+
+    // Filter colors that have at least one active variant (must be before early returns)
+    const availableColors = useMemo(() => {
+      if (!product?.variants) return allAvailableColors;
+      return allAvailableColors.filter(color => {
+        return product.variants?.some(v => v.color === color && v.isActive !== false);
+      });
+    }, [allAvailableColors, product?.variants]);
+
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-8">
@@ -259,9 +270,6 @@ export const ProductInfoPanel: React.FC<{
         </div>
       );
     }
-
-    const availableColors = product.availableColors || [];
-    const availableSizes = product.availableSizes || [];
 
     return (
       <div className="h-full overflow-y-auto">
@@ -338,10 +346,7 @@ export const ProductInfoPanel: React.FC<{
 
                           <div className="flex items-center gap-2 pb-2 border-b border-border">
                             <Checkbox
-                              checked={allSizesSelected}
-                              ref={(el) => {
-                                if (el) el.indeterminate = someSizesSelected;
-                              }}
+                              checked={allSizesSelected ? true : someSizesSelected ? "indeterminate" : false}
                               onCheckedChange={() => {
                                 if (!onSizeToggleForColor) return;
 

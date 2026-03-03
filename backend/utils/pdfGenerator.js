@@ -77,10 +77,10 @@ const generateOrderInvoicePDF = async (order, store) => {
     });
 
     const page = await browser.newPage();
-    
+
     // Set viewport for better rendering
     await page.setViewport({ width: 800, height: 1100 });
-    
+
     // Set content and wait for network idle to ensure fonts/images load
     await page.setContent(html, { waitUntil: 'networkidle0' });
 

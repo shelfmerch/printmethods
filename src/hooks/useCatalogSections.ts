@@ -81,7 +81,7 @@ export const useCatalogSections = (): UseCatalogSectionsResult => {
   } = useQuery({
     queryKey: ['catalog-sections'],
     queryFn: async () => {
-      const response = await catalogProductsApi.list({ page: 1, limit: 60, isActive: true });
+      const response = await catalogProductsApi.list({ page: 1, limit: 60, isActive: true, hasActiveVariantsOnly: true });
       // catalogProductsApi.list returns ApiResponse-like structure; normalize to array
       const raw = (response as any)?.data || (response as any)?.products || response;
       return Array.isArray(raw) ? raw : [];

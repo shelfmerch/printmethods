@@ -276,12 +276,13 @@ export const storeProductsApi = {
 // Catalog Products API (for internal catalog, not store-specific listings)
 export const catalogProductsApi = {
   // List catalog products with optional filters/search
-  list: async (params?: { page?: number; limit?: number; search?: string; isActive?: boolean }) => {
+  list: async (params?: { page?: number; limit?: number; search?: string; isActive?: boolean; hasActiveVariantsOnly?: boolean }) => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.isActive !== undefined) queryParams.append('isActive', String(params.isActive));
+    if (params?.hasActiveVariantsOnly !== undefined) queryParams.append('hasActiveVariantsOnly', String(params.hasActiveVariantsOnly));
 
     const query = queryParams.toString();
 
