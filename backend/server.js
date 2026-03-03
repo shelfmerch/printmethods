@@ -193,7 +193,7 @@ app.post('/api/shopify/link-account', (req, res) => {
   // 307 to preserve method and body
   res.redirect(307, `/api/shopify/oauth/link-account${suffix}`);
 });
-app.use('/api/shopify/auth', require('./routes/shopifyRoutes'));
+
 
 
 // Cron Job for Shopify Sync (Every 2 minutes) — gated by CRON_ENABLED
