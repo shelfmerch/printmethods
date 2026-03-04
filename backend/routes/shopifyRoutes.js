@@ -398,68 +398,61 @@ router.post('/stores/:shop/sync', protect, requireStoreOwnership, async (req, re
 // Webhook handling
 const handleShopifyWebhook = async (req, res) => {
   const hmacHeader = req.get('x-shopify-hmac-sha256');
-  const topic = req.get('x-shopify-topic');
+  const topic = req.get('x-shopify-topic') || '';
   const shopDomain = (req.get('x-shopify-shop-domain') || '').toLowerCase();
-  const rawBody = Buffer.isBuffer(req.body)
-    ? req.body.toString('utf8')
-    : (req.body && typeof req.body.toString === 'function'
-        ? req.body.toString('utf8')
-        : String(req.body || ''));
 
   try {
+    if (!Buffer.isBuffer(req.body)) {
+      console.error('[WEBHOOK ERROR] req.body is not Buffer. Check express.raw() middleware order.');
+      return res.status(500).send('Webhook misconfigured');
+    }
+
+    const rawBody = req.body.toString('utf8');
+
     const secret = process.env.SHOPIFY_WEBHOOK_SECRET || process.env.SHOPIFY_API_SECRET;
-    if (!verifyShopifyWebhook(rawBody, hmacHeader, secret)) return res.status(401).send('Invalid signature');
+    if (!verifyShopifyWebhook(rawBody, hmacHeader, secret)) {
+      console.error('[WEBHOOK HMAC FAIL]', { topic, shopDomain });
+      return res.status(401).send('Invalid signature');
+    }
 
     const payload = JSON.parse(rawBody);
 
-    console.log("Webhook topic:", topic);
-    console.log("Shop:", shopDomain);
-    console.log("Order payload id:", payload?.id);
-
-    // Find store to get merchantId
     const store = await ShopifyStore.findOne({ shop: shopDomain, isActive: true });
     if (!store) return res.status(200).send('Store not found or inactive');
 
-    if (topic === "orders/create" || topic === "orders/updated") {
-      const order = payload;
-      const shopifyOrderId = String(order.id);
+    // ✅ Only order topics save to ShopifyOrder collection
+    if (topic.startsWith('orders/')) {
+      const shopifyOrderId = String(payload.id);
+      console.log('[WEBHOOK IN]', { topic, shop: shopDomain, orderId: shopifyOrderId });
 
-      await ShopifyOrder.findOneAndUpdate(
-        { shop: shopDomain, shopifyOrderId },
-        {
-          shop: shopDomain,
-          merchantId: store.merchantId, // maintain existing relation
-          shopifyOrderId,
-          name: order.name,
-          email: order.email,
-          total_price: order.total_price,
-          currency: order.currency,
-          financial_status: order.financial_status,
-          fulfillment_status: order.fulfillment_status,
-          line_items: order.line_items,
-          customer: order.customer,
-          shipping_address: order.shipping_address,
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-          // maintain legacy fields for compatibility
-          orderName: order.name,
-          orderNumber: order.order_number,
-          financialStatus: order.financial_status,
-          fulfillmentStatus: order.fulfillment_status,
-          totalPrice: order.total_price,
-          customerEmail: order.email || order.customer?.email || '',
-          createdAtShopify: order.created_at ? new Date(order.created_at) : undefined,
-          updatedAtShopify: order.updated_at ? new Date(order.updated_at) : undefined,
-          raw: order
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      const createdAtShopify = payload.created_at ? new Date(payload.created_at) : null;
+      const updatedAtShopify = payload.updated_at ? new Date(payload.updated_at) : null;
 
-      console.log("✅ Shopify order saved:", order.id);
+      try {
+        await ShopifyOrder.findOneAndUpdate(
+          { shop: shopDomain, shopifyOrderId },
+          {
+            $set: {
+              shop: shopDomain,
+              shopifyOrderId,
+              topic,
+              createdAtShopify,
+              updatedAtShopify,
+              raw: payload,
+            },
+            $setOnInsert: { merchantId: store.merchantId || null },
+          },
+          { upsert: true, new: true }
+        );
+        console.log('[WEBHOOK SAVED]', { topic, shop: shopDomain, orderId: shopifyOrderId });
+      } catch (dbErr) {
+        console.error('[WEBHOOK DB ERROR]', dbErr.message);
+      }
     }
-    
+
     return res.status(200).json({ ok: true });
   } catch (err) {
+    console.error('[WEBHOOK ERROR]', err.message);
     return res.status(500).json({ ok: false });
   }
 };
