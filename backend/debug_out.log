@@ -1,0 +1,19 @@
+[dotenv@17.3.1] injecting env (26) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[CRON] Shopify sync cron scheduled (every 2 min)
+📡 Google OAuth Strategy Configured:
+   - Environment: development
+   - Callback URL: http://localhost:5000/api/auth/google/callback
+   - Proxy Enabled: true
+✓ Google OAuth strategy configured
+MongoDB Connected: ac-qnc89uy-shard-00-00.6uk2ux2.mongodb.net
+[Migration] ✅ Verified: compound unique index "merchantId_1_shop_1" exists on shopifystores.
+[Migration] ✅ Verified: compound unique index "merchantId_1_shop_1_shopifyProductId_1" exists on shopifyproducts.
+[Migration] ✅ Verified: compound unique index "merchantId_1_shop_1_shopifyOrderId_1" exists on shopifyorders.
+[Migration] ✅ Shopify index migration completed.
+✅ Server running in development mode on port 5000
+✅ Health check: http://localhost:5000/health
+✅ Server listening on: {"address":"0.0.0.0","family":"IPv4","port":5000}
+[CRON] Starting Shopify Sync (mode: orders)...
+[Shopify Sync] Mode: orders | Shop: tees-graphy-2.myshopify.com | Merchant: 69a6672266fbf09c36d4cd45 | Since: 2026-02-24T11:16:00.247Z
+[CRON] Starting Shopify Sync (mode: orders)...
+[Shopify Sync] Mode: orders | Shop: tees-graphy-2.myshopify.com | Merchant: 69a6672266fbf09c36d4cd45 | Since: 2026-02-24T11:18:00.379Z

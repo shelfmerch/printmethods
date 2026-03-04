@@ -62,7 +62,7 @@ export const ProductDescription = ({
     if (!isSizeChartEnabled && !hasSizeGuide) return null;
 
     return (
-        <section className="space-y-4">
+        <section id="size-chart" className="space-y-4">
             <h2 className="section-title">
                 {isSizeChartEnabled ? 'SIZE CHART' : 'SIZE GUIDE'}
             </h2>

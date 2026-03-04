@@ -496,13 +496,7 @@ const ListingEditor = () => {
 
       // If it's an existing edit, derive existing storeId accurately
       let targetStoreIdsArray = Array.from(selectedStoreIds);
-      if (storeProductId && draftData?.storeId) {
-        const designatedStoreId = draftData.storeId._id || draftData.storeId;
-        targetStoreIdsArray = [designatedStoreId.toString()];
-        console.log('[ListingEditor] Targeting singular existing store from draft context:', targetStoreIdsArray);
-      } else {
-        console.log(`[ListingEditor] ${targetStatus === 'published' ? 'Publishing' : 'Saving draft'} to targeted stores:`, targetStoreIdsArray);
-      }
+      console.log(`[ListingEditor] ${targetStatus === 'published' ? 'Publishing' : 'Saving draft'} to targeted stores:`, targetStoreIdsArray);
 
       const catalogProductId = draftData?.catalogProductId || state?.productId;
       if (!catalogProductId) {
@@ -517,10 +511,16 @@ const ListingEditor = () => {
       // For each targeted store, upsert (create or update) the StoreProduct
       for (const storeId of targetStoreIdsArray) {
         try {
-          // Check if this is the store with the existing draft (storeProductId)
-          const isExistingDraft = storeProductId &&
-            draftData?.storeId &&
-            (String(draftData.storeId._id || draftData.storeId) === String(storeId));
+          // Normalize IDs for comparison
+          const currentStoreId = String(storeId).toLowerCase().trim();
+          const originalStoreId = String(draftData?.storeId?._id || draftData?.storeId || '').toLowerCase().trim();
+
+          // isExistingDraft is true if this store matches the store of the existing draft
+          // OR if we only have one store selected and we're in edit mode (safer fallback)
+          const isExistingDraft = !!storeProductId && (
+            (originalStoreId !== '' && currentStoreId === originalStoreId) ||
+            (targetStoreIdsArray.length === 1)
+          );
 
           if (isExistingDraft && storeProductId) {
             // Update existing draft
