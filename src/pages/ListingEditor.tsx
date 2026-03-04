@@ -173,12 +173,13 @@ const ListingEditor = () => {
       setIsShopifyLoading(true);
       try {
         const response = await shopifyApi.listConnectedShops();
-        if (response.success && Array.isArray(response.data)) {
-          setShopifyStores(response.data);
-          // Pre-select first store if available
-          if (response.data.length > 0) {
-            setSelectedShop(response.data[0].shop);
-          }
+        // apiRequest unwraps: backend { success, data } -> returns data (array). Handle both shapes.
+        const list = Array.isArray(response)
+          ? response
+          : (response?.data ?? []);
+        if (list.length > 0) {
+          setShopifyStores(list);
+          setSelectedShop(list[0].shop);
         }
       } catch (error) {
         console.error('Failed to fetch Shopify stores:', error);
