@@ -88,7 +88,7 @@ import { WithdrawalsManagement } from '@/components/admin/WithdrawalsManagement'
 import { InvoiceManagement } from '@/components/admin/InvoiceManagement';
 import { AuditLogs } from '@/components/admin/AuditLogs';
 import { PayoutManagement } from '@/components/admin/PayoutManagement';
-import { productApi, storeOrdersApi, adminWalletApi } from '@/lib/api';
+import { productApi, storeOrdersApi, adminWalletApi, adminShopifyOrdersApi, adminFulfillmentOrdersApi } from '@/lib/api';
 import { storeApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { CatalogToolbar } from '@/components/admin/CatalogToolbar';
@@ -158,6 +158,23 @@ const Admin = () => {
   const [ordersStatusFilter, setOrdersStatusFilter] = useState<string>('all');
   const [ordersAmountSort, setOrdersAmountSort] = useState<string>('none');
   const [ordersAlphabeticalSort, setOrdersAlphabeticalSort] = useState<string>('none');
+
+  // Shopify Orders (Super Admin)
+  const [shopifyOrders, setShopifyOrders] = useState<any[]>([]);
+  const [isLoadingShopifyOrders, setIsLoadingShopifyOrders] = useState(false);
+  const [shopifyOrdersPage, setShopifyOrdersPage] = useState(1);
+  const [shopifyOrdersLimit, setShopifyOrdersLimit] = useState(25);
+  const [shopifyOrdersTotal, setShopifyOrdersTotal] = useState(0);
+  const [shopifyOrdersPages, setShopifyOrdersPages] = useState(1);
+  const [shopifyOrdersShopFilter, setShopifyOrdersShopFilter] = useState('');
+  const [shopifyOrdersFinancialStatus, setShopifyOrdersFinancialStatus] = useState<string>('');
+  const [shopifyOrdersFulfillmentStatus, setShopifyOrdersFulfillmentStatus] = useState<string>('');
+  const [shopifyOrdersDateFrom, setShopifyOrdersDateFrom] = useState<string>('');
+  const [shopifyOrdersDateTo, setShopifyOrdersDateTo] = useState<string>('');
+  const [shopifyOrdersSearch, setShopifyOrdersSearch] = useState<string>('');
+  const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<any | null>(null);
+  const [isShopifyOrderDialogOpen, setIsShopifyOrderDialogOpen] = useState(false);
+  const [fulfillmentCreatingFor, setFulfillmentCreatingFor] = useState<string | null>(null);
 
   // Platform Statistics
   const [adminStats, setAdminStats] = useState<{
@@ -566,6 +583,48 @@ const Admin = () => {
     }
   }, [activeTab, setSearchParams]);
 
+  // Fetch Shopify Orders (Super Admin tab)
+  useEffect(() => {
+    const fetchShopifyOrders = async () => {
+      if (user?.role !== 'superadmin' || activeTab !== 'shopify-orders') return;
+      setIsLoadingShopifyOrders(true);
+      try {
+        const resp = await adminShopifyOrdersApi.list({
+          page: shopifyOrdersPage,
+          limit: shopifyOrdersLimit,
+          shop: shopifyOrdersShopFilter || undefined,
+          financialStatus: shopifyOrdersFinancialStatus || undefined,
+          fulfillmentStatus: shopifyOrdersFulfillmentStatus || undefined,
+          dateFrom: shopifyOrdersDateFrom || undefined,
+          dateTo: shopifyOrdersDateTo || undefined,
+          search: shopifyOrdersSearch || undefined,
+        });
+        if (resp && resp.success) {
+          setShopifyOrders(resp.orders || []);
+          setShopifyOrdersTotal(resp.total || 0);
+          setShopifyOrdersPages(resp.pages || 1);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Shopify orders:', error);
+        toast.error('Failed to load Shopify orders');
+      } finally {
+        setIsLoadingShopifyOrders(false);
+      }
+    };
+    fetchShopifyOrders();
+  }, [
+    activeTab,
+    user?.role,
+    shopifyOrdersPage,
+    shopifyOrdersLimit,
+    shopifyOrdersShopFilter,
+    shopifyOrdersFinancialStatus,
+    shopifyOrdersFulfillmentStatus,
+    shopifyOrdersDateFrom,
+    shopifyOrdersDateTo,
+    shopifyOrdersSearch,
+  ]);
+
   useEffect(() => {
     // Fetch immediately when tab becomes active or page changes
     if (activeTab === 'products' && user?.role === 'superadmin') {
@@ -809,6 +868,17 @@ const Admin = () => {
             >
               <ShoppingBag className="mr-2 h-4 w-4" />
               Orders
+            </Button>
+            <Button
+              variant={activeTab === 'shopify-orders' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'shopify-orders' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('shopify-orders')}
+            >
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              Shopify Orders
             </Button>
             <Button
               variant={activeTab === 'fulfillment' ? 'secondary' : 'ghost'}
@@ -1867,6 +1937,280 @@ const Admin = () => {
                   )}
                 </CardContent>
               </Card>
+            </>
+          )}
+
+          {/* Shopify Orders Tab */}
+          {activeTab === 'shopify-orders' && (
+            <>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold">Shopify Orders</h1>
+                  <p className="text-muted-foreground mt-1">
+                    View Shopify orders synced via webhooks.
+                  </p>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-end mb-6">
+                <div className="w-full sm:w-48">
+                  <Label htmlFor="shopify-orders-shop">Shop</Label>
+                  <Input
+                    id="shopify-orders-shop"
+                    placeholder="tees-graphy-2.myshopify.com"
+                    value={shopifyOrdersShopFilter}
+                    onChange={(e) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersShopFilter(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Financial Status</Label>
+                  <Select
+                    value={shopifyOrdersFinancialStatus}
+                    onValueChange={(val) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersFinancialStatus(val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Any</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="refunded">Refunded</SelectItem>
+                      <SelectItem value="voided">Voided</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full sm:w-44">
+                  <Label>Fulfillment Status</Label>
+                  <Select
+                    value={shopifyOrdersFulfillmentStatus}
+                    onValueChange={(val) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersFulfillmentStatus(val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Any</SelectItem>
+                      <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                      <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Date From</Label>
+                  <Input
+                    type="date"
+                    value={shopifyOrdersDateFrom}
+                    onChange={(e) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersDateFrom(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Date To</Label>
+                  <Input
+                    type="date"
+                    value={shopifyOrdersDateTo}
+                    onChange={(e) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersDateTo(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:flex-1">
+                  <Label>Search (Order ID / Email)</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search by Shopify order ID or customer email"
+                      value={shopifyOrdersSearch}
+                      onChange={(e) => {
+                        setShopifyOrdersPage(1);
+                        setShopifyOrdersSearch(e.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Table */}
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Shop</TableHead>
+                        <TableHead>Customer Email</TableHead>
+                        <TableHead className="text-right">Items</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead>Financial</TableHead>
+                        <TableHead>Fulfillment</TableHead>
+                        <TableHead>Created At</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingShopifyOrders ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-6 text-sm text-muted-foreground">
+                            Loading Shopify orders...
+                          </TableCell>
+                        </TableRow>
+                      ) : shopifyOrders.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-6 text-sm text-muted-foreground">
+                            No Shopify orders found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        shopifyOrders.map((order) => (
+                          <TableRow
+                            key={order._id}
+                            className="cursor-pointer hover:bg-muted/40"
+                            onClick={() => {
+                              setSelectedShopifyOrder(order);
+                              setIsShopifyOrderDialogOpen(true);
+                            }}
+                          >
+                            <TableCell>{order.shopifyOrderId}</TableCell>
+                            <TableCell>{order.shop}</TableCell>
+                            <TableCell>{order.customerEmail || '—'}</TableCell>
+                            <TableCell className="text-right">{order.itemsCount ?? 0}</TableCell>
+                            <TableCell className="text-right">
+                              {order.totalPrice
+                                ? `${order.totalPrice} ${order.currency || ''}`.trim()
+                                : '—'}
+                            </TableCell>
+                            <TableCell>{order.financialStatus || '—'}</TableCell>
+                            <TableCell>{order.fulfillmentStatus || '—'}</TableCell>
+                            <TableCell>
+                              {order.createdAtShopify
+                                ? new Date(order.createdAtShopify).toLocaleString()
+                                : '—'}
+                            </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!!fulfillmentCreatingFor}
+                                onClick={async () => {
+                                  try {
+                                    setFulfillmentCreatingFor(order._id);
+                                    await adminFulfillmentOrdersApi.create({
+                                      shop: order.shop,
+                                      shopifyOrderId: order.shopifyOrderId,
+                                    });
+                                    toast.success('Fulfillment job queued');
+                                  } catch (err: any) {
+                                    console.error('Failed to queue fulfillment job', err);
+                                    toast.error(err?.message || 'Failed to queue fulfillment job');
+                                  } finally {
+                                    setFulfillmentCreatingFor(null);
+                                  }
+                                }}
+                              >
+                                {fulfillmentCreatingFor === order._id ? 'Queuing...' : 'Create Fulfillment Job'}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Pagination */}
+              {shopifyOrdersTotal > shopifyOrdersLimit && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(shopifyOrdersPage - 1) * shopifyOrdersLimit + 1}–
+                    {Math.min(shopifyOrdersPage * shopifyOrdersLimit, shopifyOrdersTotal)} of{' '}
+                    {shopifyOrdersTotal} orders
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShopifyOrdersPage((p) => Math.max(1, p - 1))}
+                      disabled={shopifyOrdersPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {shopifyOrdersPage} of {shopifyOrdersPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setShopifyOrdersPage((p) =>
+                          p < shopifyOrdersPages ? p + 1 : p
+                        )
+                      }
+                      disabled={shopifyOrdersPage >= shopifyOrdersPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Order Detail Drawer/Modal */}
+              <Dialog open={isShopifyOrderDialogOpen} onOpenChange={setIsShopifyOrderDialogOpen}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Shopify Order Details</DialogTitle>
+                    <DialogDescription>
+                      Inspect raw Shopify order payload and extracted fields.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {selectedShopifyOrder && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <p><span className="font-medium">Order ID:</span> {selectedShopifyOrder.shopifyOrderId}</p>
+                        <p><span className="font-medium">Shop:</span> {selectedShopifyOrder.shop}</p>
+                        <p><span className="font-medium">Customer Email:</span> {selectedShopifyOrder.customerEmail || '—'}</p>
+                        <p><span className="font-medium">Items:</span> {selectedShopifyOrder.itemsCount ?? 0}</p>
+                        <p>
+                          <span className="font-medium">Total:</span>{' '}
+                          {selectedShopifyOrder.totalPrice
+                            ? `${selectedShopifyOrder.totalPrice} ${selectedShopifyOrder.currency || ''}`.trim()
+                            : '—'}
+                        </p>
+                        <p><span className="font-medium">Financial Status:</span> {selectedShopifyOrder.financialStatus || '—'}</p>
+                        <p><span className="font-medium">Fulfillment Status:</span> {selectedShopifyOrder.fulfillmentStatus || '—'}</p>
+                        <p>
+                          <span className="font-medium">Created At:</span>{' '}
+                          {selectedShopifyOrder.createdAtShopify
+                            ? new Date(selectedShopifyOrder.createdAtShopify).toLocaleString()
+                            : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-medium mb-2">Raw JSON</p>
+                        <pre className="bg-muted rounded-md p-3 text-xs max-h-[40vh] overflow-auto">
+                          {JSON.stringify(selectedShopifyOrder.raw || {}, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
             </>
           )}
 

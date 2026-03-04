@@ -741,24 +741,46 @@ export const adminWalletApi = {
 
 // Admin Shopify Orders API
 export const adminShopifyOrdersApi = {
-  list: async (params?: { page?: number; limit?: number; q?: string }) => {
+  list: async (params?: {
+    page?: number;
+    limit?: number;
+    shop?: string;
+    financialStatus?: string;
+    fulfillmentStatus?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    search?: string;
+  }) => {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.q) queryParams.append('q', params.q);
+    if (params?.shop) queryParams.append('shop', params.shop);
+    if (params?.financialStatus) queryParams.append('financialStatus', params.financialStatus);
+    if (params?.fulfillmentStatus) queryParams.append('fulfillmentStatus', params.fulfillmentStatus);
+    if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
+    if (params?.search) queryParams.append('search', params.search);
+
     const query = queryParams.toString();
 
     return apiRequest<{
-      data: any[];
+      success: boolean;
       page: number;
       limit: number;
       total: number;
-      totalPages: number;
+      pages: number;
+      orders: any[];
     }>(`/admin/shopify-orders${query ? `?${query}` : ''}`);
   },
+};
 
-  getById: async (orderId: string) => {
-    return apiRequest<any>(`/admin/shopify-orders/${encodeURIComponent(orderId)}`);
+// Admin Fulfillment Orders API
+export const adminFulfillmentOrdersApi = {
+  create: async (payload: { shop: string; shopifyOrderId: string }) => {
+    return apiRequest<{ success: boolean; fulfillmentOrder: any }>('/admin/fulfillment-orders', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };
 

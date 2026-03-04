@@ -311,6 +311,7 @@ app.use('/api/admin/wallet', adminWalletRoutes);
 app.use('/api/merchant', merchantWithdrawalsRoutes);
 app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
+app.use('/api/admin/fulfillment-orders', require('./routes/adminFulfillmentOrders'));
 
 app.use('/api/shopify', shopifyPublishRoutes);
 app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
