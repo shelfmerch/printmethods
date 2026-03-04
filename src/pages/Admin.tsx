@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -88,7 +89,16 @@ import { WithdrawalsManagement } from '@/components/admin/WithdrawalsManagement'
 import { InvoiceManagement } from '@/components/admin/InvoiceManagement';
 import { AuditLogs } from '@/components/admin/AuditLogs';
 import { PayoutManagement } from '@/components/admin/PayoutManagement';
-import { productApi, storeOrdersApi, adminWalletApi, adminShopifyOrdersApi, adminFulfillmentOrdersApi } from '@/lib/api';
+import {
+  productApi,
+  storeOrdersApi,
+  adminWalletApi,
+  adminShopifyOrdersApi,
+  adminFulfillmentOrdersApi,
+  adminImportOrdersApi,
+  adminProductMappingApi,
+  adminProductionJobApi
+} from '@/lib/api';
 import { storeApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { CatalogToolbar } from '@/components/admin/CatalogToolbar';
@@ -175,6 +185,38 @@ const Admin = () => {
   const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<any | null>(null);
   const [isShopifyOrderDialogOpen, setIsShopifyOrderDialogOpen] = useState(false);
   const [fulfillmentCreatingFor, setFulfillmentCreatingFor] = useState<string | null>(null);
+
+  // POD Fulfillment Pipeline - Import Orders
+  const [importOrders, setImportOrders] = useState<any[]>([]);
+  const [isLoadingImportOrders, setIsLoadingImportOrders] = useState(false);
+  const [importOrdersPage, setImportOrdersPage] = useState(1);
+  const [importOrdersTotal, setImportOrdersTotal] = useState(0);
+  const [importOrdersStatusFilter, setImportOrdersStatusFilter] = useState('');
+  const [importOrdersShopFilter, setImportOrdersShopFilter] = useState('');
+  const [importOrdersSearch, setImportOrdersSearch] = useState('');
+  const [selectedImportOrder, setSelectedImportOrder] = useState<any | null>(null);
+  const [isImportOrderDialogOpen, setIsImportOrderDialogOpen] = useState(false);
+
+  // POD Fulfillment Pipeline - Product Mapping
+  const [productMappings, setProductMappings] = useState<any[]>([]);
+  const [isLoadingProductMappings, setIsLoadingProductMappings] = useState(false);
+  const [productMappingsPage, setProductMappingsPage] = useState(1);
+  const [productMappingsTotal, setProductMappingsTotal] = useState(0);
+  const [productMappingsShopFilter, setProductMappingsShopFilter] = useState('');
+  const [productMappingsSearch, setProductMappingsSearch] = useState('');
+  const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+  const [selectedMapping, setSelectedMapping] = useState<any | null>(null);
+
+  // POD Fulfillment Pipeline - Production Jobs
+  const [productionJobs, setProductionJobs] = useState<any[]>([]);
+  const [isLoadingProductionJobs, setIsLoadingProductionJobs] = useState(false);
+  const [productionJobsPage, setProductionJobsPage] = useState(1);
+  const [productionJobsTotal, setProductionJobsTotal] = useState(0);
+  const [productionJobsStatusFilter, setProductionJobsStatusFilter] = useState('');
+  const [productionJobsShopFilter, setProductionJobsShopFilter] = useState('');
+  const [productionJobsSearch, setProductionJobsSearch] = useState('');
+  const [selectedProductionJob, setSelectedProductionJob] = useState<any | null>(null);
+  const [isProductionJobDialogOpen, setIsProductionJobDialogOpen] = useState(false);
 
   // Platform Statistics
   const [adminStats, setAdminStats] = useState<{
@@ -625,6 +667,175 @@ const Admin = () => {
     shopifyOrdersSearch,
   ]);
 
+  // Fetch Import Orders
+  useEffect(() => {
+    const fetchImportOrders = async () => {
+      if (user?.role !== 'superadmin' || activeTab !== 'import-orders') return;
+      setIsLoadingImportOrders(true);
+      try {
+        const resp = await adminImportOrdersApi.list({
+          page: importOrdersPage,
+          limit: 25,
+          shop: importOrdersShopFilter || undefined,
+          status: importOrdersStatusFilter || undefined,
+          search: importOrdersSearch || undefined,
+        });
+        if (resp && resp.success) {
+          setImportOrders(resp.data || []);
+          setImportOrdersTotal(resp.pagination?.total || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch import orders:', error);
+        toast.error('Failed to load import orders');
+      } finally {
+        setIsLoadingImportOrders(false);
+      }
+    };
+    fetchImportOrders();
+  }, [
+    activeTab,
+    user?.role,
+    importOrdersPage,
+    importOrdersShopFilter,
+    importOrdersStatusFilter,
+    importOrdersSearch,
+  ]);
+
+  // Fetch Product Mappings
+  useEffect(() => {
+    const fetchProductMappings = async () => {
+      if (user?.role !== 'superadmin' || activeTab !== 'product-mappings') return;
+      setIsLoadingProductMappings(true);
+      try {
+        const resp = await adminProductMappingApi.list({
+          page: productMappingsPage,
+          limit: 25,
+          shop: productMappingsShopFilter || undefined,
+          search: productMappingsSearch || undefined,
+        });
+        if (resp && resp.success) {
+          setProductMappings(resp.data || []);
+          setProductMappingsTotal(resp.pagination?.total || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch product mappings:', error);
+        toast.error('Failed to load product mappings');
+      } finally {
+        setIsLoadingProductMappings(false);
+      }
+    };
+    fetchProductMappings();
+  }, [
+    activeTab,
+    user?.role,
+    productMappingsPage,
+    productMappingsShopFilter,
+    productMappingsSearch,
+  ]);
+
+  // Fetch Production Jobs
+  useEffect(() => {
+    const fetchProductionJobs = async () => {
+      if (user?.role !== 'superadmin' || activeTab !== 'production-jobs') return;
+      setIsLoadingProductionJobs(true);
+      try {
+        const resp = await adminProductionJobApi.list({
+          page: productionJobsPage,
+          limit: 25,
+          shop: productionJobsShopFilter || undefined,
+          status: productionJobsStatusFilter || undefined,
+          search: productionJobsSearch || undefined,
+        });
+        if (resp && resp.success) {
+          setProductionJobs(resp.data || []);
+          setProductionJobsTotal(resp.pagination?.total || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch production jobs:', error);
+        toast.error('Failed to load production jobs');
+      } finally {
+        setIsLoadingProductionJobs(false);
+      }
+    };
+    fetchProductionJobs();
+  }, [
+    activeTab,
+    user?.role,
+    productionJobsPage,
+    productionJobsShopFilter,
+    productionJobsStatusFilter,
+    productionJobsSearch,
+  ]);
+
+  // POD Pipeline Helpers
+  const handleImportOrder = async (shop: string, orderId: string) => {
+    try {
+      const resp = await adminImportOrdersApi.import({ shop, shopifyOrderId: orderId });
+      if (resp.success) {
+        toast.success('Order imported and normalized');
+        setActiveTab('import-orders');
+        // Refresh list
+        const listResp = await adminImportOrdersApi.list({ page: 1, limit: 25 });
+        if (listResp.success) {
+          setImportOrders(listResp.data);
+          setImportOrdersTotal(listResp.pagination.total);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Import failed');
+    }
+  };
+
+  const handleCreateProductionJob = async (orderId: string) => {
+    try {
+      const resp = await adminProductionJobApi.create(orderId);
+      if (resp.success) {
+        toast.success('Production job created');
+        setActiveTab('production-jobs');
+        // Refresh list
+        const listResp = await adminProductionJobApi.list({ page: 1, limit: 25 });
+        if (listResp.success) {
+          setProductionJobs(listResp.data);
+          setProductionJobsTotal(listResp.pagination.total);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Job creation failed');
+    }
+  };
+
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  const handleUpdateJobStatus = async (jobId: string, newStatus: string) => {
+    try {
+      setIsUpdatingStatus(jobId);
+      const resp = await adminProductionJobApi.updateStatus(jobId, newStatus);
+      if (resp.success) {
+        toast.success(`Status updated to ${newStatus}`);
+        setProductionJobs(prev => prev.map(j => j._id === jobId ? { ...j, status: newStatus } : j));
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Status update failed');
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const [isUpdatingShipping, setIsUpdatingShipping] = useState<string | null>(null);
+  const handleUpdateShipping = async (jobId: string, shipping: any) => {
+    try {
+      setIsUpdatingShipping(jobId);
+      const resp = await adminProductionJobApi.updateShipping(jobId, shipping);
+      if (resp.success) {
+        toast.success('Shipping info updated');
+        setProductionJobs(prev => prev.map(j => j._id === jobId ? { ...j, ...resp.data } : j));
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Shipping update failed');
+    } finally {
+      setIsUpdatingShipping(null);
+    }
+  };
+
   useEffect(() => {
     // Fetch immediately when tab becomes active or page changes
     if (activeTab === 'products' && user?.role === 'superadmin') {
@@ -890,6 +1101,46 @@ const Admin = () => {
             >
               <Truck className="mr-2 h-4 w-4" />
               Fulfillment
+            </Button>
+          </div>
+
+          {/* POD Pipeline */}
+          <div className="space-y-1">
+            <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              POD Pipeline
+            </p>
+            <Button
+              variant={activeTab === 'import-orders' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'import-orders' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('import-orders')}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Import Orders
+            </Button>
+            <Button
+              variant={activeTab === 'product-mappings' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'product-mappings' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('product-mappings')}
+            >
+              <Palette className="mr-2 h-4 w-4" />
+              Product Mapping
+            </Button>
+            <Button
+              variant={activeTab === 'production-jobs' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'production-jobs' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('production-jobs')}
+            >
+              <Activity className="mr-2 h-4 w-4" />
+              Production Jobs
             </Button>
           </div>
 
@@ -1940,6 +2191,838 @@ const Admin = () => {
             </>
           )}
 
+          {/* Import Orders Tab */}
+          {activeTab === 'import-orders' && (
+            <>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold">Imported Orders</h1>
+                  <p className="text-muted-foreground mt-1">
+                    Normalized Shopify orders ready for mapping and production.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Quick Import
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Import Shopify Order</DialogTitle>
+                        <DialogDescription>
+                          Enter the shop domain and Shopify Order ID to manually import into the pipeline.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label>Shop Domain</Label>
+                          <Input id="import-shop" placeholder="example.myshopify.com" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Order ID</Label>
+                          <Input id="import-order-id" placeholder="1234567890" />
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={() => {
+                            const shop = (document.getElementById('import-shop') as HTMLInputElement).value;
+                            const orderId = (document.getElementById('import-order-id') as HTMLInputElement).value;
+                            if (shop && orderId) handleImportOrder(shop, orderId);
+                          }}
+                        >
+                          Import Order
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-end mb-6">
+                <div className="w-full sm:w-48">
+                  <Label>Shop Filter</Label>
+                  <Input
+                    placeholder="Filter by shop..."
+                    value={importOrdersShopFilter}
+                    onChange={(e) => {
+                      setImportOrdersPage(1);
+                      setImportOrdersShopFilter(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Status</Label>
+                  <Select
+                    value={importOrdersStatusFilter || 'all'}
+                    onValueChange={(val) => {
+                      setImportOrdersPage(1);
+                      setImportOrdersStatusFilter(val === 'all' ? '' : val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any Status</SelectItem>
+                      <SelectItem value="imported">Imported</SelectItem>
+                      <SelectItem value="needs_mapping">Needs Mapping</SelectItem>
+                      <SelectItem value="ready_for_job">Ready for Job</SelectItem>
+                      <SelectItem value="job_created">Job Created</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full sm:flex-1">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search ID, name, or email..."
+                      value={importOrdersSearch}
+                      onChange={(e) => {
+                        setImportOrdersPage(1);
+                        setImportOrdersSearch(e.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order</TableHead>
+                        <TableHead>Shop</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-center">Items</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>ImportedAt</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingImportOrders ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                              <span className="text-sm text-muted-foreground">Loading imported orders...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : importOrders.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No imported orders found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        importOrders.map((order) => (
+                          <TableRow
+                            key={order._id}
+                            className="cursor-pointer hover:bg-muted/40"
+                            onClick={() => {
+                              setSelectedImportOrder(order);
+                              setIsImportOrderDialogOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-medium">
+                              {order.shopifyOrderName || order.shopifyOrderId}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                              {order.shop}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm font-medium">{order.customer?.name}</div>
+                              <div className="text-xs text-muted-foreground">{order.customer?.email}</div>
+                            </TableCell>
+                            <TableCell className="text-center">{order.items?.length || 0}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  order.status === 'needs_mapping' && "bg-yellow-500/10 text-yellow-600",
+                                  order.status === 'ready_for_job' && "bg-green-500/10 text-green-600",
+                                  order.status === 'job_created' && "bg-blue-500/10 text-blue-600"
+                                )}
+                              >
+                                {order.status.replace('_', ' ')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {new Date(order.importedAt).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant={order.status === 'ready_for_job' ? 'default' : 'outline'}
+                                disabled={order.status !== 'ready_for_job'}
+                                onClick={() => handleCreateProductionJob(order._id)}
+                              >
+                                {order.status === 'job_created' ? 'Job Created' : 'Create Job'}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Pagination */}
+              {importOrdersTotal > 25 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Total {importOrdersTotal} orders
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setImportOrdersPage((p) => Math.max(1, p - 1))}
+                      disabled={importOrdersPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm">Page {importOrdersPage}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setImportOrdersPage((p) => p + 1)}
+                      disabled={importOrders.length < 25}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Order Detail View */}
+              <Dialog open={isImportOrderDialogOpen} onOpenChange={setIsImportOrderDialogOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Imported Order Details</DialogTitle>
+                    <DialogDescription>
+                      Review items and mapping status for {selectedImportOrder?.shopifyOrderName || selectedImportOrder?.shopifyOrderId}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {selectedImportOrder && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card>
+                          <CardHeader className="py-3">
+                            <CardTitle className="text-sm">Customer & Shipping</CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm space-y-1">
+                            <p className="font-medium">{selectedImportOrder.customer?.name}</p>
+                            <p className="text-muted-foreground">{selectedImportOrder.customer?.email}</p>
+                            <p className="text-muted-foreground">{selectedImportOrder.customer?.phone}</p>
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="font-medium">Shipping Address</p>
+                              <p>{selectedImportOrder.shippingAddress?.address1}</p>
+                              {selectedImportOrder.shippingAddress?.address2 && <p>{selectedImportOrder.shippingAddress?.address2}</p>}
+                              <p>{selectedImportOrder.shippingAddress?.city}, {selectedImportOrder.shippingAddress?.province} {selectedImportOrder.shippingAddress?.zip}</p>
+                              <p>{selectedImportOrder.shippingAddress?.country}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader className="py-3">
+                            <CardTitle className="text-sm">Order Info</CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Shop:</span>
+                              <span className="font-mono text-xs">{selectedImportOrder.shop}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Price:</span>
+                              <span className="font-bold">{selectedImportOrder.totalPrice} {selectedImportOrder.currency}</span>
+                            </div>
+                            <div className="flex justify-between pt-2 border-t">
+                              <span className="text-muted-foreground">Status:</span>
+                              <Badge variant="outline">{selectedImportOrder.status}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h3 className="font-bold flex items-center gap-2">
+                          Line Items
+                          <Badge variant="secondary">{selectedImportOrder.items?.length || 0}</Badge>
+                        </h3>
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Product</TableHead>
+                                <TableHead>SKU</TableHead>
+                                <TableHead className="text-center">Qty</TableHead>
+                                <TableHead>Mapping</TableHead>
+                                <TableHead className="text-right">Action</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedImportOrder.items?.map((item: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  <TableCell>
+                                    <div className="font-medium text-sm">{item.title}</div>
+                                    <div className="text-xs text-muted-foreground">{item.variantTitle}</div>
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono">{item.sku}</TableCell>
+                                  <TableCell className="text-center">{item.quantity}</TableCell>
+                                  <TableCell>
+                                    {item.mapped ? (
+                                      <div className="flex flex-col gap-1">
+                                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 w-fit">Mapped</Badge>
+                                        <div className="flex gap-1">
+                                          {item.printAssets?.frontUrl && <Badge variant="outline" className="text-[10px] py-0">Front</Badge>}
+                                          {item.printAssets?.backUrl && <Badge variant="outline" className="text-[10px] py-0">Back</Badge>}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">Unmapped</Badge>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8"
+                                      onClick={() => {
+                                        setSelectedMapping({
+                                          shop: selectedImportOrder.shop,
+                                          shopifyProductId: item.shopifyProductId,
+                                          shopifyVariantId: item.shopifyVariantId,
+                                          merchantId: selectedImportOrder.merchantId,
+                                          printAssets: item.printAssets || { frontUrl: '', backUrl: '', labelUrl: '' },
+                                          mockupUrls: item.mockupUrls || []
+                                        });
+                                        setIsMappingDialogOpen(true);
+                                      }}
+                                    >
+                                      {item.mapped ? 'Edit Mapping' : 'Map Item'}
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+
+                      {selectedImportOrder.status === 'ready_for_job' && (
+                        <div className="flex justify-end pt-4">
+                          <Button
+                            className="gap-2 px-8 py-6 text-lg"
+                            onClick={() => {
+                              handleCreateProductionJob(selectedImportOrder._id);
+                              setIsImportOrderDialogOpen(false);
+                            }}
+                          >
+                            <Activity className="h-5 w-5" />
+                            Create Production Job
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+
+          {/* Product Mappings Tab */}
+          {activeTab === 'product-mappings' && (
+            <>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold">Product Mappings</h1>
+                  <p className="text-muted-foreground mt-1">
+                    Manage print assets and mockups for Shopify variants.
+                  </p>
+                </div>
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    setSelectedMapping(null);
+                    setIsMappingDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New Mapping
+                </Button>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-end mb-6">
+                <div className="w-full sm:w-48">
+                  <Label>Shop Filter</Label>
+                  <Input
+                    placeholder="Filter by shop..."
+                    value={productMappingsShopFilter}
+                    onChange={(e) => {
+                      setProductMappingsPage(1);
+                      setProductMappingsShopFilter(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:flex-1">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search Variant ID..."
+                      value={productMappingsSearch}
+                      onChange={(e) => {
+                        setProductMappingsPage(1);
+                        setProductMappingsSearch(e.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Variant ID</TableHead>
+                        <TableHead>Shop</TableHead>
+                        <TableHead>Assets</TableHead>
+                        <TableHead>Mockups</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingProductMappings ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            Loading mappings...
+                          </TableCell>
+                        </TableRow>
+                      ) : productMappings.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No mappings found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        productMappings.map((mapping) => (
+                          <TableRow key={mapping._id}>
+                            <TableCell className="font-mono text-xs">{mapping.shopifyVariantId}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]">
+                              {mapping.shop}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {mapping.printAssets?.frontUrl && <Badge variant="secondary" className="text-[10px]">Front</Badge>}
+                                {mapping.printAssets?.backUrl && <Badge variant="secondary" className="text-[10px]">Back</Badge>}
+                                {mapping.printAssets?.labelUrl && <Badge variant="secondary" className="text-[10px]">Label</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex -space-x-2">
+                                {(mapping.mockupUrls || []).slice(0, 3).map((url: string, i: number) => (
+                                  <img key={i} src={url} className="w-6 h-6 rounded-full border border-background object-cover bg-muted" />
+                                ))}
+                                {mapping.mockupUrls?.length > 3 && (
+                                  <div className="w-6 h-6 rounded-full border border-background bg-muted flex items-center justify-center text-[10px]">
+                                    +{mapping.mockupUrls.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={mapping.active ? 'default' : 'secondary'}>
+                                {mapping.active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedMapping(mapping);
+                                  setIsMappingDialogOpen(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Mapping Edit Dialog */}
+              <Dialog open={isMappingDialogOpen} onOpenChange={setIsMappingDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{selectedMapping?._id ? 'Edit Mapping' : 'Create New Mapping'}</DialogTitle>
+                    <DialogDescription>
+                      Assign print assets and mockups to this Shopify variant.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Shop</Label>
+                      <Input placeholder="shop.myshopify.com" defaultValue={selectedMapping?.shop} id="mapping-shop" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Variant ID</Label>
+                      <Input placeholder="1234567890" defaultValue={selectedMapping?.shopifyVariantId} id="mapping-variant-id" />
+                    </div>
+                    <div className="col-span-2 grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Front URL</Label>
+                        <Input className="h-8 text-xs" defaultValue={selectedMapping?.printAssets?.frontUrl} id="mapping-front" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Back URL</Label>
+                        <Input className="h-8 text-xs" defaultValue={selectedMapping?.printAssets?.backUrl} id="mapping-back" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Label URL</Label>
+                        <Input className="h-8 text-xs" defaultValue={selectedMapping?.printAssets?.labelUrl} id="mapping-label" />
+                      </div>
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label>Mockup URLs (Comma separated)</Label>
+                      <Textarea
+                        placeholder="https://...jpg, https://...png"
+                        defaultValue={selectedMapping?.mockupUrls?.join(', ')}
+                        id="mapping-mockups"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-4">
+                    <Button variant="outline" onClick={() => setIsMappingDialogOpen(false)}>Cancel</Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const payload = {
+                            shop: (document.getElementById('mapping-shop') as HTMLInputElement).value,
+                            shopifyVariantId: (document.getElementById('mapping-variant-id') as HTMLInputElement).value,
+                            printAssets: {
+                              frontUrl: (document.getElementById('mapping-front') as HTMLInputElement).value,
+                              backUrl: (document.getElementById('mapping-back') as HTMLInputElement).value,
+                              labelUrl: (document.getElementById('mapping-label') as HTMLInputElement).value,
+                            },
+                            mockupUrls: (document.getElementById('mapping-mockups') as HTMLTextAreaElement).value.split(',').map(s => s.trim()).filter(Boolean)
+                          };
+                          await adminProductMappingApi.upsert(payload);
+                          toast.success('Mapping saved');
+                          setIsMappingDialogOpen(false);
+                          // Refresh current tab
+                          const listResp = await adminProductMappingApi.list({ page: 1, limit: 25 });
+                          if (listResp.success) {
+                            setProductMappings(listResp.data);
+                            setProductMappingsTotal(listResp.pagination.total);
+                          }
+                          // Also refresh import orders if open
+                          if (selectedImportOrder) {
+                            const orderResp = await adminImportOrdersApi.get(selectedImportOrder._id);
+                            if (orderResp.success) setSelectedImportOrder(orderResp.data);
+                          }
+                        } catch (err: any) {
+                          toast.error(err.message || 'Save failed');
+                        }
+                      }}
+                    >
+                      Save Mapping
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+
+          {/* Production Jobs Tab */}
+          {activeTab === 'production-jobs' && (
+            <>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold">Production Jobs</h1>
+                  <p className="text-muted-foreground mt-1">
+                    Manage and track manufacturing packets.
+                  </p>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-end mb-6">
+                <div className="w-full sm:w-48">
+                  <Label>Shop Filter</Label>
+                  <Input
+                    placeholder="Filter by shop..."
+                    value={productionJobsShopFilter}
+                    onChange={(e) => {
+                      setProductionJobsPage(1);
+                      setProductionJobsShopFilter(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Status</Label>
+                  <Select
+                    value={productionJobsStatusFilter || 'all'}
+                    onValueChange={(val) => {
+                      setProductionJobsPage(1);
+                      setProductionJobsStatusFilter(val === 'all' ? '' : val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any Status</SelectItem>
+                      <SelectItem value="queued">Queued</SelectItem>
+                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                      <SelectItem value="shipped">Shipped</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full sm:flex-1">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search ID or Customer..."
+                      value={productionJobsSearch}
+                      onChange={(e) => {
+                        setProductionJobsPage(1);
+                        setProductionJobsSearch(e.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Job ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-center">Items</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Shipping</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingProductionJobs ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            Loading jobs...
+                          </TableCell>
+                        </TableRow>
+                      ) : productionJobs.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No production jobs found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        productionJobs.map((job) => (
+                          <TableRow
+                            key={job._id}
+                            className="cursor-pointer hover:bg-muted/40"
+                            onClick={() => {
+                              setSelectedProductionJob(job);
+                              setIsProductionJobDialogOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-mono text-xs">{job._id.slice(-8).toUpperCase()}</TableCell>
+                            <TableCell>
+                              <div className="text-sm font-medium">{job.customer?.name}</div>
+                              <div className="text-xs text-muted-foreground">{job.customer?.email}</div>
+                            </TableCell>
+                            <TableCell className="text-center">{job.items?.length || 0}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  job.status === 'queued' && "bg-slate-500/10 text-slate-600",
+                                  job.status === 'manufacturing' && "bg-orange-500/10 text-orange-600",
+                                  job.status === 'shipped' && "bg-green-500/10 text-green-600"
+                                )}
+                              >
+                                {job.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {job.shipping?.trackingNumber ? (
+                                <div className="text-primary font-medium">{job.shipping.trackingNumber}</div>
+                              ) : (
+                                <span className="text-muted-foreground">No tracking</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={job.status}
+                                onValueChange={(val) => handleUpdateJobStatus(job._id, val)}
+                                disabled={isUpdatingStatus === job._id}
+                              >
+                                <SelectTrigger className="w-32 h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="queued">Queued</SelectItem>
+                                  <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                                  <SelectItem value="shipped">Shipped</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Job Detail Dialog */}
+              <Dialog open={isProductionJobDialogOpen} onOpenChange={setIsProductionJobDialogOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Production Job Detail</DialogTitle>
+                    <DialogDescription>
+                      Manufacturing packet for Order {selectedProductionJob?.shopifyOrderId}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {selectedProductionJob && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card>
+                          <CardHeader className="py-3">
+                            <CardTitle className="text-sm">Shipping Destination</CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm">
+                            <p className="font-medium">{selectedProductionJob.customer?.name}</p>
+                            <p>{selectedProductionJob.shippingAddress?.address1}</p>
+                            <p>{selectedProductionJob.shippingAddress?.city}, {selectedProductionJob.shippingAddress?.province} {selectedProductionJob.shippingAddress?.zip}</p>
+                            <p>{selectedProductionJob.shippingAddress?.country}</p>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader className="py-3 flex flex-row items-center justify-between space-y-0">
+                            <CardTitle className="text-sm">Shipping Info</CardTitle>
+                            <Badge>{selectedProductionJob.status}</Badge>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground">Carrier</Label>
+                                <Input
+                                  className="h-8 text-xs"
+                                  placeholder="e.g. UPS"
+                                  defaultValue={selectedProductionJob.shipping?.carrier}
+                                  id="job-carrier"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground">Tracking #</Label>
+                                <Input
+                                  className="h-8 text-xs"
+                                  placeholder="1Z..."
+                                  defaultValue={selectedProductionJob.shipping?.trackingNumber}
+                                  id="job-tracking"
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full h-8 text-xs"
+                              disabled={isUpdatingShipping === selectedProductionJob._id}
+                              onClick={() => {
+                                const carrier = (document.getElementById('job-carrier') as HTMLInputElement).value;
+                                const number = (document.getElementById('job-tracking') as HTMLInputElement).value;
+                                handleUpdateShipping(selectedProductionJob._id, {
+                                  carrier,
+                                  trackingNumber: number,
+                                  status: 'shipped'
+                                });
+                              }}
+                            >
+                              Update & Mark Shipped
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h3 className="font-bold">Manufacturing Items</h3>
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Item</TableHead>
+                                <TableHead>Print Assets</TableHead>
+                                <TableHead>Mockups</TableHead>
+                                <TableHead className="text-center">Qty</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedProductionJob.items?.map((item: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  <TableCell>
+                                    <div className="font-medium text-sm">{item.title}</div>
+                                    <div className="text-xs text-muted-foreground">{item.variantTitle}</div>
+                                    <div className="text-[10px] font-mono mt-1">{item.sku}</div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-1">
+                                      {item.printAssets?.frontUrl && (
+                                        <a href={item.printAssets.frontUrl} target="_blank" className="text-[10px] text-primary hover:underline">Front Asset ↗</a>
+                                      )}
+                                      {item.printAssets?.backUrl && (
+                                        <a href={item.printAssets.backUrl} target="_blank" className="text-[10px] text-primary hover:underline">Back Asset ↗</a>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-1 overflow-x-auto max-w-[200px]">
+                                      {(item.mockupUrls || []).map((m: string, i: number) => (
+                                        <img key={i} src={m} className="w-10 h-10 rounded border object-cover bg-muted" />
+                                      ))}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center font-bold">{item.quantity}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+
           {/* Shopify Orders Tab */}
           {activeTab === 'shopify-orders' && (
             <>
@@ -1969,17 +3052,17 @@ const Admin = () => {
                 <div className="w-full sm:w-40">
                   <Label>Financial Status</Label>
                   <Select
-                    value={shopifyOrdersFinancialStatus}
+                    value={shopifyOrdersFinancialStatus || 'any'}
                     onValueChange={(val) => {
                       setShopifyOrdersPage(1);
-                      setShopifyOrdersFinancialStatus(val);
+                      setShopifyOrdersFinancialStatus(val === 'any' ? '' : val);
                     }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Any" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
+                      <SelectItem value="any">Any</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="refunded">Refunded</SelectItem>
@@ -1990,17 +3073,17 @@ const Admin = () => {
                 <div className="w-full sm:w-44">
                   <Label>Fulfillment Status</Label>
                   <Select
-                    value={shopifyOrdersFulfillmentStatus}
+                    value={shopifyOrdersFulfillmentStatus || 'any'}
                     onValueChange={(val) => {
                       setShopifyOrdersPage(1);
-                      setShopifyOrdersFulfillmentStatus(val);
+                      setShopifyOrdersFulfillmentStatus(val === 'any' ? '' : val);
                     }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Any" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
+                      <SelectItem value="any">Any</SelectItem>
                       <SelectItem value="fulfilled">Fulfilled</SelectItem>
                       <SelectItem value="partial">Partial</SelectItem>
                       <SelectItem value="unfulfilled">Unfulfilled</SelectItem>

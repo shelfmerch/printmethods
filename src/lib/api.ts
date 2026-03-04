@@ -784,6 +784,92 @@ export const adminFulfillmentOrdersApi = {
   },
 };
 
+// POD Fulfillment Pipeline APIs (Super Admin)
+export const adminImportOrdersApi = {
+  import: async (payload: { shop: string; shopifyOrderId?: string; shopifyOrderIds?: string[] }) => {
+    return apiRequest<{ success: boolean; importedOrders: any[] }>('/admin/import-orders', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  list: async (params?: { page?: number; limit?: number; shop?: string; status?: string; search?: string; dateFrom?: string; dateTo?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.shop) qs.set('shop', params.shop);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    if (params?.dateFrom) qs.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.set('dateTo', params.dateTo);
+    return apiRequest<{ success: boolean; data: any[]; pagination: any }>(`/admin/import-orders?${qs.toString()}`);
+  },
+  getById: async (id: string) => {
+    return apiRequest<{ success: boolean; data: any }>(`/admin/import-orders/${id}`);
+  },
+};
+
+export const adminProductMappingApi = {
+  upsert: async (payload: {
+    shop: string;
+    shopifyProductId: string;
+    shopifyVariantId: string;
+    merchantId?: string;
+    internalProductId?: string;
+    internalVariantId?: string;
+    printAssets: { frontUrl?: string; backUrl?: string; labelUrl?: string };
+    mockupUrls?: string[];
+    printMeta?: any;
+  }) => {
+    return apiRequest<{ success: boolean; data: any; appliedTo: number }>('/admin/product-mappings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  list: async (params?: { page?: number; limit?: number; shop?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.shop) qs.set('shop', params.shop);
+    if (params?.search) qs.set('search', params.search);
+    return apiRequest<{ success: boolean; data: any[]; pagination: any }>(`/admin/product-mappings?${qs.toString()}`);
+  },
+  delete: async (id: string) => {
+    return apiRequest<{ success: boolean; message: string }>(`/admin/product-mappings/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+export const adminProductionJobApi = {
+  create: async (importedOrderId: string) => {
+    return apiRequest<{ success: boolean; data: any }>('/admin/production-jobs', {
+      method: 'POST',
+      body: JSON.stringify({ importedOrderId }),
+    });
+  },
+  list: async (params?: { page?: number; limit?: number; shop?: string; status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.shop) qs.set('shop', params.shop);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    return apiRequest<{ success: boolean; data: any[]; pagination: any }>(`/admin/production-jobs?${qs.toString()}`);
+  },
+  updateStatus: async (id: string, status: string) => {
+    return apiRequest<{ success: boolean; data: any }>(`/admin/production-jobs/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+  updateShipping: async (id: string, shipping: { carrier: string; trackingNumber: string; trackingUrl?: string; shippedAt?: Date }) => {
+    return apiRequest<{ success: boolean; data: any }>(`/admin/production-jobs/${id}/shipping`, {
+      method: 'PATCH',
+      body: JSON.stringify(shipping),
+    });
+  },
+};
+
 // ============================================
 // Merchant Withdrawals API
 // ============================================

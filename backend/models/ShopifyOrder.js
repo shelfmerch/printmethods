@@ -43,7 +43,6 @@ const shopifyOrderSchema = new mongoose.Schema({
 
 // Unique per shop + Shopify order id
 shopifyOrderSchema.index({ shop: 1, shopifyOrderId: 1 }, { unique: true });
-shopifyOrderSchema.index({ merchantId: 1 });
 shopifyOrderSchema.index({ createdAtShopify: -1 });
 shopifyOrderSchema.index({ 'raw.email': 1 });
 
