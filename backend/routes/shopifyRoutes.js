@@ -401,7 +401,7 @@ const handleShopifyWebhook = async (req, res) => {
   const hmacHeader = req.get('x-shopify-hmac-sha256');
   const topic = req.get('x-shopify-topic');
   const shopDomain = (req.get('x-shopify-shop-domain') || '').toLowerCase();
-  const rawBody = req.body.toString('utf8');
+  const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : (req.body && typeof req.body.toString === 'function' ? req.body.toString('utf8') : String(req.body));
 
   try {
     const secret = process.env.SHOPIFY_WEBHOOK_SECRET || process.env.SHOPIFY_API_SECRET;
@@ -425,6 +425,11 @@ const handleShopifyWebhook = async (req, res) => {
 router.post('/webhooks/orders-create', handleShopifyWebhook);
 router.post('/webhooks/orders-paid', handleShopifyWebhook);
 router.post('/webhooks/orders-updated', handleShopifyWebhook);
+router.post('/webhooks/products-create', handleShopifyWebhook);
+router.post('/webhooks/products-update', handleShopifyWebhook);
+// Shopify may deliver to path with slash (e.g. products/create)
+router.post('/webhooks/products/create', handleShopifyWebhook);
+router.post('/webhooks/products/update', handleShopifyWebhook);
 
 // @route   POST /api/shopify/webhooks/app-uninstalled
 // @desc    Handle app/uninstalled webhook from Shopify
