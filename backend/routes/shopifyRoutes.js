@@ -401,7 +401,11 @@ const handleShopifyWebhook = async (req, res) => {
   const hmacHeader = req.get('x-shopify-hmac-sha256');
   const topic = req.get('x-shopify-topic');
   const shopDomain = (req.get('x-shopify-shop-domain') || '').toLowerCase();
-  const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : (req.body && typeof req.body.toString === 'function' ? req.body.toString('utf8') : String(req.body));
+  const rawBody = Buffer.isBuffer(req.body)
+    ? req.body.toString('utf8')
+    : (req.body && typeof req.body.toString === 'function'
+        ? req.body.toString('utf8')
+        : String(req.body || ''));
 
   try {
     const secret = process.env.SHOPIFY_WEBHOOK_SECRET || process.env.SHOPIFY_API_SECRET;
@@ -413,7 +417,40 @@ const handleShopifyWebhook = async (req, res) => {
     if (!store) return res.status(200).send('Store not found or inactive');
 
     if (topic.startsWith('orders/')) {
-       // logic for saving order...
+      if (!store.merchantId) {
+        console.warn('[Shopify Webhook][orders] Store has no merchantId linked, skipping save:', shopDomain);
+        return res.status(200).json({ ok: true, skipped: true });
+      }
+
+      const shopifyOrderId = String(payload.id);
+
+      const doc = {
+        shop: shopDomain,
+        merchantId: store.merchantId,
+        shopifyOrderId,
+        orderName: payload.name,
+        orderNumber: payload.order_number,
+        financialStatus: payload.financial_status,
+        fulfillmentStatus: payload.fulfillment_status,
+        currency: payload.currency,
+        totalPrice: payload.total_price,
+        customerEmail: payload.email || payload.customer?.email || '',
+        createdAtShopify: payload.created_at ? new Date(payload.created_at) : undefined,
+        updatedAtShopify: payload.updated_at ? new Date(payload.updated_at) : undefined,
+        raw: payload
+      };
+
+      await ShopifyOrder.findOneAndUpdate(
+        { shop: shopDomain, shopifyOrderId },
+        { $set: doc },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+
+      console.log('[Shopify Webhook][orders] Upserted order', {
+        shop: shopDomain,
+        shopifyOrderId,
+        topic
+      });
     }
     
     return res.status(200).json({ ok: true });

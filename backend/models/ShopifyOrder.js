@@ -30,8 +30,8 @@ const shopifyOrderSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Compound index for unique order per merchant and shop
-shopifyOrderSchema.index({ merchantId: 1, shop: 1, shopifyOrderId: 1 }, { unique: true });
-shopifyOrderSchema.index({ shop: 1 });
+// Unique per shop + Shopify order id
+shopifyOrderSchema.index({ shop: 1, shopifyOrderId: 1 }, { unique: true });
+shopifyOrderSchema.index({ merchantId: 1 });
 
 module.exports = mongoose.model('ShopifyOrder', shopifyOrderSchema);

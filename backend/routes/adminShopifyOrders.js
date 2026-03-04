@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Order = require('../models/Order');
+const ShopifyOrder = require('../models/ShopifyOrder');
 const { protect, authorize } = require('../middleware/auth');
 
 /**
@@ -20,22 +20,25 @@ router.get('/', protect, authorize('superadmin'), async (req, res) => {
     let filter = {};
     if (shop) filter.shop = shop.toLowerCase();
 
+    const financialStatus = req.query.financial_status;
+    const fulfillmentStatus = req.query.fulfillment_status;
+
+    if (financialStatus) filter.financialStatus = financialStatus;
+    if (fulfillmentStatus) filter.fulfillmentStatus = fulfillmentStatus;
+
     if (q) {
       const searchRegex = new RegExp(q, 'i');
       filter.$or = [
         { shopifyOrderId: searchRegex },
         { orderName: searchRegex },
-        { email: searchRegex },
-        { customerName: searchRegex },
-        { 'customer.email': searchRegex },
-        { 'customer.phone': searchRegex }
+        { customerEmail: searchRegex }
       ];
     }
 
-    const total = await Order.countDocuments(filter);
+    const total = await ShopifyOrder.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
 
-    const orders = await Order.find(filter)
+    const orders = await ShopifyOrder.find(filter)
       .sort({ createdAtShopify: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -63,7 +66,7 @@ router.get('/', protect, authorize('superadmin'), async (req, res) => {
 router.get('/:shopifyOrderId', protect, authorize('superadmin'), async (req, res) => {
   try {
     const { shopifyOrderId } = req.params;
-    const order = await Order.findOne({ shopifyOrderId }).lean();
+    const order = await ShopifyOrder.findOne({ shopifyOrderId }).lean();
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -83,8 +86,8 @@ router.get('/:shopifyOrderId', protect, authorize('superadmin'), async (req, res
  */
 router.get('/debug/orders/count', protect, authorize('superadmin'), async (req, res) => {
   try {
-    const total = await Order.countDocuments({});
-    const latest = await Order.find({})
+    const total = await ShopifyOrder.countDocuments({});
+    const latest = await ShopifyOrder.find({})
       .sort({ createdAt: -1 })
       .limit(5)
       .select('shopifyOrderId orderName createdAt')
