@@ -45,7 +45,7 @@ const storeRedirect = require('./middleware/storeRedirect');
 const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
 
 // Public API routes (mounted at /api to support /api/v1, /api/v2, etc.)
-app.use('/api', require('./public-api'));
+// app.use('/api', require('./public-api'));
 
 const { WHITELISTED_DOMAINS } = require('./utils/security');
 

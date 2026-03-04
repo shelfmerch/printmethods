@@ -127,6 +127,16 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
         );
       }));
       createdVariants = createdVariants.filter(Boolean);
+
+      // Replace-style sync: Delete any StoreProductVariant for this product that 
+      // was NOT in the incoming variants list. This ensures removed sizes/colors
+      // are actually gone from the store.
+      const incomingCatalogVariantIds = createdVariants.map(v => v.catalogProductVariantId.toString());
+      await StoreProductVariant.deleteMany({
+        storeProductId: storeProduct._id,
+        catalogProductVariantId: { $nin: incomingCatalogVariantIds }
+      });
+      console.log(`[StoreProducts] Synced variants for ${storeProduct._id}. Kept ${createdVariants.length}.`);
     }
 
     // Rebuild embedded variantsSummary on the StoreProduct so that
@@ -768,6 +778,16 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       );
 
       updatedVariants = updatedVariants.filter(Boolean);
+
+      // Replace-style sync: Delete any StoreProductVariant for this product that 
+      // was NOT in the incoming variants list. This ensures removed sizes/colors
+      // are actually gone from the store.
+      const keepCatalogVariantIds = updatedVariants.map(v => v.catalogProductVariantId.toString());
+      await StoreProductVariant.deleteMany({
+        storeProductId: sp._id,
+        catalogProductVariantId: { $nin: keepCatalogVariantIds }
+      });
+      console.log(`[StoreProducts] Synced variants for ${sp._id}. Kept ${updatedVariants.length}.`);
     }
 
     // Rebuild embedded variantsSummary from ALL StoreProductVariant docs

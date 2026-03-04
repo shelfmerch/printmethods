@@ -8,35 +8,35 @@ const ProductVariantSchema = new mongoose.Schema({
     required: true,
     index: true // Index for faster queries by product
   },
-  
+
   // Variant identification
-  id: { 
-    type: String, 
+  id: {
+    type: String,
     required: true,
     unique: true // Ensure variant IDs are unique across all products
   },
-  
+
   // Variant attributes
-  size: { 
-    type: String, 
-    required: true 
+  size: {
+    type: String,
+    required: true
   },
-  color: { 
-    type: String, 
-    required: true 
+  color: {
+    type: String,
+    required: true
   },
-  sku: { 
-    type: String, 
+  sku: {
+    type: String,
     required: true,
     unique: true // SKUs must be unique
   },
-  
+
   // Status
-  isActive: { 
-    type: Boolean, 
-    default: true 
+  isActive: {
+    type: Boolean,
+    default: true
   },
-  
+
   // Timestamps
   createdAt: {
     type: Date,

@@ -1,0 +1,12 @@
+(node:2880) [MONGOOSE] Warning: Duplicate schema index on {"slug":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2880) [MONGOOSE] Warning: Duplicate schema index on {"userId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:2880) [MONGOOSE] Warning: Duplicate schema index on {"idempotencyKey":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:2880) [MONGOOSE] Warning: Duplicate schema index on {"shop":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:2880) [MONGOOSE] Warning: Duplicate schema index on {"shop":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(node:2880) [MONGODB DRIVER] Warning: useNewUrlParser is a deprecated option: useNewUrlParser has no effect since Node.js Driver version 4.0.0 and will be removed in the next major version
+(node:2880) [MONGODB DRIVER] Warning: useUnifiedTopology is a deprecated option: useUnifiedTopology has no effect since Node.js Driver version 4.0.0 and will be removed in the next major version
+[Shopify API] 401 from https://tees-graphy-2.myshopify.com/admin/api/2024-01/orders.json: {"errors":"[API] Invalid API key or access token (unrecognized login or wrong password)"}
+[SYNC ERROR] tees-graphy-2.myshopify.com: Shopify API 401
+[Shopify API] 401 from https://tees-graphy-2.myshopify.com/admin/api/2024-01/orders.json: {"errors":"[API] Invalid API key or access token (unrecognized login or wrong password)"}
+[SYNC ERROR] tees-graphy-2.myshopify.com: Shopify API 401

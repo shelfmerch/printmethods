@@ -1,0 +1,522 @@
+
+===== STORE PRODUCT SYNC ERROR =====
+Time: 2026-03-03T11:21:45.843Z
+Error: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+Stack: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+    at Connection.sendCommand (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:306:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Connection.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:334:26)
+    at async Server.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\sdam\server.js:194:29)
+    at async tryOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async Collection.findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\collection.js:544:16)
+    at async model.Query._findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:3536:13)
+    at async model.Query.exec (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:4627:63)
+    at async C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\routes\storeProducts.js:121:16
+Request Body: {
+  "storeIds": [
+    "69980d18aca07a46eaf7aeb1",
+    "699fd207bddbea94cc7b258c"
+  ],
+  "catalogProductId": "69730c67241f54e328f91bc1",
+  "productId": "69a6c1ba524dd265079a8ece",
+  "sellingPrice": 550,
+  "title": "oversized hoodie",
+  "description": "Comfy cotton hoodie",
+  "designData": {
+    "elements": [
+      {
+        "type": "image",
+        "imageUrl": "https://shelf-app-img.s3.amazonaws.com/assets/graphics/png/9532d985-2572-46cb-bab5-5c7537024f8c.png",
+        "name": "can sandwich",
+        "x": 319.00416666666666,
+        "y": 291,
+        "width": 117.325,
+        "height": 130,
+        "rotation": 0,
+        "placeholderId": "front-1769147199212",
+        "view": "front",
+        "id": "m4if5neyy",
+        "zIndex": 0,
+        "visible": true,
+        "locked": false,
+        "opacity": 1
+      }
+    ],
+    "placementsByView": {
+      "front": {
+        "front-1769147199212": {
+          "view": "front",
+          "placeholderId": "front-1769147199212",
+          "x": 0.04874999999999983,
+          "y": 0,
+          "w": 0.9025,
+          "h": 1,
+          "rotationDeg": 0,
+          "aspectRatio": 0.9025
+        }
+      }
+    },
+    "views": [
+      {
+        "key": "front",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/45e6b0b1-b9f3-43e6-8fb8-5acfb4dab038.png",
+        "placeholders": [
+          {
+            "id": "front-1769147199212",
+            "xIn": 12.584615384615384,
+            "yIn": 11.584615384615384,
+            "widthIn": 6,
+            "heightIn": 6,
+            "rotationDeg": 0,
+            "scale": 1,
+            "lockSize": false,
+            "shapeType": "rect"
+          }
+        ]
+      },
+      {
+        "key": "back",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/a9183a2d-4a8f-4b48-b018-d13f2adb0f71.png",
+        "placeholders": [
+          {
+            "id": "back-1769147210680",
+            "xIn": 12.649001795963764,
+            "yIn": 8.4430764309 ... (truncated)
+User: koneti.sindhus@gmail.com (69980cecaca07a46eaf7ae94)
+====================================
+
+===== STORE PRODUCT SYNC ERROR =====
+Time: 2026-03-03T11:21:48.924Z
+Error: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+Stack: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+    at Connection.sendCommand (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:306:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Connection.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:334:26)
+    at async Server.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\sdam\server.js:194:29)
+    at async tryOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async Collection.findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\collection.js:544:16)
+    at async model.Query._findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:3536:13)
+    at async model.Query.exec (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:4627:63)
+    at async C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\routes\storeProducts.js:121:16
+Request Body: {
+  "storeIds": [
+    "69980d18aca07a46eaf7aeb1",
+    "699fd207bddbea94cc7b258c"
+  ],
+  "catalogProductId": "69730c67241f54e328f91bc1",
+  "productId": "69a6c1ba524dd265079a8ece",
+  "sellingPrice": 550,
+  "title": "oversized hoodie",
+  "description": "Comfy cotton hoodie",
+  "designData": {
+    "elements": [
+      {
+        "type": "image",
+        "imageUrl": "https://shelf-app-img.s3.amazonaws.com/assets/graphics/png/9532d985-2572-46cb-bab5-5c7537024f8c.png",
+        "name": "can sandwich",
+        "x": 319.00416666666666,
+        "y": 291,
+        "width": 117.325,
+        "height": 130,
+        "rotation": 0,
+        "placeholderId": "front-1769147199212",
+        "view": "front",
+        "id": "m4if5neyy",
+        "zIndex": 0,
+        "visible": true,
+        "locked": false,
+        "opacity": 1
+      }
+    ],
+    "placementsByView": {
+      "front": {
+        "front-1769147199212": {
+          "view": "front",
+          "placeholderId": "front-1769147199212",
+          "x": 0.04874999999999983,
+          "y": 0,
+          "w": 0.9025,
+          "h": 1,
+          "rotationDeg": 0,
+          "aspectRatio": 0.9025
+        }
+      }
+    },
+    "views": [
+      {
+        "key": "front",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/45e6b0b1-b9f3-43e6-8fb8-5acfb4dab038.png",
+        "placeholders": [
+          {
+            "id": "front-1769147199212",
+            "xIn": 12.584615384615384,
+            "yIn": 11.584615384615384,
+            "widthIn": 6,
+            "heightIn": 6,
+            "rotationDeg": 0,
+            "scale": 1,
+            "lockSize": false,
+            "shapeType": "rect"
+          }
+        ]
+      },
+      {
+        "key": "back",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/a9183a2d-4a8f-4b48-b018-d13f2adb0f71.png",
+        "placeholders": [
+          {
+            "id": "back-1769147210680",
+            "xIn": 12.649001795963764,
+            "yIn": 8.4430764309 ... (truncated)
+User: koneti.sindhus@gmail.com (69980cecaca07a46eaf7ae94)
+====================================
+
+===== STORE PRODUCT SYNC ERROR =====
+Time: 2026-03-03T11:21:50.469Z
+Error: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+Stack: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+    at Connection.sendCommand (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:306:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Connection.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:334:26)
+    at async Server.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\sdam\server.js:194:29)
+    at async tryOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async Collection.findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\collection.js:544:16)
+    at async model.Query._findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:3536:13)
+    at async model.Query.exec (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:4627:63)
+    at async C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\routes\storeProducts.js:121:16
+Request Body: {
+  "storeIds": [
+    "69980d18aca07a46eaf7aeb1",
+    "699fd207bddbea94cc7b258c"
+  ],
+  "catalogProductId": "69730c67241f54e328f91bc1",
+  "productId": "69a6c1ba524dd265079a8ece",
+  "sellingPrice": 550,
+  "title": "oversized hoodie",
+  "description": "Comfy cotton hoodie",
+  "designData": {
+    "elements": [
+      {
+        "type": "image",
+        "imageUrl": "https://shelf-app-img.s3.amazonaws.com/assets/graphics/png/9532d985-2572-46cb-bab5-5c7537024f8c.png",
+        "name": "can sandwich",
+        "x": 319.00416666666666,
+        "y": 291,
+        "width": 117.325,
+        "height": 130,
+        "rotation": 0,
+        "placeholderId": "front-1769147199212",
+        "view": "front",
+        "id": "m4if5neyy",
+        "zIndex": 0,
+        "visible": true,
+        "locked": false,
+        "opacity": 1
+      }
+    ],
+    "placementsByView": {
+      "front": {
+        "front-1769147199212": {
+          "view": "front",
+          "placeholderId": "front-1769147199212",
+          "x": 0.04874999999999983,
+          "y": 0,
+          "w": 0.9025,
+          "h": 1,
+          "rotationDeg": 0,
+          "aspectRatio": 0.9025
+        }
+      }
+    },
+    "views": [
+      {
+        "key": "front",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/45e6b0b1-b9f3-43e6-8fb8-5acfb4dab038.png",
+        "placeholders": [
+          {
+            "id": "front-1769147199212",
+            "xIn": 12.584615384615384,
+            "yIn": 11.584615384615384,
+            "widthIn": 6,
+            "heightIn": 6,
+            "rotationDeg": 0,
+            "scale": 1,
+            "lockSize": false,
+            "shapeType": "rect"
+          }
+        ]
+      },
+      {
+        "key": "back",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/a9183a2d-4a8f-4b48-b018-d13f2adb0f71.png",
+        "placeholders": [
+          {
+            "id": "back-1769147210680",
+            "xIn": 12.649001795963764,
+            "yIn": 8.4430764309 ... (truncated)
+User: koneti.sindhus@gmail.com (69980cecaca07a46eaf7ae94)
+====================================
+
+===== STORE PRODUCT SYNC ERROR =====
+Time: 2026-03-03T11:21:51.289Z
+Error: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+Stack: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+    at Connection.sendCommand (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:306:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Connection.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:334:26)
+    at async Server.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\sdam\server.js:194:29)
+    at async tryOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async Collection.findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\collection.js:544:16)
+    at async model.Query._findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:3536:13)
+    at async model.Query.exec (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:4627:63)
+    at async C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\routes\storeProducts.js:121:16
+Request Body: {
+  "storeIds": [
+    "69980d18aca07a46eaf7aeb1",
+    "699fd207bddbea94cc7b258c"
+  ],
+  "catalogProductId": "69730c67241f54e328f91bc1",
+  "productId": "69a6c1ba524dd265079a8ece",
+  "sellingPrice": 550,
+  "title": "oversized hoodie",
+  "description": "Comfy cotton hoodie",
+  "designData": {
+    "elements": [
+      {
+        "type": "image",
+        "imageUrl": "https://shelf-app-img.s3.amazonaws.com/assets/graphics/png/9532d985-2572-46cb-bab5-5c7537024f8c.png",
+        "name": "can sandwich",
+        "x": 319.00416666666666,
+        "y": 291,
+        "width": 117.325,
+        "height": 130,
+        "rotation": 0,
+        "placeholderId": "front-1769147199212",
+        "view": "front",
+        "id": "m4if5neyy",
+        "zIndex": 0,
+        "visible": true,
+        "locked": false,
+        "opacity": 1
+      }
+    ],
+    "placementsByView": {
+      "front": {
+        "front-1769147199212": {
+          "view": "front",
+          "placeholderId": "front-1769147199212",
+          "x": 0.04874999999999983,
+          "y": 0,
+          "w": 0.9025,
+          "h": 1,
+          "rotationDeg": 0,
+          "aspectRatio": 0.9025
+        }
+      }
+    },
+    "views": [
+      {
+        "key": "front",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/45e6b0b1-b9f3-43e6-8fb8-5acfb4dab038.png",
+        "placeholders": [
+          {
+            "id": "front-1769147199212",
+            "xIn": 12.584615384615384,
+            "yIn": 11.584615384615384,
+            "widthIn": 6,
+            "heightIn": 6,
+            "rotationDeg": 0,
+            "scale": 1,
+            "lockSize": false,
+            "shapeType": "rect"
+          }
+        ]
+      },
+      {
+        "key": "back",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/a9183a2d-4a8f-4b48-b018-d13f2adb0f71.png",
+        "placeholders": [
+          {
+            "id": "back-1769147210680",
+            "xIn": 12.649001795963764,
+            "yIn": 8.4430764309 ... (truncated)
+User: koneti.sindhus@gmail.com (69980cecaca07a46eaf7ae94)
+====================================
+
+===== STORE PRODUCT SYNC ERROR =====
+Time: 2026-03-03T11:21:52.107Z
+Error: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+Stack: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+    at Connection.sendCommand (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:306:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Connection.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:334:26)
+    at async Server.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\sdam\server.js:194:29)
+    at async tryOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async Collection.findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\collection.js:544:16)
+    at async model.Query._findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:3536:13)
+    at async model.Query.exec (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:4627:63)
+    at async C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\routes\storeProducts.js:121:16
+Request Body: {
+  "storeIds": [
+    "69980d18aca07a46eaf7aeb1",
+    "699fd207bddbea94cc7b258c"
+  ],
+  "catalogProductId": "69730c67241f54e328f91bc1",
+  "productId": "69a6c1ba524dd265079a8ece",
+  "sellingPrice": 550,
+  "title": "oversized hoodie",
+  "description": "Comfy cotton hoodie",
+  "designData": {
+    "elements": [
+      {
+        "type": "image",
+        "imageUrl": "https://shelf-app-img.s3.amazonaws.com/assets/graphics/png/9532d985-2572-46cb-bab5-5c7537024f8c.png",
+        "name": "can sandwich",
+        "x": 319.00416666666666,
+        "y": 291,
+        "width": 117.325,
+        "height": 130,
+        "rotation": 0,
+        "placeholderId": "front-1769147199212",
+        "view": "front",
+        "id": "m4if5neyy",
+        "zIndex": 0,
+        "visible": true,
+        "locked": false,
+        "opacity": 1
+      }
+    ],
+    "placementsByView": {
+      "front": {
+        "front-1769147199212": {
+          "view": "front",
+          "placeholderId": "front-1769147199212",
+          "x": 0.04874999999999983,
+          "y": 0,
+          "w": 0.9025,
+          "h": 1,
+          "rotationDeg": 0,
+          "aspectRatio": 0.9025
+        }
+      }
+    },
+    "views": [
+      {
+        "key": "front",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/45e6b0b1-b9f3-43e6-8fb8-5acfb4dab038.png",
+        "placeholders": [
+          {
+            "id": "front-1769147199212",
+            "xIn": 12.584615384615384,
+            "yIn": 11.584615384615384,
+            "widthIn": 6,
+            "heightIn": 6,
+            "rotationDeg": 0,
+            "scale": 1,
+            "lockSize": false,
+            "shapeType": "rect"
+          }
+        ]
+      },
+      {
+        "key": "back",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/a9183a2d-4a8f-4b48-b018-d13f2adb0f71.png",
+        "placeholders": [
+          {
+            "id": "back-1769147210680",
+            "xIn": 12.649001795963764,
+            "yIn": 8.4430764309 ... (truncated)
+User: koneti.sindhus@gmail.com (69980cecaca07a46eaf7ae94)
+====================================
+
+===== STORE PRODUCT SYNC ERROR =====
+Time: 2026-03-03T11:21:52.937Z
+Error: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+Stack: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: shelfmerch_db.productvariants index: sku_1 dup key: { sku: "OVERSIZED-HOODIE--XXL-CHARCOAL" }
+    at Connection.sendCommand (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:306:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Connection.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\cmap\connection.js:334:26)
+    at async Server.command (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\sdam\server.js:194:29)
+    at async tryOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async Collection.findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongodb\lib\collection.js:544:16)
+    at async model.Query._findOneAndUpdate (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:3536:13)
+    at async model.Query.exec (C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\node_modules\mongoose\lib\query.js:4627:63)
+    at async C:\Users\konet\shelfmerch-new-repo\shelfmerch\backend\routes\storeProducts.js:121:16
+Request Body: {
+  "storeIds": [
+    "69980d18aca07a46eaf7aeb1",
+    "699fd207bddbea94cc7b258c"
+  ],
+  "catalogProductId": "69730c67241f54e328f91bc1",
+  "productId": "69a6c1ba524dd265079a8ece",
+  "sellingPrice": 550,
+  "title": "oversized hoodie",
+  "description": "Comfy cotton hoodie",
+  "designData": {
+    "elements": [
+      {
+        "type": "image",
+        "imageUrl": "https://shelf-app-img.s3.amazonaws.com/assets/graphics/png/9532d985-2572-46cb-bab5-5c7537024f8c.png",
+        "name": "can sandwich",
+        "x": 319.00416666666666,
+        "y": 291,
+        "width": 117.325,
+        "height": 130,
+        "rotation": 0,
+        "placeholderId": "front-1769147199212",
+        "view": "front",
+        "id": "m4if5neyy",
+        "zIndex": 0,
+        "visible": true,
+        "locked": false,
+        "opacity": 1
+      }
+    ],
+    "placementsByView": {
+      "front": {
+        "front-1769147199212": {
+          "view": "front",
+          "placeholderId": "front-1769147199212",
+          "x": 0.04874999999999983,
+          "y": 0,
+          "w": 0.9025,
+          "h": 1,
+          "rotationDeg": 0,
+          "aspectRatio": 0.9025
+        }
+      }
+    },
+    "views": [
+      {
+        "key": "front",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/45e6b0b1-b9f3-43e6-8fb8-5acfb4dab038.png",
+        "placeholders": [
+          {
+            "id": "front-1769147199212",
+            "xIn": 12.584615384615384,
+            "yIn": 11.584615384615384,
+            "widthIn": 6,
+            "heightIn": 6,
+            "rotationDeg": 0,
+            "scale": 1,
+            "lockSize": false,
+            "shapeType": "rect"
+          }
+        ]
+      },
+      {
+        "key": "back",
+        "mockupImageUrl": "https://shelf-app-img.s3.ap-south-1.amazonaws.com/mockups/a9183a2d-4a8f-4b48-b018-d13f2adb0f71.png",
+        "placeholders": [
+          {
+            "id": "back-1769147210680",
+            "xIn": 12.649001795963764,
+            "yIn": 8.4430764309 ... (truncated)
+User: koneti.sindhus@gmail.com (69980cecaca07a46eaf7ae94)
+====================================
