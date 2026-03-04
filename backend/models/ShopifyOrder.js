@@ -25,6 +25,17 @@ const shopifyOrderSchema = new mongoose.Schema({
   customerEmail: String,
   createdAtShopify: Date,
   updatedAtShopify: Date,
+  // User requested fields
+  name: String,
+  email: String,
+  total_price: String,
+  financial_status: String,
+  fulfillment_status: String,
+  line_items: [mongoose.Schema.Types.Mixed],
+  customer: mongoose.Schema.Types.Mixed,
+  shipping_address: mongoose.Schema.Types.Mixed,
+  created_at: Date,
+  updated_at: Date,
   raw: {
     type: mongoose.Schema.Types.Mixed // Stores full JSON from Shopify
   }

@@ -411,45 +411,51 @@ const handleShopifyWebhook = async (req, res) => {
     if (!verifyShopifyWebhook(rawBody, hmacHeader, secret)) return res.status(401).send('Invalid signature');
 
     const payload = JSON.parse(rawBody);
+
+    console.log("Webhook topic:", topic);
+    console.log("Shop:", shopDomain);
+    console.log("Order payload id:", payload?.id);
+
     // Find store to get merchantId
     const store = await ShopifyStore.findOne({ shop: shopDomain, isActive: true });
     if (!store) return res.status(200).send('Store not found or inactive');
 
-    if (topic.startsWith('orders/')) {
-      if (!store.merchantId) {
-        console.warn('[Shopify Webhook][orders] Store has no merchantId linked, skipping save:', shopDomain);
-        return res.status(200).json({ ok: true, skipped: true });
-      }
-
-      const shopifyOrderId = String(payload.id);
-
-      const doc = {
-        shop: shopDomain,
-        merchantId: store.merchantId,
-        shopifyOrderId,
-        orderName: payload.name,
-        orderNumber: payload.order_number,
-        financialStatus: payload.financial_status,
-        fulfillmentStatus: payload.fulfillment_status,
-        currency: payload.currency,
-        totalPrice: payload.total_price,
-        customerEmail: payload.email || payload.customer?.email || '',
-        createdAtShopify: payload.created_at ? new Date(payload.created_at) : undefined,
-        updatedAtShopify: payload.updated_at ? new Date(payload.updated_at) : undefined,
-        raw: payload
-      };
+    if (topic === "orders/create" || topic === "orders/updated") {
+      const order = payload;
+      const shopifyOrderId = String(order.id);
 
       await ShopifyOrder.findOneAndUpdate(
         { shop: shopDomain, shopifyOrderId },
-        { $set: doc },
+        {
+          shop: shopDomain,
+          merchantId: store.merchantId, // maintain existing relation
+          shopifyOrderId,
+          name: order.name,
+          email: order.email,
+          total_price: order.total_price,
+          currency: order.currency,
+          financial_status: order.financial_status,
+          fulfillment_status: order.fulfillment_status,
+          line_items: order.line_items,
+          customer: order.customer,
+          shipping_address: order.shipping_address,
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          // maintain legacy fields for compatibility
+          orderName: order.name,
+          orderNumber: order.order_number,
+          financialStatus: order.financial_status,
+          fulfillmentStatus: order.fulfillment_status,
+          totalPrice: order.total_price,
+          customerEmail: order.email || order.customer?.email || '',
+          createdAtShopify: order.created_at ? new Date(order.created_at) : undefined,
+          updatedAtShopify: order.updated_at ? new Date(order.updated_at) : undefined,
+          raw: order
+        },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 
-      console.log('[Shopify Webhook][orders] Upserted order', {
-        shop: shopDomain,
-        shopifyOrderId,
-        topic
-      });
+      console.log("✅ Shopify order saved:", order.id);
     }
     
     return res.status(200).json({ ok: true });
