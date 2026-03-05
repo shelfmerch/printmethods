@@ -314,6 +314,11 @@ app.use('/api/admin/withdrawals', adminWithdrawalsRoutes);
 app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
 app.use('/api/admin/fulfillment-orders', require('./routes/adminFulfillmentOrders'));
 
+// POD Fulfillment Pipeline Routes (Super Admin only)
+app.use('/api/admin/import-orders', require('./routes/adminImportOrders'));
+app.use('/api/admin/product-mappings', require('./routes/adminProductMappings'));
+app.use('/api/admin/production-jobs', require('./routes/adminProductionJobs'));
+
 app.use('/api/shopify', shopifyPublishRoutes);
 app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
 
