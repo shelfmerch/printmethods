@@ -806,6 +806,9 @@ export const adminImportOrdersApi = {
   getById: async (id: string) => {
     return apiRequest<{ success: boolean; data: any }>(`/admin/import-orders/${id}`);
   },
+  getUnmappedItems: async () => {
+    return apiRequest<{ success: boolean; data: any[] }>('/admin/import-orders/unmapped-items');
+  }
 };
 
 export const adminProductMappingApi = {
