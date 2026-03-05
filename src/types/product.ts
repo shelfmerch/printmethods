@@ -34,13 +34,23 @@ export interface DesignWithPlacement {
   placement: DesignPlacement;
 }
 
-// Print placeholder stored in INCHES (design data)
+// Normalized bounding box for a print placeholder relative to the mockup image (0–1).
+export interface NormalizedPosition {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+// Print placeholder: INCHES (legacy) + optional normalized position relative to mockup image.
 export interface Placeholder {
   id: string;
   xIn: number; // X position in inches (for rectangular placeholders, or bounding box for polygons)
   yIn: number; // Y position in inches (for rectangular placeholders, or bounding box for polygons)
   widthIn: number; // Real print width in inches (source of truth) - for rectangles, or bounding box width for polygons
   heightIn: number; // Real print height in inches (source of truth) - for rectangles, or bounding box height for polygons
+  /** Normalized position (0–1) relative to mockup image bounds. Use for resolution-independent overlay positioning. */
+  normalizedPosition?: NormalizedPosition;
   rotationDeg: number; // Rotation in degrees
   scale?: number; // Visual scale multiplier (default: 1.0) - for display only
   lockSize?: boolean; // If true, dragging handles only changes scale, not widthIn/heightIn

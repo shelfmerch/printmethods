@@ -2947,10 +2947,7 @@ export interface CreatePatResponse {
 
 export const developerPatApi = {
   list: async (): Promise<PersonalAccessToken[]> => {
-    const response = await apiRequest<{
-      data: PersonalAccessToken[];
-    }>('/v1/auth/tokens/personal');
-    return response.data;
+    return apiRequest<PersonalAccessToken[]>('/auth/tokens/personal');
   },
 
   create: async (payload: { name: string; scopes: string[]; expiresInDays?: number }): Promise<CreatePatResponse> => {
@@ -2962,22 +2959,19 @@ export const developerPatApi = {
       body.expires_in_days = payload.expiresInDays;
     }
 
-    const response = await apiRequest<{
-      data: CreatePatResponse;
-    }>('/v1/auth/tokens/personal', {
+    return apiRequest<CreatePatResponse>('/auth/tokens/personal', {
       method: 'POST',
       body: JSON.stringify(body),
     });
-
-    return response.data;
   },
 
   revoke: async (id: string): Promise<void> => {
-    await apiRequest(`/v1/auth/tokens/personal/${encodeURIComponent(id)}`, {
+    await apiRequest(`/auth/tokens/personal/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
   },
 };
+
 
 export { getToken, removeTokens, apiRequest };
 

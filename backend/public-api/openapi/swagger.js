@@ -166,12 +166,14 @@ Subscribe to real-time events: ${ALL_WEBHOOK_EVENTS.map(e => `\`${e}\``).join(',
                 Product: {
                     type: 'object',
                     properties: {
-                        id: { type: 'string' },
-                        store_id: { type: 'string' },
+                        id: { type: 'string', readOnly: true },
+                        store_id: { type: 'string', description: 'ID of the store' },
+                        blueprint_id: { type: 'string', description: 'ID of the catalog blueprint' },
                         title: { type: 'string', example: 'My Custom Tee' },
                         selling_price: { type: 'number', example: 499 },
                         status: { type: 'string', enum: ['draft', 'published'] },
                     },
+                    required: ['store_id', 'blueprint_id', 'selling_price']
                 },
                 Order: {
                     type: 'object',
@@ -233,6 +235,14 @@ Subscribe to real-time events: ${ALL_WEBHOOK_EVENTS.map(e => `\`${e}\``).join(',
                         { name: 'category', in: 'query', schema: { type: 'string' } },
                     ],
                     responses: { 200: { description: 'List of blueprints' } },
+                },
+            },
+            '/catalog/blueprints/{id}': {
+                get: {
+                    tags: ['Catalog'],
+                    summary: 'Get a blueprint',
+                    parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+                    responses: { 200: { description: 'Blueprint details' }, 404: { description: 'Blueprint not found' } },
                 },
             },
             '/catalog/blueprints/{id}/variants': {

@@ -35,6 +35,19 @@ router.get('/blueprints',
 );
 
 /**
+ * GET /catalog/blueprints/:id
+ * Get a blueprint.
+ */
+router.get('/blueprints/:id', requireScopes(SCOPES.CATALOG_READ), async (req, res, next) => {
+    try {
+        const blueprint = await catalogFacade.getBlueprint(req.params.id);
+        res.json(successResponse(blueprint));
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * GET /catalog/blueprints/:id/variants
  * Get variants for a specific blueprint.
  */

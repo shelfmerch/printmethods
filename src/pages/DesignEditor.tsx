@@ -43,7 +43,7 @@ import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
 import { RealisticWebGLPreview } from '@/components/admin/RealisticWebGLPreview';
 import { UploadPanel } from '@/components/designer/UploadPanel';
 import { DisplacementSettingsPanel } from '@/components/designer/DisplacementSettingsPanel';
-import type { DisplacementSettings, DesignPlacement, ViewKey } from '@/types/product';
+import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
 import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
 import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
@@ -130,6 +130,7 @@ interface Placeholder {
   scale?: number;
   lockSize?: boolean;
   dpi?: number;
+  normalizedPosition?: NormalizedPosition;
   // For polygon/magnetic lasso placeholders
   polygonPoints?: Array<{ xIn: number; yIn: number }>;
   shapeType?: 'rect' | 'polygon';
@@ -1046,7 +1047,9 @@ const DesignEditor: React.FC = () => {
     return inches * PX_PER_INCH;
   }, [PX_PER_INCH]);
 
-  // Get all placeholders for current view - EXACT LOGIC FROM CanvasMockup.tsx
+  // Get all placeholders for current view.
+  // Position/size must be relative to the mockup IMAGE bounds (centered, aspect-fit), not the padded canvas.
+  // This matches CanvasMockup: use normalizedPosition when available, else derive from inches + physicalDimensions.
   const placeholders = useMemo(() => {
     const sourcePlaceholders = fetchedPlaceholders.length > 0
       ? fetchedPlaceholders
@@ -1058,51 +1061,55 @@ const DesignEditor: React.FC = () => {
     }
 
     const visualColors = ['#ec4899', '#8ce2f5', '#a3ffc6', '#f4fea9', '#ffe2db']; // light blue, light green, light yellow, light pink
+    const currentImageSize = imageSizesByView[currentView] || { width: 0, height: 0, x: 0, y: 0 };
+    const hasImageBounds = currentImageSize.width > 0 && currentImageSize.height > 0;
+    const physicalWidth = product?.design?.physicalDimensions?.width ?? DEFAULT_PHYSICAL_WIDTH;
+    const physicalHeight = product?.design?.physicalDimensions?.height ?? DEFAULT_PHYSICAL_HEIGHT;
 
     const converted = sourcePlaceholders.map((placeholder: Placeholder, index: number) => {
       const visualColor = visualColors[index % visualColors.length];
       const scale = placeholder.scale ?? 1.0;
       const isPolygon = placeholder.shapeType === 'polygon' && placeholder.polygonPoints && placeholder.polygonPoints.length >= 3;
 
-      // Convert inches to pixels for display, then apply scale
-      // ADD canvas padding just like CanvasMockup.tsx
-      const xPx = canvasPadding + inchesToPixels(placeholder.xIn);
-      const yPx = canvasPadding + inchesToPixels(placeholder.yIn);
-      const widthPx = inchesToPixels(placeholder.widthIn) * scale;
-      const heightPx = inchesToPixels(placeholder.heightIn) * scale;
+      let xPx: number;
+      let yPx: number;
+      let widthPx: number;
+      let heightPx: number;
 
-      // For polygons, convert polygon points from inches to pixels
+      if (hasImageBounds) {
+        // Position relative to the mockup image (same as CanvasMockup) so overlay aligns with garment.
+        if (placeholder.normalizedPosition) {
+          const norm = placeholder.normalizedPosition;
+          xPx = currentImageSize.x + norm.x * currentImageSize.width;
+          yPx = currentImageSize.y + norm.y * currentImageSize.height;
+          widthPx = norm.w * currentImageSize.width * scale;
+          heightPx = norm.h * currentImageSize.height * scale;
+        } else {
+          // Legacy: derive fractions from inches so position is relative to image.
+          const fracX = physicalWidth ? placeholder.xIn / physicalWidth : 0;
+          const fracY = physicalHeight ? placeholder.yIn / physicalHeight : 0;
+          const fracW = physicalWidth && placeholder.widthIn ? placeholder.widthIn / physicalWidth : 0.5;
+          const fracH = physicalHeight && placeholder.heightIn ? placeholder.heightIn / physicalHeight : 0.5;
+          xPx = currentImageSize.x + fracX * currentImageSize.width;
+          yPx = currentImageSize.y + fracY * currentImageSize.height;
+          widthPx = fracW * currentImageSize.width * scale;
+          heightPx = fracH * currentImageSize.height * scale;
+        }
+      } else {
+        // Fallback before image has loaded: use inches + PX_PER_INCH so something is visible.
+        xPx = canvasPadding + inchesToPixels(placeholder.xIn);
+        yPx = canvasPadding + inchesToPixels(placeholder.yIn);
+        widthPx = inchesToPixels(placeholder.widthIn) * scale;
+        heightPx = inchesToPixels(placeholder.heightIn) * scale;
+      }
+
+      // For polygons, convert polygon points from inches to pixels (legacy).
       const polygonPointsPx = isPolygon
         ? placeholder.polygonPoints!.map((pt) => [
           canvasPadding + inchesToPixels(pt.xIn) * scale,
           canvasPadding + inchesToPixels(pt.yIn) * scale,
         ]).flat()
         : undefined;
-
-      console.log(`Placeholder ${placeholder.id} conversion (matching CanvasMockup):`, {
-        input: {
-          xIn: placeholder.xIn,
-          yIn: placeholder.yIn,
-          widthIn: placeholder.widthIn,
-          heightIn: placeholder.heightIn,
-          scale,
-          isPolygon,
-          polygonPointsCount: placeholder.polygonPoints?.length
-        },
-        calculation: {
-          PX_PER_INCH,
-          canvasPadding,
-          formula: `${canvasPadding} + (${placeholder.xIn} * ${PX_PER_INCH})`
-        },
-        output: {
-          x: xPx,
-          y: yPx,
-          width: widthPx,
-          height: heightPx,
-          rotation: placeholder.rotationDeg || 0,
-          polygonPointsPx
-        }
-      });
 
       return {
         id: placeholder.id,
@@ -1119,10 +1126,8 @@ const DesignEditor: React.FC = () => {
       };
     });
 
-    console.log('All placeholders converted:', converted);
-
     return converted;
-  }, [fetchedPlaceholders, currentViewData, PX_PER_INCH, inchesToPixels, canvasPadding]);
+  }, [fetchedPlaceholders, currentViewData, imageSizesByView, currentView, product?.design?.physicalDimensions, PX_PER_INCH, inchesToPixels, canvasPadding]);
 
   // Primary print area (first placeholder or default)
   const printArea = useMemo(() => {

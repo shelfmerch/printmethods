@@ -14,21 +14,21 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Dev-only: avoids browser CORS by proxying through Vite (same-origin)
         "/api/partner": {
-          target: "http://localhost:5000",
+          target: "http://127.0.0.1:5000",
           changeOrigin: true,
           secure: false,
         },
       },
-      allowedHosts: TUNNEL_HOST 
+      allowedHosts: TUNNEL_HOST
         ? [TUNNEL_HOST, 'localhost', '127.0.0.1', '.localhost']
         : ['localhost', '127.0.0.1', '.localhost'],
       origin: TUNNEL_HOST ? `https://${TUNNEL_HOST}` : undefined,
       hmr: TUNNEL_HOST
         ? {
-            host: TUNNEL_HOST,
-            protocol: "wss",
-            clientPort: 443,
-          }
+          host: TUNNEL_HOST,
+          protocol: "wss",
+          clientPort: 443,
+        }
         : undefined,
     },
     plugins: [

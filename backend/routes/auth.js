@@ -1550,6 +1550,70 @@ router.post('/verify-phone-later/confirm', protect, async (req, res) => {
   }
 });
 
+// ============================================================
+// PAT Token Management – Session-authenticated (Dashboard Use)
+// These routes accept a regular session JWT (not PAT / X-API-Key)
+// so that the Developer Dashboard can manage PATs without needing
+// an existing PAT to bootstrap.
+// ============================================================
+const apiKeyService = require('../public-api/services/apiKeyService');
+
+// @route   GET /api/auth/tokens/personal
+// @desc    List the current user's Personal Access Tokens
+// @access  Private (session JWT)
+router.get('/tokens/personal', protect, async (req, res) => {
+  try {
+    const keys = await apiKeyService.listApiKeys(req.user._id, {
+      type: 'personal_access_token',
+    });
+    res.json({ success: true, data: keys });
+  } catch (error) {
+    console.error('[PAT] listApiKeys error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching tokens' });
+  }
+});
+
+// @route   POST /api/auth/tokens/personal
+// @desc    Create a new Personal Access Token for the current user
+// @access  Private (session JWT)
+router.post('/tokens/personal', protect, async (req, res) => {
+  try {
+    const { name, scopes, expires_in_days } = req.body;
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'name is required.' });
+    }
+    const expiresAt = expires_in_days
+      ? new Date(Date.now() + expires_in_days * 24 * 60 * 60 * 1000)
+      : null;
+    const result = await apiKeyService.createApiKey({
+      userId: req.user._id,
+      name,
+      scopes: scopes || [],
+      planCode: 'free',
+      type: 'personal_access_token',
+      expiresAt,
+    });
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    console.error('[PAT] createApiKey error:', error);
+    res.status(500).json({ success: false, message: 'Server error creating token' });
+  }
+});
+
+// @route   DELETE /api/auth/tokens/personal/:id
+// @desc    Revoke a Personal Access Token belonging to the current user
+// @access  Private (session JWT)
+router.delete('/tokens/personal/:id', protect, async (req, res) => {
+  try {
+    const result = await apiKeyService.revokeApiKey(req.params.id, req.user._id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[PAT] revokeApiKey error:', error);
+    res.status(500).json({ success: false, message: 'Server error revoking token' });
+  }
+});
+
 module.exports = router;
+
 
 

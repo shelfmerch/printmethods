@@ -82,6 +82,7 @@ import {
   Wallet,
   Shield,
   Plus,
+  Banknote
   Banknote,
   Info,
   ArrowRightLeft,
@@ -187,6 +188,7 @@ const Admin = () => {
   const [shopifyOrdersDateTo, setShopifyOrdersDateTo] = useState<string>('');
   const [shopifyOrdersSearch, setShopifyOrdersSearch] = useState<string>('');
   const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<any | null>(null);
+  const [isShopifyOrderDialogOpen, setIsShopifyOrderDialogOpen] = useState(false);
   const [isShopifyOrderDetailOpen, setIsShopifyOrderDetailOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [fulfillmentCreatingFor, setFulfillmentCreatingFor] = useState<string | null>(null);
@@ -857,11 +859,9 @@ const Admin = () => {
       setIsLoadingUnmappedItems(false);
     }
   }, [activeTab]);
-
   useEffect(() => {
     fetchUnmappedItems();
   }, [activeTab, fetchUnmappedItems]);
-
   useEffect(() => {
     // Fetch immediately when tab becomes active or page changes
     if (activeTab === 'products' && user?.role === 'superadmin') {
@@ -1097,30 +1097,52 @@ const Admin = () => {
             </Button>
             <Button
               variant={activeTab === 'orders' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'orders' && "bg-secondary font-semibold"
+              )}
               className={cn("w-full justify-start", activeTab === 'orders' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('orders')}
             >
               <ShoppingBag className="mr-2 h-4 w-4" />
+              Orders
               Direct Orders
             </Button>
             <Button
+              variant={activeTab === 'shopify-orders' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'shopify-orders' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('shopify-orders')}
               variant={activeTab === 'wallets' ? 'secondary' : 'ghost'}
               className={cn("w-full justify-start", activeTab === 'wallets' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('wallets')}
             >
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              Shopify Orders
               <Wallet className="mr-2 h-4 w-4" />
               Wallets
             </Button>
             <Button
+              variant={activeTab === 'fulfillment' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'fulfillment' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('fulfillment')}
               variant={activeTab === 'withdrawals' ? 'secondary' : 'ghost'}
               className={cn("w-full justify-start", activeTab === 'withdrawals' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('withdrawals')}
             >
+              <Truck className="mr-2 h-4 w-4" />
+              Fulfillment
               <Banknote className="mr-2 h-4 w-4" />
               Withdrawals
             </Button>
           </div>
 
+          {/* POD Pipeline */}
           {/* POD PIPELINE Section */}
           <div className="space-y-1">
             <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -1136,6 +1158,10 @@ const Admin = () => {
             </Button>
             <Button
               variant={activeTab === 'import-orders' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'import-orders' && "bg-secondary font-semibold"
+              )}
               className={cn("w-full justify-start", activeTab === 'import-orders' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('import-orders')}
             >
@@ -1144,6 +1170,10 @@ const Admin = () => {
             </Button>
             <Button
               variant={activeTab === 'product-mappings' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'product-mappings' && "bg-secondary font-semibold"
+              )}
               className={cn("w-full justify-start", activeTab === 'product-mappings' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('product-mappings')}
             >
@@ -1152,6 +1182,10 @@ const Admin = () => {
             </Button>
             <Button
               variant={activeTab === 'production-jobs' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'production-jobs' && "bg-secondary font-semibold"
+              )}
               className={cn("w-full justify-start", activeTab === 'production-jobs' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('production-jobs')}
             >
@@ -1160,30 +1194,172 @@ const Admin = () => {
             </Button>
           </div>
 
+          {/* Finance */}
+          <div className="space-y-1">
+            <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Finance
+            </p>
+            <Button
+              variant={activeTab === 'wallets' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'wallets' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('wallets')}
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              Wallets
+            </Button>
+            <Button
+              variant={activeTab === 'invoices' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'invoices' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('invoices')}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Invoices
+            </Button>
+            <Button
+              variant={activeTab === 'withdrawals' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'withdrawals' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('withdrawals')}
+            >
+              <Banknote className="mr-2 h-4 w-4" />
+              Withdrawals
+            </Button>
+          </div>
+          {/* Platform */}
           {/* Platform Settings */}
           <div className="space-y-1">
             <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Platform
             </p>
             <Button
+              variant={activeTab === 'stores' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'stores' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('stores')}
+            >
+              <Store className="mr-2 h-4 w-4" />
+              Active Stores
+            </Button>
+            <Button
+              variant={activeTab === 'users' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'users' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('users')}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              User Management
+            </Button>
+            <Button
               variant={activeTab === 'settings' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'settings' && "bg-secondary font-semibold"
+              )}
               className={cn("w-full justify-start", activeTab === 'settings' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('settings')}
             >
               <Settings className="mr-2 h-4 w-4" />
+              Platform Settings
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <Link to="/admin/variant-options">
+                <Package className="mr-2 h-4 w-4" />
+                Variant Options
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <Link to="/admin/assets">
+                <Palette className="mr-2 h-4 w-4" />
+                Design Assets
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <Link to="/admin/catalogue-fields">
+                <FileText className="mr-2 h-4 w-4" />
+                Catalogue Fields
+              </Link>
+            </Button>
+            <Button
+              variant={activeTab === 'audit' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'audit' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('audit')}
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Audit Logs
+            </Button>
+          </div>
+          {/* Insights & Marketing */}
+          <div className="space-y-1">
+            <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Insights
+            </p>
+            <Button
+              variant={activeTab === 'analytics' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'analytics' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('analytics')}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Analytics
+            </Button>
+            <Button
+              variant={activeTab === 'marketing' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'marketing' && "bg-secondary font-semibold"
+              )}
+              onClick={() => setActiveTab('marketing')}
+            >
+              <Megaphone className="mr-2 h-4 w-4" />
+              Marketing
               Settings
             </Button>
             <Button
               variant={activeTab === 'support' ? 'secondary' : 'ghost'}
+              className={cn(
+                "w-full justify-start",
+                activeTab === 'support' && "bg-secondary font-semibold"
+              )}
               className={cn("w-full justify-start", activeTab === 'support' && "bg-secondary font-semibold")}
               onClick={() => setActiveTab('support')}
             >
+              <MessageSquare className="mr-2 h-4 w-4" />
               <HelpCircle className="mr-2 h-4 w-4" />
               Support
             </Button>
           </div>
         </nav>
       </aside>
+      {/* Main Content */}
       <main className="ml-64 mt-16 p-8">
         <div className="max-w-7xl mx-auto">
           {/* Overview Tab */}
@@ -1498,19 +1674,28 @@ const Admin = () => {
 
                               {Array.from({ length: Math.min(5, Math.ceil(storesTotal / storesLimit)) }, (_, i) => {
                                 const totalPages = Math.ceil(storesTotal / storesLimit);
+                                let startPage = Math.max(1, storesPage - 2);
+                                if (startPage + 4 > totalPages) {
+                                  startPage = Math.max(1, totalPages - 4);
                                 let pageNum = i + 1;
                                 if (totalPages > 5 && storesPage > 3) {
                                   pageNum = storesPage - 2 + i;
                                   if (pageNum > totalPages) pageNum = totalPages - (4 - i);
                                 }
+                                const p = startPage + i;
+                                if (p > totalPages) return null;
 
                                 return (
+                                  <PaginationItem key={p}>
                                   <PaginationItem key={i}>
                                     <PaginationLink
+                                      isActive={storesPage === p}
+                                      onClick={() => setStoresPage(p)}
                                       onClick={() => setStoresPage(pageNum)}
                                       isActive={storesPage === pageNum}
                                       className="cursor-pointer"
                                     >
+                                      {p}
                                       {pageNum}
                                     </PaginationLink>
                                   </PaginationItem>
@@ -1831,23 +2016,66 @@ const Admin = () => {
           )}
 
 
+          {/* Orders Tab */}
+          {activeTab === 'orders' && (
           {/* Shopify Orders Tab */}
           {activeTab === 'shopify-orders' && (
             <>
               <div className="flex items-center justify-between mb-8">
                 <div>
+                  <h1 className="text-3xl font-bold">Order Management</h1>
                   <h1 className="text-3xl font-bold">Shopify Orders</h1>
                   <p className="text-muted-foreground mt-1">
+                    Monitor all platform orders and fulfillment
                     Manage and import orders directly from connected Shopify stores.
                   </p>
                 </div>
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export Orders
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">Pending</p>
+                    <p className="text-2xl font-bold mt-1">{platformOrders.filter(o => o.status === 'on-hold').length}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">In Production</p>
+                    <p className="text-2xl font-bold mt-1">{platformOrders.filter(o => o.status === 'in-production').length}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">Shipped</p>
+                    <p className="text-2xl font-bold mt-1">{platformOrders.filter(o => o.status === 'shipped').length}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">Delivered</p>
+                    <p className="text-2xl font-bold mt-1">{platformOrders.filter(o => o.status === 'delivered').length}</p>
+                  </CardContent>
+                </Card>
               </div>
 
+              {/* Search and Filters */}
+              <div className="mb-6 space-y-4">
+                {/* Search Bar */}
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               {/* Filters */}
               <div className="flex flex-wrap gap-3 items-end mb-6">
                 <div className="w-full sm:w-48">
                   <Label>Shop Filter</Label>
                   <Input
+                    placeholder="Search orders..."
+                    className="pl-10"
+                    value={ordersSearchQuery}
+                    onChange={(e) => setOrdersSearchQuery(e.target.value)}
                     placeholder="Filter by shop..."
                     value={shopifyOrdersShopFilter}
                     onChange={(e) => {
@@ -1856,6 +2084,11 @@ const Admin = () => {
                     }}
                   />
                 </div>
+                {/* Filters Row */}
+                <div className="flex flex-wrap gap-3 items-center">
+                  {/* Status Filter */}
+                  <Select value={ordersStatusFilter} onValueChange={setOrdersStatusFilter}>
+                    <SelectTrigger className="w-[140px]">
                 <div className="w-full sm:w-40">
                   <Label>Financial Status</Label>
                   <Select
@@ -1870,14 +2103,34 @@ const Admin = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="on-hold">On-hold</SelectItem>
+                      <SelectItem value="in-production">In Production</SelectItem>
+                      <SelectItem value="shipped">Shipped</SelectItem>
+                      <SelectItem value="delivered">Delivered</SelectItem>
                       <SelectItem value="authorized">Authorized</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="partially_paid">Partially Paid</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="refunded">Refunded</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {/* Amount Sort */}
+                  <Select value={ordersAmountSort} onValueChange={setOrdersAmountSort}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Sort by Amount" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="low-high">Low → High</SelectItem>
+                      <SelectItem value="high-low">High → Low</SelectItem>
                       <SelectItem value="voided">Voided</SelectItem>
                     </SelectContent>
                   </Select>
+                  {/* Alphabetical Sort */}
+                  <Select value={ordersAlphabeticalSort} onValueChange={setOrdersAlphabeticalSort}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Sort Alphabetically" />
                 </div>
                 <div className="w-full sm:w-40">
                   <Label>Fulfillment Status</Label>
@@ -1892,6 +2145,11 @@ const Admin = () => {
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="store-az">Store (A → Z)</SelectItem>
+                      <SelectItem value="store-za">Store (Z → A)</SelectItem>
+                      <SelectItem value="email-az">Email (A → Z)</SelectItem>
+                      <SelectItem value="email-za">Email (Z → A)</SelectItem>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="fulfilled">Fulfilled</SelectItem>
                       <SelectItem value="partial">Partial</SelectItem>
@@ -1899,6 +2157,18 @@ const Admin = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Recent Orders</CardTitle>
+                      <CardDescription>Latest platform-wide orders</CardDescription>
+                    </div>
+                    <Button variant="outline" className="gap-2">
+                      <Download className="h-4 w-4" />
+                      Export Orders
+                    </Button>
                 <div className="w-full sm:w-40">
                   <Label>Date From</Label>
                   <Input
@@ -1937,7 +2207,6 @@ const Admin = () => {
                   </div>
                 </div>
               </div>
-
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -2042,7 +2311,6 @@ const Admin = () => {
                   )}
                 </CardContent>
               </Card>
-
               {/* Shopify Order Detail Modal */}
               <Dialog open={isShopifyOrderDetailOpen} onOpenChange={setIsShopifyOrderDetailOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2059,7 +2327,6 @@ const Admin = () => {
               </Dialog>
             </>
           )}
-
           {/* Orders Tab */}
           {activeTab === 'orders' && (
             <>
@@ -2075,7 +2342,6 @@ const Admin = () => {
                   Export Orders
                 </Button>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <Card>
                   <CardContent className="p-6">
@@ -2102,7 +2368,6 @@ const Admin = () => {
                   </CardContent>
                 </Card>
               </div>
-
               {/* Search and Filters */}
               <div className="mb-6 space-y-4">
                 {/* Search Bar */}
@@ -2115,7 +2380,6 @@ const Admin = () => {
                     onChange={(e) => setOrdersSearchQuery(e.target.value)}
                   />
                 </div>
-
                 {/* Filters Row */}
                 <div className="flex flex-wrap gap-3 items-center">
                   {/* Status Filter */}
@@ -2133,7 +2397,6 @@ const Admin = () => {
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
-
                   {/* Amount Sort */}
                   <Select value={ordersAmountSort} onValueChange={setOrdersAmountSort}>
                     <SelectTrigger className="w-[140px]">
@@ -2145,7 +2408,6 @@ const Admin = () => {
                       <SelectItem value="high-low">High → Low</SelectItem>
                     </SelectContent>
                   </Select>
-
                   {/* Alphabetical Sort */}
                   <Select value={ordersAlphabeticalSort} onValueChange={setOrdersAlphabeticalSort}>
                     <SelectTrigger className="w-[180px]">
@@ -2161,7 +2423,6 @@ const Admin = () => {
                   </Select>
                 </div>
               </div>
-
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -2306,6 +2567,42 @@ const Admin = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Quick Import
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Import Shopify Order</DialogTitle>
+                        <DialogDescription>
+                          Enter the shop domain and Shopify Order ID to manually import into the pipeline.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <div className="space-y-2">
+                          <Label>Shop Domain</Label>
+                          <Input id="import-shop" placeholder="example.myshopify.com" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Order ID</Label>
+                          <Input id="import-order-id" placeholder="1234567890" />
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={() => {
+                            const shop = (document.getElementById('import-shop') as HTMLInputElement).value;
+                            const orderId = (document.getElementById('import-order-id') as HTMLInputElement).value;
+                            if (shop && orderId) handleImportOrder(shop, orderId);
+                          }}
+                        >
+                          Import Order
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
 
@@ -2332,9 +2629,12 @@ const Admin = () => {
                     }}
                   >
                     <SelectTrigger>
+                      <SelectValue placeholder="Any" />
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Any Status</SelectItem>
+                      <SelectItem value="imported">Imported</SelectItem>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="needs_mapping">Needs Mapping</SelectItem>
                       <SelectItem value="ready_for_job">Ready for Job</SelectItem>
@@ -2343,11 +2643,13 @@ const Admin = () => {
                   </Select>
                 </div>
                 <div className="w-full sm:flex-1">
+                  <Label>Search</Label>
                   <Label>Search Orders</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       className="pl-9"
+                      placeholder="Search ID, name, or email..."
                       placeholder="Search order ID or customer..."
                       value={importOrdersSearch}
                       onChange={(e) => {
@@ -2365,9 +2667,12 @@ const Admin = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Order</TableHead>
+                        <TableHead>Shop</TableHead>
                         <TableHead>Customer</TableHead>
+                        <TableHead className="text-center">Items</TableHead>
                         <TableHead>Shop</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>ImportedAt</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="text-right">Action</TableHead>
                       </TableRow>
@@ -2375,50 +2680,77 @@ const Admin = () => {
                     <TableBody>
                       {isLoadingImportOrders ? (
                         <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                              <span className="text-sm text-muted-foreground">Loading imported orders...</span>
+                            </div>
                           <TableCell colSpan={6} className="text-center py-8">
                             Loading imported orders...
                           </TableCell>
                         </TableRow>
                       ) : importOrders.length === 0 ? (
                         <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                             No imported orders found.
                           </TableCell>
                         </TableRow>
                       ) : (
                         importOrders.map((order) => (
+                          <TableRow
+                            key={order._id}
+                            className="cursor-pointer hover:bg-muted/40"
+                            onClick={() => {
+                              setSelectedImportOrder(order);
+                              setIsImportOrderDialogOpen(true);
+                            }}
+                          >
                           <TableRow key={order._id} className="cursor-pointer hover:bg-muted/40" onClick={() => {
                             setSelectedImportOrder(order);
                             setIsImportOrderDialogOpen(true);
                           }}>
                             <TableCell className="font-medium">
                               {order.shopifyOrderName || order.shopifyOrderId}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                              {order.shop}
                               <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[100px]">
                                 {order.shopifyOrderId}
                               </div>
                             </TableCell>
                             <TableCell>
+                              <div className="text-sm font-medium">{order.customer?.name}</div>
+                              <div className="text-xs text-muted-foreground">{order.customer?.email}</div>
                               <div className="text-sm">{order.customer?.name || '—'}</div>
                               <div className="text-xs text-muted-foreground">{order.customer?.email || '—'}</div>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground font-mono">
                               {order.shop}
                             </TableCell>
+                            <TableCell className="text-center">{order.items?.length || 0}</TableCell>
                             <TableCell>
                               <Badge
+                                variant="secondary"
                                 variant={
                                   order.status === 'ready_for_job' ? 'default' :
                                     order.status === 'job_created' ? 'secondary' : 'outline'
                                 }
                                 className={cn(
+                                  order.status === 'needs_mapping' && "bg-yellow-500/10 text-yellow-600",
+                                  order.status === 'ready_for_job' && "bg-green-500/10 text-green-600",
+                                  order.status === 'job_created' && "bg-blue-500/10 text-blue-600"
                                   order.status === 'needs_mapping' && "text-yellow-600 border-yellow-200 bg-yellow-50"
                                 )}
                               >
+                                {order.status.replace('_', ' ')}
                                 {order.status === 'needs_mapping' ? 'Needs Mapping' :
                                   order.status === 'ready_for_job' ? 'Ready' :
                                     order.status === 'job_created' ? 'Fulfilled' : order.status}
                               </Badge>
                             </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {new Date(order.importedAt).toLocaleString()}
                             <TableCell className="text-right font-medium">
                               {order.totalPrice} {order.currency}
                             </TableCell>
@@ -2549,6 +2881,10 @@ const Admin = () => {
                                     {item.mapped ? (
                                       <div className="flex flex-col gap-1">
                                         <Badge variant="secondary" className="bg-green-500/10 text-green-600 w-fit">Mapped</Badge>
+                                        <div className="flex gap-1">
+                                          {item.printAssets?.frontUrl && <Badge variant="outline" className="text-[10px] py-0">Front</Badge>}
+                                          {item.printAssets?.backUrl && <Badge variant="outline" className="text-[10px] py-0">Back</Badge>}
+                                        </div>
                                       </div>
                                     ) : (
                                       <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">Unmapped</Badge>
@@ -2558,6 +2894,7 @@ const Admin = () => {
                                     <Button
                                       size="sm"
                                       variant="ghost"
+                                      className="h-8"
                                       // Explicitly force this button to remain clickable,
                                       // even if parent containers apply disabled styles.
                                       disabled={false}
@@ -2573,6 +2910,9 @@ const Admin = () => {
                                           shopifyOrderId: selectedImportOrder.shopifyOrderId,
                                           shopifyProductId: item.shopifyProductId,
                                           shopifyVariantId: item.shopifyVariantId,
+                                          merchantId: selectedImportOrder.merchantId,
+                                          printAssets: item.printAssets || { frontUrl: '', backUrl: '', labelUrl: '' },
+                                          mockupUrls: item.mockupUrls || []
                                           sku: item.sku,
                                           title: item.title,
                                           variantTitle: item.variantTitle,
@@ -2627,11 +2967,34 @@ const Admin = () => {
                 <div>
                   <h1 className="text-3xl font-bold">Product Mappings</h1>
                   <p className="text-muted-foreground mt-1">
+                    Manage print assets and mockups for Shopify variants.
                     Map Shopify variants to print assets and mockups for automated fulfillment.
                   </p>
                 </div>
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    setSelectedMapping(null);
+                    setIsMappingDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New Mapping
+                </Button>
               </div>
 
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-end mb-6">
+                <div className="w-full sm:w-48">
+                  <Label>Shop Filter</Label>
+                  <Input
+                    placeholder="Filter by shop..."
+                    value={productMappingsShopFilter}
+                    onChange={(e) => {
+                      setProductMappingsPage(1);
+                      setProductMappingsShopFilter(e.target.value);
+                    }}
+                  />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left: Unmapped Items from Imported Orders */}
                 <div className="lg:col-span-2 space-y-6">
@@ -2703,7 +3066,6 @@ const Admin = () => {
                       </Table>
                     </CardContent>
                   </Card>
-
                   <Card>
                     <CardHeader>
                       <CardTitle>Existing Mappings</CardTitle>
@@ -2778,7 +3140,20 @@ const Admin = () => {
                     </CardContent>
                   </Card>
                 </div>
-
+                <div className="w-full sm:flex-1">
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search Variant ID..."
+                      value={productMappingsSearch}
+                      onChange={(e) => {
+                        setProductMappingsPage(1);
+                        setProductMappingsSearch(e.target.value);
+                      }}
+                    />
+                  </div>
                 {/* Right: Filters & Info */}
                 <div className="space-y-6">
                   <Card>
@@ -2804,7 +3179,6 @@ const Admin = () => {
                       </div>
                     </CardContent>
                   </Card>
-
                   <Card className="bg-primary/5 border-primary/20">
                     <CardHeader>
                       <CardTitle className="text-sm">Mapping Guide</CardTitle>
@@ -2821,6 +3195,82 @@ const Admin = () => {
             </>
           )}
 
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Variant ID</TableHead>
+                        <TableHead>Shop</TableHead>
+                        <TableHead>Assets</TableHead>
+                        <TableHead>Mockups</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingProductMappings ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            Loading mappings...
+                          </TableCell>
+                        </TableRow>
+                      ) : productMappings.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No mappings found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        productMappings.map((mapping) => (
+                          <TableRow key={mapping._id}>
+                            <TableCell className="font-mono text-xs">{mapping.shopifyVariantId}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]">
+                              {mapping.shop}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {mapping.printAssets?.frontUrl && <Badge variant="secondary" className="text-[10px]">Front</Badge>}
+                                {mapping.printAssets?.backUrl && <Badge variant="secondary" className="text-[10px]">Back</Badge>}
+                                {mapping.printAssets?.labelUrl && <Badge variant="secondary" className="text-[10px]">Label</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex -space-x-2">
+                                {(mapping.mockupUrls || []).slice(0, 3).map((url: string, i: number) => (
+                                  <img key={i} src={url} className="w-6 h-6 rounded-full border border-background object-cover bg-muted" />
+                                ))}
+                                {mapping.mockupUrls?.length > 3 && (
+                                  <div className="w-6 h-6 rounded-full border border-background bg-muted flex items-center justify-center text-[10px]">
+                                    +{mapping.mockupUrls.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={mapping.active ? 'default' : 'secondary'}>
+                                {mapping.active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedMapping(mapping);
+                                  setIsMappingDialogOpen(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
           {/* Mapping Dialog (global, shared for Import Orders + Product Mappings) */}
           <Dialog
             open={isMappingDialogOpen}
@@ -2836,7 +3286,6 @@ const Admin = () => {
                   Assign print assets and mockups to this variant.
                 </DialogDescription>
               </DialogHeader>
-
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -2849,6 +3298,25 @@ const Admin = () => {
                   </div>
                 </div>
 
+              {/* Mapping Edit Dialog */}
+              <Dialog open={isMappingDialogOpen} onOpenChange={setIsMappingDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{selectedMapping?._id ? 'Edit Mapping' : 'Create New Mapping'}</DialogTitle>
+                    <DialogDescription>
+                      Assign print assets and mockups to this Shopify variant.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Shop</Label>
+                      <Input placeholder="shop.myshopify.com" defaultValue={selectedMapping?.shop} id="mapping-shop" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Variant ID</Label>
+                      <Input placeholder="1234567890" defaultValue={selectedMapping?.shopifyVariantId} id="mapping-variant-id" />
+                    </div>
+                    <div className="col-span-2 grid grid-cols-3 gap-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 px-4 py-3 border rounded-lg bg-muted/30">
                     <Label className="text-sm font-bold flex items-center gap-2">
@@ -2857,6 +3325,8 @@ const Admin = () => {
                     </Label>
                     <div className="space-y-3 mt-2">
                       <div className="space-y-1">
+                        <Label className="text-xs">Front URL</Label>
+                        <Input className="h-8 text-xs" defaultValue={selectedMapping?.printAssets?.frontUrl} id="mapping-front" />
                         <Label className="text-xs text-muted-foreground">Front URL</Label>
                         <Input
                           className="h-8 text-xs"
@@ -2866,6 +3336,8 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-1">
+                        <Label className="text-xs">Back URL</Label>
+                        <Input className="h-8 text-xs" defaultValue={selectedMapping?.printAssets?.backUrl} id="mapping-back" />
                         <Label className="text-xs text-muted-foreground">Back URL</Label>
                         <Input
                           className="h-8 text-xs"
@@ -2875,6 +3347,8 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-1">
+                        <Label className="text-xs">Label URL</Label>
+                        <Input className="h-8 text-xs" defaultValue={selectedMapping?.printAssets?.labelUrl} id="mapping-label" />
                         <Label className="text-xs text-muted-foreground">Label URL</Label>
                         <Input
                           className="h-8 text-xs"
@@ -2884,8 +3358,51 @@ const Admin = () => {
                         />
                       </div>
                     </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label>Mockup URLs (Comma separated)</Label>
+                      <Textarea
+                        placeholder="https://...jpg, https://...png"
+                        defaultValue={selectedMapping?.mockupUrls?.join(', ')}
+                        id="mapping-mockups"
+                      />
+                    </div>
                   </div>
-
+                  <div className="flex justify-end gap-2 mt-4">
+                    <Button variant="outline" onClick={() => setIsMappingDialogOpen(false)}>Cancel</Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const payload = {
+                            shop: (document.getElementById('mapping-shop') as HTMLInputElement).value,
+                            shopifyVariantId: (document.getElementById('mapping-variant-id') as HTMLInputElement).value,
+                            printAssets: {
+                              frontUrl: (document.getElementById('mapping-front') as HTMLInputElement).value,
+                              backUrl: (document.getElementById('mapping-back') as HTMLInputElement).value,
+                              labelUrl: (document.getElementById('mapping-label') as HTMLInputElement).value,
+                            },
+                            mockupUrls: (document.getElementById('mapping-mockups') as HTMLTextAreaElement).value.split(',').map(s => s.trim()).filter(Boolean)
+                          };
+                          await adminProductMappingApi.upsert(payload);
+                          toast.success('Mapping saved');
+                          setIsMappingDialogOpen(false);
+                          // Refresh current tab
+                          const listResp = await adminProductMappingApi.list({ page: 1, limit: 25 });
+                          if (listResp.success) {
+                            setProductMappings(listResp.data);
+                            setProductMappingsTotal(listResp.pagination.total);
+                          }
+                          // Also refresh import orders if open
+                          if (selectedImportOrder) {
+                            const orderResp = await adminImportOrdersApi.get(selectedImportOrder._id);
+                            if (orderResp.success) setSelectedImportOrder(orderResp.data);
+                          }
+                        } catch (err: any) {
+                          toast.error(err.message || 'Save failed');
+                        }
+                      }}
+                    >
+                      Save Mapping
+                    </Button>
                   <div className="space-y-2 px-4 py-3 border rounded-lg bg-muted/30">
                     <Label className="text-sm font-bold flex items-center gap-2">
                       <Package className="h-4 w-4" />
@@ -2898,9 +3415,12 @@ const Admin = () => {
                       id="mapping-mockups"
                     />
                   </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
                 </div>
               </div>
-
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button variant="outline" onClick={() => setIsMappingDialogOpen(false)}>
                   Cancel
@@ -2929,7 +3449,6 @@ const Admin = () => {
                       await adminProductMappingApi.upsert(payload as any);
                       toast.success('Mapping saved successfully');
                       setIsMappingDialogOpen(false);
-
                       // Refresh lists
                       const listResp = await adminProductMappingApi.list({
                         page: productMappingsPage,
@@ -2940,7 +3459,6 @@ const Admin = () => {
                         setProductMappingsTotal(listResp.pagination.total);
                       }
                       fetchUnmappedItems();
-
                       // If we came from an order, refresh that order
                       if (selectedImportOrder) {
                         const orderResp = await adminImportOrdersApi.getById(selectedImportOrder._id);
@@ -3226,6 +3744,275 @@ const Admin = () => {
             </>
           )}
 
+          {/* Shopify Orders Tab */}
+          {activeTab === 'shopify-orders' && (
+            <>
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold">Shopify Orders</h1>
+                  <p className="text-muted-foreground mt-1">
+                    View Shopify orders synced via webhooks.
+                  </p>
+                </div>
+              </div>
+              {/* Filters */}
+              <div className="flex flex-wrap gap-3 items-end mb-6">
+                <div className="w-full sm:w-48">
+                  <Label htmlFor="shopify-orders-shop">Shop</Label>
+                  <Input
+                    id="shopify-orders-shop"
+                    placeholder="tees-graphy-2.myshopify.com"
+                    value={shopifyOrdersShopFilter}
+                    onChange={(e) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersShopFilter(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Financial Status</Label>
+                  <Select
+                    value={shopifyOrdersFinancialStatus || 'any'}
+                    onValueChange={(val) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersFinancialStatus(val === 'any' ? '' : val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="refunded">Refunded</SelectItem>
+                      <SelectItem value="voided">Voided</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full sm:w-44">
+                  <Label>Fulfillment Status</Label>
+                  <Select
+                    value={shopifyOrdersFulfillmentStatus || 'any'}
+                    onValueChange={(val) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersFulfillmentStatus(val === 'any' ? '' : val);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any</SelectItem>
+                      <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                      <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Date From</Label>
+                  <Input
+                    type="date"
+                    value={shopifyOrdersDateFrom}
+                    onChange={(e) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersDateFrom(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:w-40">
+                  <Label>Date To</Label>
+                  <Input
+                    type="date"
+                    value={shopifyOrdersDateTo}
+                    onChange={(e) => {
+                      setShopifyOrdersPage(1);
+                      setShopifyOrdersDateTo(e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="w-full sm:flex-1">
+                  <Label>Search (Order ID / Email)</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      className="pl-9"
+                      placeholder="Search by Shopify order ID or customer email"
+                      value={shopifyOrdersSearch}
+                      onChange={(e) => {
+                        setShopifyOrdersPage(1);
+                        setShopifyOrdersSearch(e.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* Table */}
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order ID</TableHead>
+                        <TableHead>Shop</TableHead>
+                        <TableHead>Customer Email</TableHead>
+                        <TableHead className="text-right">Items</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead>Financial</TableHead>
+                        <TableHead>Fulfillment</TableHead>
+                        <TableHead>Created At</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingShopifyOrders ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-6 text-sm text-muted-foreground">
+                            Loading Shopify orders...
+                          </TableCell>
+                        </TableRow>
+                      ) : shopifyOrders.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-6 text-sm text-muted-foreground">
+                            No Shopify orders found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        shopifyOrders.map((order) => (
+                          <TableRow
+                            key={order._id}
+                            className="cursor-pointer hover:bg-muted/40"
+                            onClick={() => {
+                              setSelectedShopifyOrder(order);
+                              setIsShopifyOrderDialogOpen(true);
+                            }}
+                          >
+                            <TableCell>{order.shopifyOrderId}</TableCell>
+                            <TableCell>{order.shop}</TableCell>
+                            <TableCell>{order.customerEmail || '—'}</TableCell>
+                            <TableCell className="text-right">{order.itemsCount ?? 0}</TableCell>
+                            <TableCell className="text-right">
+                              {order.totalPrice
+                                ? `${order.totalPrice} ${order.currency || ''}`.trim()
+                                : '—'}
+                            </TableCell>
+                            <TableCell>{order.financialStatus || '—'}</TableCell>
+                            <TableCell>{order.fulfillmentStatus || '—'}</TableCell>
+                            <TableCell>
+                              {order.createdAtShopify
+                                ? new Date(order.createdAtShopify).toLocaleString()
+                                : '—'}
+                            </TableCell>
+                            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!!fulfillmentCreatingFor}
+                                onClick={async () => {
+                                  try {
+                                    setFulfillmentCreatingFor(order._id);
+                                    await adminFulfillmentOrdersApi.create({
+                                      shop: order.shop,
+                                      shopifyOrderId: order.shopifyOrderId,
+                                    });
+                                    toast.success('Fulfillment job queued');
+                                  } catch (err: any) {
+                                    console.error('Failed to queue fulfillment job', err);
+                                    toast.error(err?.message || 'Failed to queue fulfillment job');
+                                  } finally {
+                                    setFulfillmentCreatingFor(null);
+                                  }
+                                }}
+                              >
+                                {fulfillmentCreatingFor === order._id ? 'Queuing...' : 'Create Fulfillment Job'}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+              {/* Pagination */}
+              {shopifyOrdersTotal > shopifyOrdersLimit && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(shopifyOrdersPage - 1) * shopifyOrdersLimit + 1}–
+                    {Math.min(shopifyOrdersPage * shopifyOrdersLimit, shopifyOrdersTotal)} of{' '}
+                    {shopifyOrdersTotal} orders
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShopifyOrdersPage((p) => Math.max(1, p - 1))}
+                      disabled={shopifyOrdersPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {shopifyOrdersPage} of {shopifyOrdersPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setShopifyOrdersPage((p) =>
+                          p < shopifyOrdersPages ? p + 1 : p
+                        )
+                      }
+                      disabled={shopifyOrdersPage >= shopifyOrdersPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {/* Order Detail Drawer/Modal */}
+              <Dialog open={isShopifyOrderDialogOpen} onOpenChange={setIsShopifyOrderDialogOpen}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Shopify Order Details</DialogTitle>
+                    <DialogDescription>
+                      Inspect raw Shopify order payload and extracted fields.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {selectedShopifyOrder && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <p><span className="font-medium">Order ID:</span> {selectedShopifyOrder.shopifyOrderId}</p>
+                        <p><span className="font-medium">Shop:</span> {selectedShopifyOrder.shop}</p>
+                        <p><span className="font-medium">Customer Email:</span> {selectedShopifyOrder.customerEmail || '—'}</p>
+                        <p><span className="font-medium">Items:</span> {selectedShopifyOrder.itemsCount ?? 0}</p>
+                        <p>
+                          <span className="font-medium">Total:</span>{' '}
+                          {selectedShopifyOrder.totalPrice
+                            ? `${selectedShopifyOrder.totalPrice} ${selectedShopifyOrder.currency || ''}`.trim()
+                            : '—'}
+                        </p>
+                        <p><span className="font-medium">Financial Status:</span> {selectedShopifyOrder.financialStatus || '—'}</p>
+                        <p><span className="font-medium">Fulfillment Status:</span> {selectedShopifyOrder.fulfillmentStatus || '—'}</p>
+                        <p>
+                          <span className="font-medium">Created At:</span>{' '}
+                          {selectedShopifyOrder.createdAtShopify
+                            ? new Date(selectedShopifyOrder.createdAtShopify).toLocaleString()
+                            : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-medium mb-2">Raw JSON</p>
+                        <pre className="bg-muted rounded-md p-3 text-xs max-h-[40vh] overflow-auto">
+                          {JSON.stringify(selectedShopifyOrder.raw || {}, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
 
           {/* Fulfillment Tab */}
           {activeTab === 'fulfillment' && (
