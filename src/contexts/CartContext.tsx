@@ -106,20 +106,35 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children, subdomain 
     };
 
     const updateQuantity = (productId: string, variant: { color: string; size: string }, quantity: number) => {
-        if (quantity <= 0) {
-            removeFromCart(productId, variant);
-            return;
-        }
+        setCart((prevCart) => {
+            const item = prevCart.find(
+                (i) => i.productId === productId &&
+                    i.variant.color === variant.color &&
+                    i.variant.size === variant.size
+            );
 
-        setCart((prevCart) =>
-            prevCart.map((item) =>
-                item.productId === productId &&
-                    item.variant.color === variant.color &&
-                    item.variant.size === variant.size
-                    ? { ...item, quantity }
-                    : item
-            )
-        );
+            const minQty = item?.product?.minimumQuantity ?? 1;
+
+            // If the requested quantity is 0 (from explicit remove), remove the item
+            if (quantity === 0) {
+                return prevCart.filter(
+                    (i) => !(i.productId === productId &&
+                        i.variant.color === variant.color &&
+                        i.variant.size === variant.size)
+                );
+            }
+
+            // Clamp to minimum quantity — don't let it go below the product's minimum
+            const clampedQuantity = Math.max(minQty, quantity);
+
+            return prevCart.map((i) =>
+                i.productId === productId &&
+                    i.variant.color === variant.color &&
+                    i.variant.size === variant.size
+                    ? { ...i, quantity: clampedQuantity }
+                    : i
+            );
+        });
     };
 
     const clearCart = () => {

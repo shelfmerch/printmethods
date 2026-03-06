@@ -73,7 +73,6 @@ const categorySlugToSubcategory: Record<string, string> = {
   // Packaging
   'boxes': 'Box',
   'tubes': 'Tube',
-  'dropper-bottles': 'Dropper Bottle',
   'pouches': 'Pouch',
   'cosmetics': 'Cosmetic',
   'bottles': 'Bottle',

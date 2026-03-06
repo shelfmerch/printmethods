@@ -136,8 +136,8 @@ const Dashboard = () => {
           let filteredOrders = data || [];
           if (selectedStore) {
             const storeId = selectedStore.id || selectedStore._id;
-            filteredOrders = data.filter((order: Order) => {
-              const orderStoreId = order.storeId?.toString();
+            filteredOrders = data.filter((order: any) => {
+              const orderStoreId = order.storeId?._id?.toString() || order.storeId?.toString() || order.storeId;
               return orderStoreId === storeId || orderStoreId === selectedStore._id || orderStoreId === selectedStore.id;
             });
           }

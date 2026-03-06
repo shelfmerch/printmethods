@@ -2558,9 +2558,17 @@ export const uploadApi = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ [API Error] Upload Failed (${response.status}):`, errorData);
+
+      let message = errorData.message || 'Failed to upload image';
+      if (response.status === 413) {
+        message = 'File size is too large (Maximum 50MB)';
+      }
+
       throw new ApiError(
-        errorData.message || 'Failed to upload image',
-        response.status
+        message,
+        response.status,
+        errorData.errors
       );
     }
 

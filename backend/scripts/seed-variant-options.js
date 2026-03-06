@@ -139,7 +139,7 @@ const STATIC_VARIANT_OPTIONS = {
   print: {
     default: {
       sizes: ['Standard'],
-      colors: ['Full Color'],
+      colors: ['Brown', 'Black', 'White', 'Gray', 'Beige-Gray', 'Navy', 'Cream', 'Ivory'],
     },
     bySubcategory: {
       'Business Card': {

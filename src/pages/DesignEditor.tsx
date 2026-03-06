@@ -946,7 +946,7 @@ const DesignEditor: React.FC = () => {
         if (data.success && data.data) {
           const mappedPlaceholders = data.data.map((ph: any) => ({
             id: ph.placeholderId,
-            name: ph.placeholderName,
+            name: ph.placeholderName === ph.placeholderId ? '' : ph.placeholderName,
             color: ph.placeholderColor,
             xIn: ph.xIn,
             yIn: ph.yIn,
@@ -1424,7 +1424,19 @@ const DesignEditor: React.FC = () => {
 
   // Element manipulation
   const addElement = (element: Omit<CanvasElement, 'id' | 'zIndex'>): string => {
+    // Find parent placeholder to use its name
+    const targetPH = placeholders.find(p => p.id === element.placeholderId);
+    const phName = (targetPH?.original?.name && targetPH.original.name !== targetPH.id)
+      ? targetPH.original.name
+      : '';
+
     let finalName = element.name || (element.type === 'image' ? 'Image' : element.type === 'text' ? 'Text' : 'Shape');
+
+    // If placeholder has a custom name and element doesn't, use placeholder name as base
+    if (phName && !element.name) {
+      finalName = phName;
+    }
+
     if (finalName) {
       const baseNameStr = finalName as string;
       const existingNames = elements
@@ -5494,7 +5506,7 @@ const PropertiesPanel: React.FC<{
       return (
         <div className="space-y-6">
           {/* Text Input */}
-          <div>
+          {/* <div>
             <Label className="text-sm">Text</Label>
             <Input
               value={element.text || ''}
@@ -5502,7 +5514,7 @@ const PropertiesPanel: React.FC<{
               placeholder="Enter text..."
               className="mt-1"
             />
-          </div>
+          </div> */}
 
           {element.type === 'text' && (
             <>
@@ -6437,7 +6449,7 @@ const LayersPanel: React.FC<{
                 defaultValue={placeholders[0]?.id}
                 className="space-y-2"
               >
-                {placeholders.map((placeholder) => {
+                {placeholders.map((placeholder, index) => {
                   const designUrl = designUrlsByPlaceholder[placeholder.id];
                   const isSelected = selectedPlaceholderId === placeholder.id;
                   const baseColor = placeholder.original.color || '#f472b6';
@@ -6468,7 +6480,9 @@ const LayersPanel: React.FC<{
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-base font-bold truncate leading-snug">
-                                  {placeholder.original.name || `Placeholder ${placeholder.id.slice(0, 8)}`}
+                                  {placeholder.original.name && placeholder.original.name !== placeholder.id
+                                    ? placeholder.original.name
+                                    : `Placeholder ${index + 1}`}
                                 </p>
                                 <p className="text-xs text-muted-foreground font-medium mt-0.5">
                                   {placeholder.original.widthIn.toFixed(1)}" × {placeholder.original.heightIn.toFixed(1)}"
@@ -6494,7 +6508,9 @@ const LayersPanel: React.FC<{
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold truncate">
-                                {placeholder.original.name || `Placeholder ${placeholder.id.slice(0, 8)}`}
+                                {placeholder.original.name && placeholder.original.name !== placeholder.id
+                                  ? placeholder.original.name
+                                  : `Placeholder ${index + 1}`}
                               </p>
                               <p className="text-[10px] text-muted-foreground uppercase font-semibold">
                                 {placeholder.original.widthIn.toFixed(1)}" × {placeholder.original.heightIn.toFixed(1)}"

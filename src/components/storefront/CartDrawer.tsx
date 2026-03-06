@@ -76,37 +76,75 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                         </p>
                         <p className="font-semibold text-primary">₹{price.toFixed(2)}</p>
 
-                        <div className="flex items-center gap-2 mt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            onClick={() =>
-                              onUpdateQuantity(item.productId, item.variant, Math.max(0, item.quantity - 1))
-                            }
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center">{item.quantity}</span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 w-8 p-0"
-                            onClick={() =>
-                              onUpdateQuantity(item.productId, item.variant, item.quantity + 1)
-                            }
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 ml-auto text-destructive"
-                            onClick={() => onRemove(item.productId, item.variant)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {(() => {
+                          const minQty = item.product.minimumQuantity ?? 1;
+                          const atMin = item.quantity <= minQty;
+                          return (
+                            <>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 w-8 p-0"
+                                  disabled={atMin}
+                                  onClick={() =>
+                                    onUpdateQuantity(item.productId, item.variant, item.quantity - 1)
+                                  }
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <input
+                                  type="number"
+                                  min={minQty}
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      onUpdateQuantity(item.productId, item.variant, val);
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (isNaN(val) || val < minQty) {
+                                      onUpdateQuantity(item.productId, item.variant, minQty);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const val = parseInt((e.target as HTMLInputElement).value);
+                                      onUpdateQuantity(item.productId, item.variant, isNaN(val) || val < minQty ? minQty : val);
+                                      (e.target as HTMLInputElement).blur();
+                                    }
+                                  }}
+                                  className="w-10 text-center text-sm font-medium bg-transparent border-none outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() =>
+                                    onUpdateQuantity(item.productId, item.variant, item.quantity + 1)
+                                  }
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 ml-auto text-destructive"
+                                  onClick={() => onRemove(item.productId, item.variant)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {minQty > 1 && (
+                                <p className="text-[11px] text-amber-600 mt-1 font-medium">
+                                  Min. order: {minQty}
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
