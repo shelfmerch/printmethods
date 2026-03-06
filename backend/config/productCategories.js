@@ -12,6 +12,7 @@ const CATEGORIES = {
     name: 'Apparel',
     subcategories: [
       'T-Shirt',
+      'Shirt',
       'Tank Top',
       'Hoodie',
       'Sweatshirt',
@@ -70,7 +71,6 @@ const CATEGORIES = {
     subcategories: [
       'Box',
       'Tube',
-      'Dropper Bottle',
       'Pouch',
       'Cosmetic',
       'Bottle'

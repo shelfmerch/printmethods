@@ -107,6 +107,7 @@ const StoreProductPage = () => {
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
+  const [minimumQuantity, setMinimumQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
 
 
@@ -369,6 +370,7 @@ const StoreProductPage = () => {
             categoryId: sp.categoryId || sp.catalogProduct?.categoryId || (typeof sp.catalogProductId === 'object' ? (sp.catalogProductId as any).categoryId : undefined),
             subcategoryIds: sp.subcategoryIds || sp.catalogProduct?.subcategoryIds || (typeof sp.catalogProductId === 'object' ? (sp.catalogProductId as any).subcategoryIds : []),
             catalogProduct: sp.catalogProduct || (typeof sp.catalogProductId === 'object' ? sp.catalogProductId : undefined),
+            minimumQuantity: typeof sp.minimumQuantity === 'number' ? sp.minimumQuantity : 1,
             variants: {
               colors: colors.length ? colors : ['Default'],
               sizes: sizes.length ? sizes : ['One Size'],
@@ -376,6 +378,11 @@ const StoreProductPage = () => {
             createdAt: sp.createdAt || new Date().toISOString(),
             updatedAt: sp.updatedAt || new Date().toISOString(),
           };
+
+          // Set minimum quantity from API response
+          const minQty = typeof sp.minimumQuantity === 'number' && sp.minimumQuantity > 1 ? sp.minimumQuantity : 1;
+          setMinimumQuantity(minQty);
+          setQuantity(minQty);
 
           // Set initial product from store product data immediately to ensure fast UI response
           setProduct(currentProduct);
@@ -497,8 +504,13 @@ const StoreProductPage = () => {
       return;
     }
 
+    if (quantity < minimumQuantity) {
+      toast.error(`Minimum quantity for order is ${minimumQuantity}.`);
+      return;
+    }
+
     addToCart(product, { color: selectedColor, size: selectedSize }, quantity, effectivePrice);
-  }, [product, quantity, selectedColor, selectedSize, addToCart]);
+  }, [product, quantity, minimumQuantity, selectedColor, selectedSize, addToCart]);
 
 
 
@@ -545,7 +557,7 @@ const StoreProductPage = () => {
     });
   };
 
-  // "Buy It Now" – add current product (qty 1) to cart and route to checkout/auth
+  // "Buy It Now" – add current product to cart and route to checkout/auth
   const handleBuyNow = () => {
     if (!product || !store) return;
     if (!selectedColor || !selectedSize) {
@@ -553,14 +565,18 @@ const StoreProductPage = () => {
       return;
     }
 
-    addToCart(product, { color: selectedColor, size: selectedSize }, 1, effectivePrice);
+    if (quantity < minimumQuantity) {
+      toast.error(`Minimum quantity for order is ${minimumQuantity}.`);
+      return;
+    }
+
+    addToCart(product, { color: selectedColor, size: selectedSize }, quantity, effectivePrice);
     setIsCartOpen(false);
 
     if (isAuthenticated) {
       const checkoutPath = buildStorePath('/checkout', store.subdomain);
       navigate(checkoutPath, {
         state: {
-          cart,
           storeId: store.id,
           subdomain: store.subdomain,
           from: '/checkout',
@@ -571,7 +587,6 @@ const StoreProductPage = () => {
       const authPath = buildStorePath('/auth?redirect=checkout', store.subdomain);
       navigate(authPath, {
         state: {
-          cart,
           storeId: store.id,
           subdomain: store.subdomain,
           from: '/checkout',
@@ -1018,13 +1033,31 @@ const StoreProductPage = () => {
               <label className="text-sm font-semibold">Quantity</label>
               <div className="flex items-center border rounded-md">
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  onClick={() => setQuantity(Math.max(minimumQuantity, quantity - 1))}
                   className="p-2 hover:bg-accent hover:text-accent-foreground transition-colors"
-                  disabled={quantity <= 1}
+                  disabled={quantity <= minimumQuantity}
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="w-12 text-center font-medium">{quantity}</span>
+                <input
+                  type="number"
+                  min={minimumQuantity}
+                  value={quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val) && val > 0) setQuantity(val);
+                  }}
+                  onBlur={() => {
+                    if (quantity < minimumQuantity) setQuantity(minimumQuantity);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const val = parseInt((e.target as HTMLInputElement).value);
+                      setQuantity(isNaN(val) || val < minimumQuantity ? minimumQuantity : val);
+                    }
+                  }}
+                  className="w-14 text-center font-medium bg-transparent border-none outline-none py-1.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   className="p-2 hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -1033,6 +1066,13 @@ const StoreProductPage = () => {
                 </button>
               </div>
             </div>
+
+            {minimumQuantity > 1 && (
+              <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" />
+                Minimum quantity for order is {minimumQuantity}.
+              </p>
+            )}
 
             <div className="flex gap-3">
               {(() => {

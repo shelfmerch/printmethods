@@ -29,7 +29,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
       colors: [
         'White', 'Black', 'Navy', 'Red', 'Maroon', 'Gray', 'Charcoal', 'Silver',
-        'Olive', 'Olive Drab', 'Forest Green', 'Royal Blue', 'Sky Blue', 'Burgundy', 
+        'Olive', 'Olive Drab', 'Forest Green', 'Royal Blue', 'Sky Blue', 'Burgundy',
         'Pink', 'Yellow', 'Gold', 'Orange', 'Purple', 'Mint Green', 'Coral',
         'Beige-Gray', 'Tan', 'Burgundy', 'Crimson', 'Lavender', 'Teal'
       ],
@@ -53,7 +53,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Hoodie': {
         sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
         colors: [
-          'Black', 'Gray', 'Charcoal', 'Navy', 'Maroon', 'Forest Green', 
+          'Black', 'Gray', 'Charcoal', 'Navy', 'Maroon', 'Forest Green',
           'Olive', 'Burgundy', 'Beige-Gray'
         ],
         allowCustomSizes: true,
@@ -62,7 +62,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Tank Top': {
         sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
         colors: [
-          'White', 'Black', 'Gray', 'Light Gray', 'Navy', 'Red', 
+          'White', 'Black', 'Gray', 'Light Gray', 'Navy', 'Red',
           'Pink', 'Sky Blue', 'Coral', 'Mint Green', 'Yellow'
         ],
         allowCustomSizes: true,
@@ -83,7 +83,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Tote Bag': {
         sizes: ['Small', 'Medium', 'Large'],
         colors: [
-          'Natural', 'Black', 'Navy', 'Gray', 'Olive', 'Burgundy', 
+          'Natural', 'Black', 'Navy', 'Gray', 'Olive', 'Burgundy',
           'Beige-Gray', 'Tan', 'Cream', 'Charcoal'
         ],
         allowCustomColors: true,
@@ -92,15 +92,16 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Cap': {
         sizes: ['One Size', 'Youth'],
         colors: [
-          'Black', 'Navy', 'Gray', 'Charcoal', 'White', 'Red', 
+          'Black', 'Navy', 'Gray', 'Charcoal', 'White', 'Red',
           'Olive', 'Camo', 'Tan', 'Beige-Gray'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
       },
       'Phone Cover': {
         sizes: ['iPhone 14', 'iPhone 14 Pro', 'iPhone 14 Pro Max', 'iPhone 15', 'iPhone 15 Pro', 'iPhone 15 Pro Max', 'Samsung Galaxy S23', 'Samsung Galaxy S24'],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Red', 
+          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Red',
           'Pink', 'Purple', 'Green', 'Gold', 'Silver', 'Rose Gold'
         ],
         allowCustomSizes: true,
@@ -110,15 +111,17 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Gaming Pad': {
         sizes: ['Small (9x7)', 'Medium (12x10)', 'Large (16x12)', 'XL (18x16)'],
         colors: ['Black', 'Gray', 'Charcoal', 'White', 'Blue', 'Red', 'Purple', 'Green'],
+        allowCustomSizes: true,
         allowCustomColors: true,
         sizeLabel: 'Size (inches)',
       },
       'Beanie': {
         sizes: ['One Size'],
         colors: [
-          'Black', 'Gray', 'Charcoal', 'Navy', 'Burgundy', 'Olive', 
+          'Black', 'Gray', 'Charcoal', 'Navy', 'Burgundy', 'Olive',
           'Maroon', 'Beige-Gray', 'Forest Green'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
       },
     }
@@ -136,34 +139,37 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Mug': {
         sizes: ['11oz', '15oz', '20oz'],
         colors: [
-          'White', 'Black', 'Red', 'Blue', 'Royal Blue', 'Green', 
+          'White', 'Black', 'Red', 'Blue', 'Royal Blue', 'Green',
           'Yellow', 'Pink', 'Purple', 'Orange', 'Gray', 'Beige-Gray'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
         sizeLabel: 'Capacity',
       },
       'Can': {
         sizes: ['12oz', '16oz', '20oz'],
         colors: [
-          'White', 'Black', 'Silver', 'Blue', 'Red', 'Green', 
+          'White', 'Black', 'Silver', 'Blue', 'Red', 'Green',
           'Pink', 'Purple', 'Gold', 'Teal'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
         sizeLabel: 'Capacity',
       },
       'Cushion': {
         sizes: ['14x14', '16x16', '18x18', '20x20'],
         colors: [
-          'White', 'Black', 'Gray', 'Light Gray', 'Beige', 'Beige-Gray', 
+          'White', 'Black', 'Gray', 'Light Gray', 'Beige', 'Beige-Gray',
           'Navy', 'Red', 'Yellow', 'Green', 'Blue', 'Pink', 'Cream', 'Tan'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
         sizeLabel: 'Size (inches)',
       },
       'Frame': {
         sizes: ['5x7', '8x10', '11x14', '16x20', '18x24'],
         colors: [
-          'Black', 'White', 'Wood', 'Silver', 'Gold', 'Rose Gold', 
+          'Black', 'White', 'Wood', 'Silver', 'Gold', 'Rose Gold',
           'Bronze', 'Copper', 'Charcoal', 'Beige-Gray'
         ],
         allowCustomSizes: true,
@@ -173,9 +179,10 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Coaster': {
         sizes: ['4x4', '4.5x4.5'],
         colors: [
-          'White', 'Black', 'Cork', 'Wood', 'Gray', 'Beige-Gray', 
+          'White', 'Black', 'Cork', 'Wood', 'Gray', 'Beige-Gray',
           'Tan', 'Natural', 'Slate'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
         sizeLabel: 'Size (inches)',
       },
@@ -185,22 +192,23 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
   print: {
     default: {
       sizes: ['Standard'],
-      colors: ['Full Color'],
+      colors: ['Brown', 'Black', 'White', 'Gray', 'Beige-Gray', 'Navy', 'Cream', 'Ivory'],
       allowCustomSizes: true,
-      allowCustomColors: false,
+      allowCustomColors: true,
     },
     bySubcategory: {
       'Business Card': {
         sizes: ['3.5x2', '3.5x2 (Rounded)', '2x3.5'],
         colors: ['Full Color', 'Black & White'],
         allowCustomSizes: true,
-        allowCustomColors: false,
+        allowCustomColors: true,
         sizeLabel: 'Size (inches)',
       },
       'Poster': {
         sizes: ['A4', 'A3', 'A2', 'A1', '11x17', '18x24', '24x36'],
         colors: ['Full Color', 'Black & White', 'Sepia'],
         allowCustomSizes: true,
+        allowCustomColors: true,
         sizeLabel: 'Size',
       },
       'Sticker': {
@@ -214,7 +222,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
         sizes: ['A4', 'A5', 'Letter (8.5x11)', 'Half Letter (5.5x8.5)'],
         colors: ['Full Color', 'Black & White'],
         allowCustomSizes: true,
-        allowCustomColors: false,
+        allowCustomColors: true,
         sizeLabel: 'Size',
         sizeHint: 'Add custom flyer dimensions.',
       },
@@ -231,12 +239,14 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
         sizes: ['2x4 ft', '3x6 ft', '4x8 ft', '5x10 ft'],
         colors: ['Full Color'],
         allowCustomSizes: true,
+        allowCustomColors: true,
         sizeLabel: 'Size',
       },
       'Canvas': {
         sizes: ['8x10', '11x14', '16x20', '18x24', '24x36'],
         colors: ['Standard Canvas', 'Gallery Wrap'],
         allowCustomSizes: true,
+        allowCustomColors: true,
         sizeLabel: 'Size (inches)',
       },
     }
@@ -253,7 +263,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Box': {
         sizes: ['4x4x4', '6x6x6', '8x8x8', '10x10x10', '12x12x12'],
         colors: [
-          'White', 'Kraft', 'Natural', 'Black', 'Brown', 
+          'White', 'Kraft', 'Natural', 'Black', 'Brown',
           'Beige-Gray', 'Tan', 'Custom Printed'
         ],
         allowCustomSizes: true,
@@ -263,7 +273,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Bottle': {
         sizes: ['50ml', '100ml', '250ml', '500ml', '1000ml'],
         colors: [
-          'Clear', 'Amber', 'Blue', 'Cobalt Blue', 'Green', 
+          'Clear', 'Amber', 'Blue', 'Cobalt Blue', 'Green',
           'White', 'Black', 'Frosted'
         ],
         allowCustomSizes: true,
@@ -273,7 +283,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Pouch': {
         sizes: ['Small (4x6)', 'Medium (6x9)', 'Large (8x12)'],
         colors: [
-          'Clear', 'White', 'Black', 'Kraft', 'Silver', 
+          'Clear', 'White', 'Black', 'Kraft', 'Silver',
           'Gold', 'Rose Gold', 'Beige-Gray'
         ],
         allowCustomSizes: true,
@@ -306,8 +316,8 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
           'iPhone 15', 'iPhone 15 Pro', 'iPhone 15 Pro Max'
         ],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red', 
-          'Pink', 'Purple', 'Green', 'Yellow', 'Orange', 'Gray', 'Silver', 
+          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red',
+          'Pink', 'Purple', 'Green', 'Yellow', 'Orange', 'Gray', 'Silver',
           'Gold', 'Rose Gold', 'Beige-Gray'
         ],
         allowCustomSizes: true,
@@ -319,7 +329,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
           'iPad 10.2"', 'iPad Air 10.9"', 'iPad Pro 11"', 'iPad Pro 12.9"'
         ],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red', 
+          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red',
           'Gray', 'Silver', 'Gold', 'Rose Gold'
         ],
         allowCustomSizes: true,
@@ -331,7 +341,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
           'MacBook Air 13"', 'MacBook Pro 14"', 'MacBook Pro 16"'
         ],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Gray', 'Silver', 
+          'Clear', 'Black', 'White', 'Blue', 'Gray', 'Silver',
           'Charcoal', 'Beige-Gray', 'Rose Gold'
         ],
         allowCustomSizes: true,
@@ -341,7 +351,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Phone': {
         sizes: ['Small (5-6")', 'Medium (6-6.5")', 'Large (6.5"+)'],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Red', 'Pink', 
+          'Clear', 'Black', 'White', 'Blue', 'Red', 'Pink',
           'Purple', 'Green', 'Gray', 'Silver'
         ],
         allowCustomSizes: true,
@@ -362,7 +372,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Ring': {
         sizes: ['5', '6', '7', '8', '9', '10', '11', 'Adjustable'],
         colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 
+          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
           'Bronze', 'Copper', 'Brass', 'Platinum'
         ],
         allowCustomSizes: true,
@@ -372,7 +382,7 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Necklace': {
         sizes: ['14"', '16"', '18"', '20"', '22"', '24"', 'Adjustable'],
         colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 
+          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
           'Bronze', 'Copper', 'Brass'
         ],
         allowCustomSizes: true,
@@ -382,9 +392,10 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
       'Earring': {
         sizes: ['Small', 'Medium', 'Large'],
         colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 
+          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
           'Bronze', 'Copper'
         ],
+        allowCustomSizes: true,
         allowCustomColors: true,
         sizeLabel: 'Size',
       },
@@ -400,7 +411,7 @@ export const getVariantOptions = (
   subcategoryId?: string
 ): VariantOptions => {
   const categoryOptions = VARIANT_OPTIONS[categoryId];
-  
+
   if (!categoryOptions) {
     // Fallback to generic options
     return {

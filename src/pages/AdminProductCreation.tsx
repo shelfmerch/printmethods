@@ -193,6 +193,7 @@ const AdminProductCreation = () => {
               ...view,
               placeholders: (view.placeholders || []).map((p: any) => ({
                 id: p.id,
+                name: p.name === p.id ? '' : p.name,
                 xIn: p.xIn,
                 yIn: p.yIn,
                 widthIn: p.widthIn ?? p.wIn ?? 6, // Migrate old wIn to widthIn

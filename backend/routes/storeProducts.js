@@ -271,7 +271,7 @@ router.get('/public/:storeId/:productId', async (req, res) => {
     })
       .populate({
         path: 'catalogProductId',
-        select: '_id name description categoryId subcategoryIds productTypeCode gst',
+        select: '_id name description categoryId subcategoryIds productTypeCode gst stocks',
         lean: true
       })
       .lean();
@@ -376,10 +376,15 @@ router.get('/public/:storeId/:productId', async (req, res) => {
       }));
     }
 
+    // Extract minimumQuantity from catalog product stocks
+    const catalogProduct = storeProduct.catalogProductId;
+    const minimumQuantity = (catalogProduct?.stocks?.minimumQuantity) || 1;
+
     return res.json({
       success: true,
       data: {
         ...storeProduct,
+        minimumQuantity,
         variants,
       },
     });

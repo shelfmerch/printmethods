@@ -56,6 +56,7 @@ export interface Product {
   }>;
   createdAt: string;
   updatedAt: string;
+  minimumQuantity?: number;
 }
 
 export interface CartItem {

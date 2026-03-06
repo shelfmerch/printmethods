@@ -48,7 +48,7 @@ export const ProductGallerySection = ({ images, onChange }: ProductGallerySectio
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files).filter(file => file.type.startsWith('image/'));
-    
+
     if (fileArray.length === 0) {
       toast({
         title: 'Invalid file type',
@@ -63,11 +63,11 @@ export const ProductGallerySection = ({ images, onChange }: ProductGallerySectio
       const uploadPromises = fileArray.map(async (file) => {
         const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         setUploadingFiles(prev => new Set(prev).add(fileId));
-        
+
         try {
           // Upload to S3
           const s3Url = await uploadApi.uploadImage(file, 'gallery');
-          
+
           const newImage: ProductGalleryImage = {
             id: `gallery-${fileId}`,
             url: s3Url,
@@ -85,7 +85,12 @@ export const ProductGallerySection = ({ images, onChange }: ProductGallerySectio
 
           return newImage;
         } catch (error) {
-          console.error('Error uploading image:', error);
+          console.error('❌ [ProductGallerySection] Error uploading gallery image:', {
+            error,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type
+          });
           setUploadingFiles(prev => {
             const next = new Set(prev);
             next.delete(fileId);
@@ -107,7 +112,7 @@ export const ProductGallerySection = ({ images, onChange }: ProductGallerySectio
         // Mark first image as primary if no images exist
         const updatedImages = images.map((img) => ({ ...img, isPrimary: false }));
         onChange([...updatedImages, ...validImages]);
-        
+
         toast({
           title: 'Upload successful',
           description: `${validImages.length} image(s) uploaded to S3 successfully`,

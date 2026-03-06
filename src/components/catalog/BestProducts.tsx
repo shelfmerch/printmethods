@@ -40,7 +40,6 @@ const categorySlugToParentCategory: Record<string, string> = {
   'gaming-pads': 'accessories',
   'backpacks': 'accessories',
   'pouches': 'accessories',
-  'bottles': 'accessories',
   'bracelets': 'accessories',
   'coasters': 'accessories',
   'business-cards': 'accessories',
@@ -72,7 +71,7 @@ const categorySlugToParentCategory: Record<string, string> = {
   // Packaging
   'boxes': 'packaging',
   'tubes': 'packaging',
-  'dropper-bottles': 'packaging',
+  'bottles': 'packaging',
   'cosmetics': 'packaging',
 
   // Tech

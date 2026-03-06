@@ -43,7 +43,7 @@ import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
 import { RealisticWebGLPreview } from '@/components/admin/RealisticWebGLPreview';
 import { UploadPanel } from '@/components/designer/UploadPanel';
 import { DisplacementSettingsPanel } from '@/components/designer/DisplacementSettingsPanel';
-import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
+import type { DisplacementSettings, DesignPlacement, ViewKey } from '@/types/product';
 import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
 import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
@@ -130,7 +130,6 @@ interface Placeholder {
   scale?: number;
   lockSize?: boolean;
   dpi?: number;
-  normalizedPosition?: NormalizedPosition;
   // For polygon/magnetic lasso placeholders
   polygonPoints?: Array<{ xIn: number; yIn: number }>;
   shapeType?: 'rect' | 'polygon';
@@ -256,7 +255,6 @@ const DesignEditor: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileToolStage, setMobileToolStage] = useState<'none' | 'menu' | 'detail'>('none');
   const [fetchedPlaceholders, setFetchedPlaceholders] = useState<Placeholder[]>([]);
-  const [placeholdersLoading, setPlaceholdersLoading] = useState<boolean>(true);
   const [storeProductId, setStoreProductId] = useState<string | null>(null);
 
   // Track if selection is from adding an asset (to prevent auto-opening properties on mobile)
@@ -941,7 +939,6 @@ const DesignEditor: React.FC = () => {
   // Fetch placeholders from new collection
   useEffect(() => {
     const fetchPlaceholders = async () => {
-      setPlaceholdersLoading(true);
       if (!product?._id || !currentView) return;
       try {
         const response = await fetch(`${API_BASE_URL}/placeholders?productId=${product._id}&view=${currentView}`);
@@ -949,7 +946,7 @@ const DesignEditor: React.FC = () => {
         if (data.success && data.data) {
           const mappedPlaceholders = data.data.map((ph: any) => ({
             id: ph.placeholderId,
-            name: ph.placeholderName,
+            name: ph.placeholderName === ph.placeholderId ? '' : ph.placeholderName,
             color: ph.placeholderColor,
             xIn: ph.xIn,
             yIn: ph.yIn,
@@ -967,8 +964,6 @@ const DesignEditor: React.FC = () => {
         }
       } catch (err) {
         console.error('Error fetching placeholders:', err);
-      } finally {
-        setPlaceholdersLoading(false);
       }
     };
     fetchPlaceholders();
@@ -1051,11 +1046,7 @@ const DesignEditor: React.FC = () => {
     return inches * PX_PER_INCH;
   }, [PX_PER_INCH]);
 
-  // Get all placeholders for current view.
-  // IMPORTANT: Use the exact same inches → pixels mapping as `CanvasMockup.tsx`
-  // so that the pink placeholder rectangles line up with the garment base image.
-  // This means anchoring to the padded canvas, not re-normalizing to the mockup
-  // image bounds or `normalizedPosition`, which can be inconsistent for older data.
+  // Get all placeholders for current view - EXACT LOGIC FROM CanvasMockup.tsx
   const placeholders = useMemo(() => {
     const sourcePlaceholders = fetchedPlaceholders.length > 0
       ? fetchedPlaceholders
@@ -1073,27 +1064,45 @@ const DesignEditor: React.FC = () => {
       const scale = placeholder.scale ?? 1.0;
       const isPolygon = placeholder.shapeType === 'polygon' && placeholder.polygonPoints && placeholder.polygonPoints.length >= 3;
 
-      let xPx: number;
-      let yPx: number;
-      let widthPx: number;
-      let heightPx: number;
+      // Convert inches to pixels for display, then apply scale
+      // ADD canvas padding just like CanvasMockup.tsx
+      const xPx = canvasPadding + inchesToPixels(placeholder.xIn);
+      const yPx = canvasPadding + inchesToPixels(placeholder.yIn);
+      const widthPx = inchesToPixels(placeholder.widthIn) * scale;
+      const heightPx = inchesToPixels(placeholder.heightIn) * scale;
 
-      // Match `CanvasMockup.tsx`: always position placeholders using inches +
-      // PX_PER_INCH from the padded canvas origin. This keeps editor and admin
-      // aligned and avoids drift when mockup aspect ratios or normalized
-      // positions differ between views.
-      xPx = canvasPadding + inchesToPixels(placeholder.xIn);
-      yPx = canvasPadding + inchesToPixels(placeholder.yIn);
-      widthPx = inchesToPixels(placeholder.widthIn) * scale;
-      heightPx = inchesToPixels(placeholder.heightIn) * scale;
-
-      // For polygons, convert polygon points from inches to pixels (legacy).
+      // For polygons, convert polygon points from inches to pixels
       const polygonPointsPx = isPolygon
         ? placeholder.polygonPoints!.map((pt) => [
           canvasPadding + inchesToPixels(pt.xIn) * scale,
           canvasPadding + inchesToPixels(pt.yIn) * scale,
         ]).flat()
         : undefined;
+
+      console.log(`Placeholder ${placeholder.id} conversion (matching CanvasMockup):`, {
+        input: {
+          xIn: placeholder.xIn,
+          yIn: placeholder.yIn,
+          widthIn: placeholder.widthIn,
+          heightIn: placeholder.heightIn,
+          scale,
+          isPolygon,
+          polygonPointsCount: placeholder.polygonPoints?.length
+        },
+        calculation: {
+          PX_PER_INCH,
+          canvasPadding,
+          formula: `${canvasPadding} + (${placeholder.xIn} * ${PX_PER_INCH})`
+        },
+        output: {
+          x: xPx,
+          y: yPx,
+          width: widthPx,
+          height: heightPx,
+          rotation: placeholder.rotationDeg || 0,
+          polygonPointsPx
+        }
+      });
 
       return {
         id: placeholder.id,
@@ -1109,6 +1118,8 @@ const DesignEditor: React.FC = () => {
         polygonPointsPx
       };
     });
+
+    console.log('All placeholders converted:', converted);
 
     return converted;
   }, [fetchedPlaceholders, currentViewData, PX_PER_INCH, inchesToPixels, canvasPadding]);
@@ -1413,7 +1424,19 @@ const DesignEditor: React.FC = () => {
 
   // Element manipulation
   const addElement = (element: Omit<CanvasElement, 'id' | 'zIndex'>): string => {
+    // Find parent placeholder to use its name
+    const targetPH = placeholders.find(p => p.id === element.placeholderId);
+    const phName = (targetPH?.original?.name && targetPH.original.name !== targetPH.id)
+      ? targetPH.original.name
+      : '';
+
     let finalName = element.name || (element.type === 'image' ? 'Image' : element.type === 'text' ? 'Text' : 'Shape');
+
+    // If placeholder has a custom name and element doesn't, use placeholder name as base
+    if (phName && !element.name) {
+      finalName = phName;
+    }
+
     if (finalName) {
       const baseNameStr = finalName as string;
       const existingNames = elements
@@ -1459,8 +1482,10 @@ const DesignEditor: React.FC = () => {
 
   // Helper to constrain text element to print area when properties change
   const constrainTextToPrintArea = (element: CanvasElement, updates: Partial<CanvasElement>): Partial<CanvasElement> => {
+    // Only constrain text elements (allow empty text)
     if (element.type !== 'text') return updates;
 
+    // Find the placeholder for this element
     const placeholder = element.placeholderId
       ? placeholders.find((p) => p.id === element.placeholderId)
       : undefined;
@@ -1474,35 +1499,100 @@ const DesignEditor: React.FC = () => {
       height: placeholder.height,
     };
 
-    // Always enforce width equal to the print area width so Konva text wraps
-    const constrainedWidth = printArea.width;
+    // Calculate new text bounds with updated properties
+    const newFontSize = updates.fontSize !== undefined ? updates.fontSize : element.fontSize || 24;
+    const newLetterSpacing = updates.letterSpacing !== undefined ? updates.letterSpacing : element.letterSpacing || 0;
+    const newRotation = updates.rotation !== undefined ? updates.rotation : element.rotation || 0;
+    const newText = updates.text !== undefined ? updates.text : (element.text || '');
+    const newWidth = updates.width !== undefined ? updates.width : element.width;
 
-    const fontSize = updates.fontSize !== undefined
-      ? updates.fontSize
-      : (element.fontSize || 24);
+    // Calculate bounds - use minimum for empty text
+    let rotatedWidth: number;
+    let rotatedHeight: number;
 
+    if (newText) {
+      // Create a temporary canvas to measure text
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return updates;
+
+      ctx.font = `${newFontSize}px ${updates.fontFamily || element.fontFamily || 'Arial'}`;
+      const metrics = ctx.measureText(newText);
+      // Add letter spacing to width (approximate: letterSpacing * (charCount - 1))
+      const rawTextWidth = metrics.width + (newLetterSpacing * Math.max(0, newText.length - 1));
+
+      let textWidth = rawTextWidth;
+      let textHeight = newFontSize * 1.2;
+
+      // If the text string has a width constraint, we estimate word wrapping bounds
+      if (newWidth) {
+        textWidth = Math.min(rawTextWidth, newWidth);
+        const numLines = Math.max(1, Math.ceil(rawTextWidth / newWidth));
+        textHeight = newFontSize * 1.2 * numLines;
+      }
+
+      // Account for rotation - calculate bounding box of rotated text
+      const rad = (newRotation * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      rotatedWidth = textWidth * cos + textHeight * sin;
+      rotatedHeight = textWidth * sin + textHeight * cos;
+    } else {
+      // Minimum bounds for empty text
+      const minWidth = newFontSize * 0.5;
+      const minHeight = newFontSize;
+      const rad = (newRotation * Math.PI) / 180;
+      const cos = Math.abs(Math.cos(rad));
+      const sin = Math.abs(Math.sin(rad));
+      rotatedWidth = minWidth * cos + minHeight * sin;
+      rotatedHeight = minWidth * sin + minHeight * cos;
+    }
+
+    // Constrain position if it would overflow
     const currentX = updates.x !== undefined ? updates.x : element.x;
     const currentY = updates.y !== undefined ? updates.y : element.y;
 
-    // Clamp X so the text box stays fully inside the placeholder horizontally
-    const constrainedX = Math.max(
-      printArea.x,
-      Math.min(currentX, printArea.x + printArea.width - constrainedWidth),
-    );
+    let constrainedX = currentX;
+    let constrainedY = currentY;
 
-    // Approximate text height with one line; clamp Y so top/bottom stay inside
-    const lineHeight = fontSize * 1.2;
-    const constrainedY = Math.max(
-      printArea.y,
-      Math.min(currentY, printArea.y + printArea.height - lineHeight),
-    );
+    // Only constrain if position is being updated or if size-affecting properties changed
+    const sizeChanged = updates.fontSize !== undefined || updates.letterSpacing !== undefined ||
+      updates.rotation !== undefined || updates.text !== undefined || updates.fontFamily !== undefined;
 
-    return {
-      ...updates,
-      x: constrainedX,
-      y: constrainedY,
-      width: constrainedWidth,
-    };
+    if (sizeChanged) {
+      constrainedX = Math.max(printArea.x, Math.min(currentX, printArea.x + printArea.width - rotatedWidth));
+      constrainedY = Math.max(printArea.y, Math.min(currentY, printArea.y + printArea.height - rotatedHeight));
+    } else {
+      // Just constrain position if it's being moved
+      if (updates.x !== undefined || updates.y !== undefined) {
+        constrainedX = Math.max(printArea.x, Math.min(currentX, printArea.x + printArea.width - rotatedWidth));
+        constrainedY = Math.max(printArea.y, Math.min(currentY, printArea.y + printArea.height - rotatedHeight));
+      }
+    }
+
+    // Also clamp the element width so text can never be wider than print area
+    let constrainedWidth = updates.width !== undefined ? updates.width : (element.width || undefined);
+    // If the element has no width at all, set it to the print area width so text wraps
+    if (constrainedWidth === undefined) {
+      constrainedWidth = printArea.width;
+    } else if (constrainedWidth > printArea.width) {
+      constrainedWidth = printArea.width;
+    }
+
+    const originalWidth = updates.width !== undefined ? updates.width : element.width;
+    const widthChanged = constrainedWidth !== originalWidth;
+
+    // Return updates with constrained position and width if needed
+    if (constrainedX !== currentX || constrainedY !== currentY || widthChanged) {
+      return {
+        ...updates,
+        x: constrainedX,
+        y: constrainedY,
+        ...(widthChanged ? { width: constrainedWidth } : {}),
+      };
+    }
+
+    return updates;
   };
 
   const updateElement = (id: string, updates: Partial<CanvasElement>, saveHistory = true) => {
@@ -2005,7 +2095,8 @@ const DesignEditor: React.FC = () => {
 
   // Add text with params (for new TextPanel)
   const handleAddTextWithParams = (text: string, font: string) => {
-    const initialText = text.trim() || 'Text';
+    if (!text.trim()) return;
+
     // Require a placeholder - text must be created within a print area
     const targetPlaceholder = selectedPlaceholderIdRef.current
       ? placeholders.find(p => p.id === selectedPlaceholderIdRef.current)
@@ -2025,7 +2116,7 @@ const DesignEditor: React.FC = () => {
 
     addElement({
       type: 'text',
-      text: initialText,
+      text: text,
       x: targetArea.x,
       y: targetArea.y + targetArea.height / 2 - 12, // Center vertically (half of default fontSize 24)
       width: targetArea.width, // Constrain text to placeholder width
@@ -3434,7 +3525,6 @@ const DesignEditor: React.FC = () => {
                     currentView={currentView}
                     canvasPadding={canvasPadding}
                     PX_PER_INCH={PX_PER_INCH}
-                    showPlaceholderOutlines={false} // Konva handles placeholder outlines in the editor
                   />
                 </div>
 
@@ -3671,78 +3761,68 @@ const DesignEditor: React.FC = () => {
 
                       {/* Placeholder Outlines Layer (Konva) - independent of WebGL */}
                       <Layer>
-                        {!placeholdersLoading && (() => {
-                          // Show only one visible placeholder at a time in the editor:
-                          // - If a placeholder is selected, render just that one
-                          // - Otherwise, render the first placeholder for the current view
-                          const visiblePlaceholders =
-                            selectedPlaceholderId
-                              ? placeholders.filter((p) => p.id === selectedPlaceholderId)
-                              : placeholders.slice(0, 1);
+                        {placeholders.map((ph) => {
+                          const isSelected = selectedPlaceholderId === ph.id;
+                          const baseColor = ph.original.color || '#f472b6';
 
-                          return visiblePlaceholders.map((ph) => {
-                            const isSelected = selectedPlaceholderId === ph.id;
-                            const baseColor = ph.original.color || '#f472b6';
+                          const hexToRgba = (hex: string, alpha: number) => {
+                            if (!hex.startsWith('#') || hex.length !== 7) return `rgba(251, 207, 232, ${alpha})`;
+                            const r = parseInt(hex.slice(1, 3), 16);
+                            const g = parseInt(hex.slice(3, 5), 16);
+                            const b = parseInt(hex.slice(5, 7), 16);
+                            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                          };
 
-                            const hexToRgba = (hex: string, alpha: number) => {
-                              if (!hex.startsWith('#') || hex.length !== 7) return `rgba(251, 207, 232, ${alpha})`;
-                              const r = parseInt(hex.slice(1, 3), 16);
-                              const g = parseInt(hex.slice(3, 5), 16);
-                              const b = parseInt(hex.slice(5, 7), 16);
-                              return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                            };
+                          const stroke = baseColor;
+                          const strokeWidth = isSelected ? 2 : 1;
+                          const fill = hexToRgba(baseColor, isSelected ? 0.25 : 0.15);
 
-                            const stroke = baseColor;
-                            const strokeWidth = isSelected ? 2 : 1;
-                            const fill = hexToRgba(baseColor, isSelected ? 0.25 : 0.15);
+                          const commonHandlers = {
+                            onClick: () => {
+                              setSelectedPlaceholderId(ph.id);
+                              selectedPlaceholderIdRef.current = ph.id;
+                              // toast.info(`${ph.original.name || 'Placeholder'} selected`);
+                            },
+                            onTap: () => {
+                              setSelectedPlaceholderId(ph.id);
+                              selectedPlaceholderIdRef.current = ph.id;
+                              // toast.info(`${ph.original.name || 'Placeholder'} selected`);
+                            },
+                          } as any;
 
-                            const commonHandlers = {
-                              onClick: () => {
-                                setSelectedPlaceholderId(ph.id);
-                                selectedPlaceholderIdRef.current = ph.id;
-                                // toast.info(`${ph.original.name || 'Placeholder'} selected`);
-                              },
-                              onTap: () => {
-                                setSelectedPlaceholderId(ph.id);
-                                selectedPlaceholderIdRef.current = ph.id;
-                                // toast.info(`${ph.original.name || 'Placeholder'} selected`);
-                              },
-                            } as any;
-
-                            if (ph.isPolygon && ph.polygonPointsPx && ph.polygonPointsPx.length >= 6) {
-                              return (
-                                <Line
-                                  key={ph.id}
-                                  points={ph.polygonPointsPx}
-                                  closed
-                                  stroke={stroke}
-                                  strokeWidth={strokeWidth}
-                                  fill={fill}
-                                  listening
-                                  isPlaceholder={true}
-                                  perfectDrawEnabled={false}
-                                  {...commonHandlers}
-                                />
-                              );
-                            }
-
+                          if (ph.isPolygon && ph.polygonPointsPx && ph.polygonPointsPx.length >= 6) {
                             return (
-                              <Rect
+                              <Line
                                 key={ph.id}
-                                x={ph.x}
-                                y={ph.y}
-                                width={ph.width}
-                                height={ph.height}
+                                points={ph.polygonPointsPx}
+                                closed
                                 stroke={stroke}
                                 strokeWidth={strokeWidth}
                                 fill={fill}
                                 listening
                                 isPlaceholder={true}
+                                perfectDrawEnabled={false}
                                 {...commonHandlers}
                               />
                             );
-                          });
-                        })()}
+                          }
+
+                          return (
+                            <Rect
+                              key={ph.id}
+                              x={ph.x}
+                              y={ph.y}
+                              width={ph.width}
+                              height={ph.height}
+                              stroke={stroke}
+                              strokeWidth={strokeWidth}
+                              fill={fill}
+                              listening
+                              isPlaceholder={true}
+                              {...commonHandlers}
+                            />
+                          );
+                        })}
                       </Layer>
 
                       {/* Interactive Elements Layer */}
@@ -3873,8 +3953,8 @@ const DesignEditor: React.FC = () => {
                                 y={centerY - handleSize / 2}
                                 width={handleSize}
                                 height={handleSize}
-                                fill="#3b82f6"
-                                stroke="#2563eb"
+                                fill="#22c55e"
+                                stroke="#16a34a"
                                 strokeWidth={1}
                                 cornerRadius={2}
                                 draggable
@@ -3901,8 +3981,8 @@ const DesignEditor: React.FC = () => {
                                 y={topHandleY}
                                 width={handleSize}
                                 height={handleSize}
-                                fill="#3b82f6"
-                                stroke="#2563eb"
+                                fill="#22c55e"
+                                stroke="#16a34a"
                                 strokeWidth={1}
                                 cornerRadius={2}
                                 draggable
@@ -3932,10 +4012,10 @@ const DesignEditor: React.FC = () => {
                             ref={transformerRef}
                             rotateEnabled={true}
                             borderEnabled={true}
-                            borderStroke="#3b82f6"
+                            borderStroke="#22c55e"
                             borderStrokeWidth={2}
                             anchorFill="#ffffff"
-                            anchorStroke="#3b82f6"
+                            anchorStroke="#22c55e"
                             anchorStrokeWidth={2}
                             anchorSize={isMobile ? 14 : 10}
                             anchorCornerRadius={isMobile ? 7 : 4}
@@ -3973,8 +4053,8 @@ const DesignEditor: React.FC = () => {
                             y={Math.min(selectionBox.y1, selectionBox.y2)}
                             width={Math.abs(selectionBox.x2 - selectionBox.x1)}
                             height={Math.abs(selectionBox.y2 - selectionBox.y1)}
-                            fill="rgba(59, 130, 246, 0.12)"
-                            stroke="#3b82f6"
+                            fill="rgba(34, 197, 94, 0.15)"
+                            stroke="#22c55e"
                             strokeWidth={1}
                             listening={false}
                           />
@@ -3999,12 +4079,6 @@ const DesignEditor: React.FC = () => {
                         >
                           <textarea
                             value={el.text}
-                            onFocus={(e) => {
-                              if (el.text === 'Enter text' || el.text === 'Text' || el.text === ' ') {
-                                updateElement(el.id, { text: '' });
-                                setTimeout(() => e.target.select(), 0);
-                              }
-                            }}
                             onBlur={() => setEditingTextId(null)}
                             autoFocus
                             style={{
@@ -4963,9 +5037,7 @@ const TextElement: React.FC<{
     shadowOpacity: shadowAlpha,
     globalCompositeOperation: compositeOperation as any,
     // Width constraint + word wrapping to keep text within placeholder
-    width: element.width,
-    wrap: 'word',
-    ellipsis: false,
+    ...(element.width ? { width: element.width, wrap: 'word' } : {}),
   };
 
   // Render text with clipping to print area (similar to ImageElement)
@@ -5433,10 +5505,8 @@ const PropertiesPanel: React.FC<{
 
       return (
         <div className="space-y-6">
-          {element.type === 'text' && (
-            <>
-             {/* Text Input */}
-          <div>
+          {/* Text Input */}
+          {/* <div>
             <Label className="text-sm">Text</Label>
             <Input
               value={element.text || ''}
@@ -5444,7 +5514,11 @@ const PropertiesPanel: React.FC<{
               placeholder="Enter text..."
               className="mt-1"
             />
-          </div>
+          </div> */}
+
+          {element.type === 'text' && (
+            <>
+
 
 
               {/* Font Family */}
@@ -6375,7 +6449,7 @@ const LayersPanel: React.FC<{
                 defaultValue={placeholders[0]?.id}
                 className="space-y-2"
               >
-                {placeholders.map((placeholder) => {
+                {placeholders.map((placeholder, index) => {
                   const designUrl = designUrlsByPlaceholder[placeholder.id];
                   const isSelected = selectedPlaceholderId === placeholder.id;
                   const baseColor = placeholder.original.color || '#f472b6';
@@ -6406,7 +6480,9 @@ const LayersPanel: React.FC<{
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-base font-bold truncate leading-snug">
-                                  {placeholder.original.name || `Placeholder ${placeholder.id.slice(0, 8)}`}
+                                  {placeholder.original.name && placeholder.original.name !== placeholder.id
+                                    ? placeholder.original.name
+                                    : `Placeholder ${index + 1}`}
                                 </p>
                                 <p className="text-xs text-muted-foreground font-medium mt-0.5">
                                   {placeholder.original.widthIn.toFixed(1)}" × {placeholder.original.heightIn.toFixed(1)}"
@@ -6432,7 +6508,9 @@ const LayersPanel: React.FC<{
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold truncate">
-                                {placeholder.original.name || `Placeholder ${placeholder.id.slice(0, 8)}`}
+                                {placeholder.original.name && placeholder.original.name !== placeholder.id
+                                  ? placeholder.original.name
+                                  : `Placeholder ${index + 1}`}
                               </p>
                               <p className="text-[10px] text-muted-foreground uppercase font-semibold">
                                 {placeholder.original.widthIn.toFixed(1)}" × {placeholder.original.heightIn.toFixed(1)}"

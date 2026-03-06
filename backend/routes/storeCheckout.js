@@ -339,6 +339,15 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
         // Fetch production cost and GST from catalog product
         const cp = await CatalogProduct.findById(sp.catalogProductId);
         if (cp) {
+          // Check for minimum quantity
+          const minQty = (cp.stocks && cp.stocks.minimumQuantity) || 1;
+          if (item.quantity < minQty) {
+            return res.status(400).json({
+              success: false,
+              message: `Minimum quantity for ${cp.name} is ${minQty}. You have ${item.quantity}.`
+            });
+          }
+
           // Look for variant-specific production cost (basePrice)
           let unitProductionCost = cp.basePrice;
           if (item.variant && (item.variant.size || item.variant.color)) {
@@ -607,6 +616,15 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
         // Fetch production cost and GST from catalog product
         const cp = await CatalogProduct.findById(sp.catalogProductId);
         if (cp) {
+          // Check for minimum quantity
+          const minQty = (cp.stocks && cp.stocks.minimumQuantity) || 1;
+          if (item.quantity < minQty) {
+            return res.status(400).json({
+              success: false,
+              message: `Minimum quantity for ${cp.name} is ${minQty}. You have ${item.quantity}.`
+            });
+          }
+
           // Look for variant-specific production cost (basePrice)
           let unitProductionCost = cp.basePrice;
           if (item.variant && (item.variant.size || item.variant.color)) {
