@@ -2524,70 +2524,6 @@ const DesignEditor: React.FC = () => {
         return;
       }
 
-      // --- VERIFICATION GATE ---
-      // Save design state before any verification redirect so it can be restored
-      const saveDesignStateForVerification = () => {
-        if (!id) return;
-        try {
-          const designState = {
-            elements,
-            selectedColors,
-            selectedSizes,
-            selectedSizesByColor,
-            currentView,
-            designUrlsByPlaceholder,
-            placementsByView,
-            savedPreviewImages,
-            displacementSettings,
-            primaryColorHex,
-          };
-          sessionStorage.setItem(`designer_state_${id}`, JSON.stringify(designState));
-        } catch (err) {
-          console.error('Failed to save design state before verification redirect:', err);
-        }
-      };
-
-      if (!user.isEmailVerified && !user.isPhoneVerified) {
-        // Both unverified — go to email first, then phone
-        saveDesignStateForVerification();
-        toast.info('Please verify your email and phone before adding a product.');
-        navigate('/verify-email?source=add-product', {
-          state: {
-            returnTo: `/designer/${id}`,
-            nextVerification: 'phone', // after email, chain to phone
-            triggerPublish: true,
-            from: 'add-product'
-          },
-        });
-        return;
-      }
-
-      if (!user.isEmailVerified) {
-        saveDesignStateForVerification();
-        toast.info('Please verify your email to continue.');
-        navigate('/verify-email?source=add-product', {
-          state: {
-            returnTo: `/designer/${id}`,
-            triggerPublish: true,
-            from: 'add-product'
-          },
-        });
-        return;
-      }
-
-      if (!user.isPhoneVerified) {
-        saveDesignStateForVerification();
-        toast.info('Please verify your phone number to continue.');
-        navigate('/verify-phone?source=add-product', {
-          state: {
-            returnTo: `/designer/${id}`,
-            triggerPublish: true,
-            from: 'add-product'
-          },
-        });
-        return;
-      }
-      // --- END VERIFICATION GATE ---
 
       if (!['merchant', 'superadmin'].includes(user.role)) {
         toast.error('Only merchants or superadmins can publish');
@@ -2758,6 +2694,57 @@ const DesignEditor: React.FC = () => {
       const sampleMockups = (product.design as any)?.sampleMockups || [];
       const hasSampleMockups = sampleMockups.length > 0;
       console.log('Mockup Generation Init:', { hasSampleMockups, count: sampleMockups.length, selectedColors });
+
+      // --- VERIFICATION GATE (POST-DRAFT) ---
+      if (!user.isEmailVerified || !user.isPhoneVerified) {
+        saveStateForReturn();
+        const targetPath = hasSampleMockups ? '/mockups-library' : '/listing-editor';
+        const targetState = {
+          storeProductId: draftId,
+          productId: catalogProductId,
+          baseSellingPrice: sellingPrice,
+          title: product?.catalogue?.name,
+          galleryImages,
+          designData: designPayload,
+          variants: listingVariants,
+          sampleMockups: hasSampleMockups ? sampleMockups : undefined,
+          displacementSettings: product.design?.displacementSettings
+        };
+
+        if (!user.isEmailVerified && !user.isPhoneVerified) {
+          toast.info('Please verify your email and phone to continue.');
+          navigate('/verify-email?source=add-product', {
+            state: {
+              returnTo: targetPath,
+              returnToState: targetState,
+              nextVerification: 'phone',
+              triggerPublish: true,
+              from: 'add-product'
+            }
+          });
+        } else if (!user.isEmailVerified) {
+          toast.info('Please verify your email to continue.');
+          navigate('/verify-email?source=add-product', {
+            state: {
+              returnTo: targetPath,
+              returnToState: targetState,
+              triggerPublish: true,
+              from: 'add-product'
+            }
+          });
+        } else {
+          toast.info('Please verify your phone number to continue.');
+          navigate('/verify-phone?source=add-product', {
+            state: {
+              returnTo: targetPath,
+              returnToState: targetState,
+              triggerPublish: true,
+              from: 'add-product'
+            }
+          });
+        }
+        return;
+      }
 
       // Navigate to MockupsLibrary if sample mockups exist
       if (hasSampleMockups) {
@@ -5473,16 +5460,16 @@ const PropertiesPanel: React.FC<{
         <div className="space-y-6">
           {element.type === 'text' && (
             <>
-             {/* Text Input */}
-          <div>
-            <Label className="text-sm">Text</Label>
-            <Input
-              value={element.text || ''}
-              onChange={(e) => onUpdate({ text: e.target.value })}
-              placeholder="Enter text..."
-              className="mt-1"
-            />
-          </div>
+              {/* Text Input */}
+              <div>
+                <Label className="text-sm">Text</Label>
+                <Input
+                  value={element.text || ''}
+                  onChange={(e) => onUpdate({ text: e.target.value })}
+                  placeholder="Enter text..."
+                  className="mt-1"
+                />
+              </div>
 
 
               {/* Font Family */}

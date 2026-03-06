@@ -19,6 +19,7 @@ const VerifyPhone: React.FC = () => {
     // Location state passed from the verification gate
     const locationState = (location.state || {}) as {
         returnTo?: string;
+        returnToState?: any;
         triggerPublish?: boolean;
         from?: string;
     };
@@ -66,9 +67,12 @@ const VerifyPhone: React.FC = () => {
                 toast.success('Phone verified successfully!');
                 await refreshUser(); // Refresh user data to update verification status
 
-                // Return to the page that triggered verification (e.g. Design Editor)
+                // Return to the page that triggered verification (e.g. Design Editor or Mockups Library)
                 const shop = new URLSearchParams(location.search).get('shop');
-                navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop));
+                navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop), {
+                    state: locationState.returnToState,
+                    replace: true
+                });
             }
         } catch (err: any) {
             toast.error(err.message || 'Invalid OTP');
@@ -171,17 +175,22 @@ const VerifyPhone: React.FC = () => {
                     </div>
                 )}
 
-                <div className="mt-8 flex justify-center">
-                    <button
-                        onClick={() => {
-                            const shop = new URLSearchParams(location.search).get('shop');
-                            navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop));
-                        }}
-                        className="text-gray-400 text-sm hover:text-gray-600 transition-colors"
-                    >
-                        Skip for now
-                    </button>
-                </div>
+                {!isMandatory && (
+                    <div className="mt-8 flex justify-center">
+                        <button
+                            onClick={() => {
+                                const shop = new URLSearchParams(location.search).get('shop');
+                                navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop), {
+                                    state: locationState.returnToState,
+                                    replace: true
+                                });
+                            }}
+                            className="text-gray-400 text-sm hover:text-gray-600 transition-colors"
+                        >
+                            Skip for now
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
