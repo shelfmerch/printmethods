@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '@/types';
-import { storeProductsApi } from '@/lib/api';
+import { storeProductsApi, invoiceApi } from '@/lib/api';
 import { storeOrdersApi } from '@/lib/api';
 import { getProducts } from '@/lib/localStorage';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -46,6 +46,7 @@ const Dashboard = () => {
   const [storageUsage, setStorageUsage] = useState<{ used: number; limit: number } | null>(null);
   const [storeProducts, setStoreProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [spLoading, setSpLoading] = useState(false);
   const [spFilter, setSpFilter] = useState<{ status?: 'draft' | 'published'; isActive?: boolean }>({});
@@ -123,29 +124,45 @@ const Dashboard = () => {
     loadSP();
   }, [spFilter, selectedStore]);
 
-  // Load Orders from backend - filtered by selected store
+  // Load Dashboard Data (Orders and Invoices) - filtered by selected store
   useEffect(() => {
     let isMounted = true;
 
-    const loadOrders = async () => {
+    const loadDashboardData = async () => {
       try {
         setSpLoading(true);
-        const data = await storeOrdersApi.listForMerchant();
+        // Fetch both concurrently
+        const [ordersData, invoicesData] = await Promise.all([
+          storeOrdersApi.listForMerchant(),
+          invoiceApi.listForMerchant()
+        ]);
+
         if (isMounted) {
           // Filter orders by selected store if one is selected
-          let filteredOrders = data || [];
+          let filteredOrders = ordersData || [];
+          let filteredInvoices = invoicesData || [];
+
           if (selectedStore) {
             const storeId = selectedStore.id || selectedStore._id;
-            filteredOrders = data.filter((order: any) => {
+
+            filteredOrders = (ordersData || []).filter((order: any) => {
               const orderStoreId = order.storeId?._id?.toString() || order.storeId?.toString() || order.storeId;
               return orderStoreId === storeId || orderStoreId === selectedStore._id || orderStoreId === selectedStore.id;
             });
+
+            filteredInvoices = (invoicesData || []).filter((inv: any) => {
+              const invStoreId = inv.storeId?._id?.toString() || inv.storeId?.toString() || inv.storeId;
+              return invStoreId === storeId || invStoreId === selectedStore._id || invStoreId === selectedStore.id;
+            });
           }
+
           setOrders(filteredOrders);
+          setInvoices(filteredInvoices);
         }
       } catch (err: any) {
         if (isMounted) {
-          setError(err?.message || 'Failed to load orders');
+          console.error('Failed to load dashboard data', err);
+          setError(err?.message || 'Failed to load data');
         }
       } finally {
         if (isMounted) {
@@ -154,7 +171,7 @@ const Dashboard = () => {
       }
     };
 
-    loadOrders();
+    loadDashboardData();
 
     return () => {
       isMounted = false;
@@ -390,7 +407,12 @@ const Dashboard = () => {
       icon: IndianRupee,
       color: 'text-green-500',
     },
-    { label: 'Profit', value: '₹0', icon: TrendingUp, color: 'text-purple-500' },
+    {
+      label: 'Profit',
+      value: `₹${invoices.reduce((sum, inv) => sum + (inv.merchantProfit || 0), 0).toFixed(2)}`,
+      icon: TrendingUp,
+      color: 'text-purple-500'
+    },
   ];
 
   return (
@@ -522,13 +544,13 @@ const Dashboard = () => {
                   {/* ... existing table header ... */}
                   <thead className="bg-muted/60 text-muted-foreground">
                     <tr className="text-left">
-                      <th className="px-6 py-3"><Checkbox
+                      {/* <th className="px-6 py-3"><Checkbox
                         checked={selectedProducts.length === storeProducts.length && storeProducts.length > 0}
                         onCheckedChange={(checked) => setSelectedProducts(Boolean(checked) ? storeProducts.map((sp: any) => sp._id) : [])}
                         aria-label="Select all products"
-                      /></th>
-                      <th className="px-2 py-3 font-medium">Product</th>
-                      <th className="px-2 py-3 font-medium hidden md:table-cell">Created</th>
+                      /></th> */}
+                      <th className="px-8 py-3 font-medium">Product</th>
+                      <th className="px-1 py-3 font-medium hidden md:table-cell">Created</th>
                       <th className="px-2 py-3 font-medium hidden lg:table-cell">Price</th>
                       <th className="px-2 py-3 font-medium hidden lg:table-cell">Mockup</th>
                       <th className="px-2 py-3 font-medium hidden lg:table-cell">Inventory</th>
@@ -548,14 +570,14 @@ const Dashboard = () => {
 
                       return (
                         <tr key={rowKey} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-6 py-3 align-middle">
+                          {/* <td className="px-6 py-3 align-middle">
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={(checked) => setSelectedProducts(prev => Boolean(checked) ? [...new Set([...prev, sp._id])] : prev.filter(id => id !== sp._id))}
                               aria-label={`Select ${sp.displayTitle || 'Untitled'}`}
                             />
-                          </td>
-                          <td className="px-2 py-4 align-middle">
+                          </td> */}
+                          <td className="px-8 py-4 align-middle">
                             <div
                               className="flex items-center gap-3 cursor-pointer"
                               onClick={() => handleEditProduct(sp)}
