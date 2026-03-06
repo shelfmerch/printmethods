@@ -1333,6 +1333,15 @@ const DesignEditor: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // When typing in any input/textarea/contentEditable, let the browser handle keys natively
+      const activeEl = document.activeElement;
+      const isTypingInInput = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        (activeEl as HTMLElement).isContentEditable
+      );
+      if (isTypingInInput) return;
+
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case 'z':
@@ -2005,6 +2014,30 @@ const DesignEditor: React.FC = () => {
 
   // Add text with params (for new TextPanel)
   const handleAddTextWithParams = (text: string, font: string) => {
+    // If a text element is already selected, treat this as a font change
+    const selectedTextElement =
+      selectedIds.length === 1
+        ? elements.find((el) => el.id === selectedIds[0] && el.type === 'text')
+        : undefined;
+
+    if (selectedTextElement) {
+      const newText = text.trim();
+      updateElement(
+        selectedTextElement.id,
+        {
+          fontFamily: font,
+          ...(newText ? { text: newText } : {}),
+        },
+        true,
+      );
+
+      if (!isMobile) {
+        setRightPanelTab('properties');
+        setShowRightPanel(true);
+      }
+      return;
+    }
+
     const initialText = text.trim() || 'Text';
     // Require a placeholder - text must be created within a print area
     const targetPlaceholder = selectedPlaceholderIdRef.current
@@ -3986,6 +4019,12 @@ const DesignEditor: React.FC = () => {
                     {editingTextId && (() => {
                       const el = elements.find(e => e.id === editingTextId);
                       if (!el || el.type !== 'text') return null;
+
+                      const placeholder = el.placeholderId
+                        ? placeholders.find(p => p.id === el.placeholderId)
+                        : null;
+                      const maxWidth = placeholder ? placeholder.width : undefined;
+
                       return (
                         <div
                           style={{
@@ -4018,15 +4057,17 @@ const DesignEditor: React.FC = () => {
                               outline: 'none',
                               resize: 'none',
                               overflow: 'hidden',
-                              whiteSpace: 'pre',
-                              width: `${getTextWidth(el.text || '', el.fontSize || 24, el.fontFamily || 'Arial') + 20}px`,
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              width: maxWidth
+                                ? `${maxWidth}px`
+                                : `${getTextWidth(el.text || '', el.fontSize || 24, el.fontFamily || 'Arial') + 20}px`,
+                              maxWidth: maxWidth ? `${maxWidth}px` : undefined,
                               height: `${(el.fontSize || 24) * 1.2}px`,
                               lineHeight: 1.2,
                             }}
                             ref={(ref) => {
                               if (ref) {
-                                ref.style.width = '0px';
-                                ref.style.width = (ref.scrollWidth + 10) + 'px';
                                 ref.style.height = '0px';
                                 ref.style.height = (ref.scrollHeight) + 'px';
                                 if (document.activeElement !== ref) {
@@ -4037,8 +4078,6 @@ const DesignEditor: React.FC = () => {
                             }}
                             onInput={(e) => {
                               const target = e.target as HTMLTextAreaElement;
-                              target.style.width = '0px';
-                              target.style.width = (target.scrollWidth + 10) + 'px';
                               target.style.height = '0px';
                               target.style.height = (target.scrollHeight) + 'px';
                             }}
@@ -4769,7 +4808,6 @@ const TextElement: React.FC<{
   onDblClick?: () => void;
   isEditing?: boolean;
 }> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true, onDblClick, isEditing }) => {
-  if (isEditing) return null;
   // Helper to calculate text bounding box considering rotation
 
 
@@ -4945,7 +4983,7 @@ const TextElement: React.FC<{
     fontStyle: fontStyle,
     fontWeight: fontWeight,
     fill: element.fill || '#000000',
-    opacity: element.opacity !== undefined ? element.opacity : 1,
+    opacity: isEditing ? 0 : (element.opacity !== undefined ? element.opacity : 1),
     rotation: element.rotation || 0,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
