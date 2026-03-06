@@ -14,7 +14,7 @@ const HeroSection = () => {
               Driving Global E-commerce with Locally Produced, Print-On-Demand Products
             </h1>
             <p className="text-base text-foreground max-w-xl">
-              Design, sell, and scale your brand effortlessly with Shelf Merch's powerful print-on-demand platform. Custom merchandise, global delivery, zero upfront costs
+              Design, sell, and scale your brand effortlessly with Shelf Merch's powerful print-on-demand platform. Custom merchandise, global delivery, zero upfront costs.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link to="/dashboard">
