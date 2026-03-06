@@ -159,7 +159,7 @@ const TextPanel: React.FC<TextPanelProps> = ({ onAddText, onClose }) => {
                                     <button
                                         className="w-full flex items-center justify-between py-3 hover:bg-muted/50 px-2 rounded-sm transition-colors text-left"
                                         // onClick={() => toggleFontExpansion(font.family)}
-                                        onClick={() => onAddText('Enter text', font.family)}
+                                        onClick={() => onAddText('', font.family)}
                                     >
                                         {/* <span className="font-medium text-sm">{font.family}</span> */}
 

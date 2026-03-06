@@ -92,6 +92,11 @@ interface RealisticWebGLPreviewProps {
 
   // Editor placeholders (master placeholders) for coordinate mapping
   editorPlaceholders?: Placeholder[];
+
+  // Control whether placeholder outlines are drawn on the Pixi canvas.
+  // In the main DesignEditor we render placeholder outlines via Konva instead,
+  // so this defaults to true for backward compatibility and can be disabled.
+  showPlaceholderOutlines?: boolean;
 }
 
 /**
@@ -128,6 +133,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
   enableGarmentTint = false, // Default: disabled - use real variant images as-is
   onLoad,
   showDebugOverlay = false,
+  showPlaceholderOutlines = true,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
@@ -752,14 +758,21 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
     }
   }, [settings.scaleX, settings.scaleY]);
 
-  // Render Placeholder Outlines and Interactions (hidden in preview mode)
+  // Render Placeholder Outlines and Interactions (hidden in preview mode or when disabled)
   useEffect(() => {
-    if (!appReady || !appRef.current || !sceneRef.current.placeholderContainer || !sceneRef.current.garmentSprite) {
+    if (
+      !appReady ||
+      !appRef.current ||
+      !sceneRef.current.placeholderContainer ||
+      !sceneRef.current.garmentSprite ||
+      !showPlaceholderOutlines
+    ) {
       console.log('RealisticWebGLPreview: Skipping placeholder render - not ready', {
         appReady,
         hasApp: !!appRef.current,
         hasContainer: !!sceneRef.current.placeholderContainer,
         hasGarment: !!sceneRef.current.garmentSprite,
+        showPlaceholderOutlines,
       });
       return;
     }
@@ -873,7 +886,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
 
       container.addChild(graphics);
     });
-  }, [appReady, placeholders, activePlaceholder, onSelectPlaceholder, previewMode, physicalWidth, physicalHeight]);
+  }, [appReady, placeholders, activePlaceholder, onSelectPlaceholder, previewMode, physicalWidth, physicalHeight, showPlaceholderOutlines]);
 
   // Load and place designs into all placeholders that have sample designs.
   // Designs can be dragged within their placeholder bounds but cannot exceed them.
