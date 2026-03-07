@@ -7347,3 +7347,4 @@ const TemplatesPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) 
 
 export default DesignEditor;
 
+
