@@ -195,7 +195,7 @@ export function ShopifyOrdersTab() {
                             <TableHead>Order</TableHead>
                             <TableHead>Merchant</TableHead>
                             <TableHead>Store</TableHead>
-                            <TableHead className="text-center">Items</TableHead>
+                            <TableHead className="text-center">Quantity</TableHead>
                             <TableHead>Total</TableHead>
                             <TableHead>Financial</TableHead>
                             <TableHead>Fulfillment</TableHead>
@@ -242,7 +242,7 @@ export function ShopifyOrdersTab() {
                                         <div className="text-xs font-mono">{order.shop}</div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        {order.lineItems?.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0}
+                                        {order.itemsCount ?? 0}
                                     </TableCell>
                                     <TableCell className="font-medium">
                                         {order.currency}{' '}
