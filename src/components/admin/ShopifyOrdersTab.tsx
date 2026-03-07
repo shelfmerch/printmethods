@@ -57,9 +57,14 @@ export function ShopifyOrdersTab() {
                 q: searchQuery,
                 limit: 20
             });
-            setOrders(response.data || []);
-            setTotalPages(response.totalPages || 1);
-            setTotalOrders(response.total || 0);
+            // Backend returns: { success, page, limit, total, pages, orders: [...] }
+            const ordersData = (response as any).orders || (response as any).data || [];
+            const total = (response as any).total ?? ordersData.length;
+            const pages = (response as any).pages ?? (response as any).totalPages ?? 1;
+
+            setOrders(ordersData);
+            setTotalPages(pages);
+            setTotalOrders(total);
         } catch (err: any) {
             console.error('Failed to fetch Shopify orders:', err);
             setError(err.message || 'Failed to load Shopify orders');
@@ -69,25 +74,80 @@ export function ShopifyOrdersTab() {
         }
     };
 
-    const fetchOrderDetail = async (shopifyOrderId: string) => {
-        setIsFetchingDetail(true);
-        try {
-            const response = await adminShopifyOrdersApi.getById(shopifyOrderId);
-            setSelectedOrder(response.data || response);
-        } catch (err: any) {
-            console.error('Failed to fetch order details:', err);
-            toast.error('Failed to load order details');
-            setIsDrawerOpen(false);
-        } finally {
-            setIsFetchingDetail(false);
-        }
-    };
-
     const handleRowClick = (order: any) => {
+        // Normalize order shape for the detail drawer using stored raw payload
+        const raw = (order as any).raw || {};
+
+        const customer = {
+            firstName: raw.customer?.first_name
+                || raw.billing_address?.first_name
+                || raw.shipping_address?.first_name
+                || '',
+            lastName: raw.customer?.last_name
+                || raw.billing_address?.last_name
+                || raw.shipping_address?.last_name
+                || '',
+            email: raw.email
+                || raw.customer?.email
+                || '',
+            phone: raw.phone
+                || raw.customer?.phone
+                || raw.shipping_address?.phone
+                || null,
+        };
+
+        const shippingAddress = raw.shipping_address
+            ? {
+                name: raw.shipping_address.name
+                    || `${raw.shipping_address.first_name || ''} ${raw.shipping_address.last_name || ''}`.trim(),
+                address1: raw.shipping_address.address1,
+                address2: raw.shipping_address.address2,
+                city: raw.shipping_address.city,
+                province: raw.shipping_address.province,
+                zip: raw.shipping_address.zip,
+                country: raw.shipping_address.country,
+                phone: raw.shipping_address.phone || null,
+            }
+            : null;
+
+        const billingAddress = raw.billing_address
+            ? {
+                name: raw.billing_address.name
+                    || `${raw.billing_address.first_name || ''} ${raw.billing_address.last_name || ''}`.trim(),
+                address1: raw.billing_address.address1,
+                address2: raw.billing_address.address2,
+                city: raw.billing_address.city,
+                province: raw.billing_address.province,
+                zip: raw.billing_address.zip,
+                country: raw.billing_address.country,
+            }
+            : null;
+
+        const lineItems = (raw.line_items || []).map((li: any) => ({
+            id: String(li.id),
+            title: li.title,
+            variantTitle: li.variant_title,
+            sku: li.sku,
+            quantity: li.quantity,
+            price: Number(li.price || 0),
+            image: li.image?.src || undefined,
+        }));
+
+        const normalized = {
+            ...order,
+            customer,
+            shippingAddress,
+            billingAddress,
+            lineItems,
+            currency: order.currency || raw.currency || raw.presentment_currency || 'USD',
+            subtotalPrice: Number(raw.subtotal_price || 0),
+            taxPrice: Number(raw.total_tax || 0),
+            totalPrice: Number(order.totalPrice ?? raw.total_price ?? raw.current_total_price ?? 0),
+        };
+
         setSelectedOrderId(order.shopifyOrderId);
-        setSelectedOrder(null);
+        setSelectedOrder(normalized);
         setIsDrawerOpen(true);
-        fetchOrderDetail(order.shopifyOrderId);
     };
 
     useEffect(() => {
@@ -133,7 +193,7 @@ export function ShopifyOrdersTab() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Order</TableHead>
-                            <TableHead>Customer</TableHead>
+                            <TableHead>Merchant</TableHead>
                             <TableHead>Store</TableHead>
                             <TableHead className="text-center">Items</TableHead>
                             <TableHead>Total</TableHead>
@@ -175,10 +235,7 @@ export function ShopifyOrdersTab() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="text-sm font-medium">
-                                            {order.customerName || `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {order.email || order.customer?.email}
+                                            {order.merchantName || '—'}
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -188,7 +245,10 @@ export function ShopifyOrdersTab() {
                                         {order.lineItems?.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0}
                                     </TableCell>
                                     <TableCell className="font-medium">
-                                        {order.currency} {order.totalPrice?.toFixed(2)}
+                                        {order.currency}{' '}
+                                        {typeof order.totalPrice === 'number'
+                                            ? order.totalPrice.toFixed(2)
+                                            : Number(order.totalPrice || 0).toFixed(2)}
                                     </TableCell>
                                     <TableCell>
                                         {getStatusBadge(order.financialStatus)}
@@ -422,10 +482,20 @@ export function ShopifyOrdersTab() {
                                                                 {item.quantity}
                                                             </TableCell>
                                                             <TableCell className="text-right text-xs">
-                                                                {selectedOrder.currency} {item.price?.toFixed(2)}
+                                                                {selectedOrder.currency}{' '}
+                                                                {typeof item.price === 'number'
+                                                                    ? item.price.toFixed(2)
+                                                                    : Number(item.price || 0).toFixed(2)}
                                                             </TableCell>
                                                             <TableCell className="text-right font-bold">
-                                                                {selectedOrder.currency} {(item.price * item.quantity).toFixed(2)}
+                                                                {selectedOrder.currency}{' '}
+                                                                {(() => {
+                                                                    const priceNum = typeof item.price === 'number'
+                                                                        ? item.price
+                                                                        : Number(item.price || 0);
+                                                                    const qtyNum = Number(item.quantity || 0);
+                                                                    return (priceNum * qtyNum).toFixed(2);
+                                                                })()}
                                                             </TableCell>
                                                         </TableRow>
                                                     ))}
@@ -443,7 +513,12 @@ export function ShopifyOrdersTab() {
                                         <div className="bg-muted/20 p-5 rounded-xl border space-y-3">
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Subtotal</span>
-                                                <span>{selectedOrder.currency} {selectedOrder.subtotalPrice?.toFixed(2)}</span>
+                                                <span>
+                                                    {selectedOrder.currency}{' '}
+                                                    {typeof selectedOrder.subtotalPrice === 'number'
+                                                        ? selectedOrder.subtotalPrice.toFixed(2)
+                                                        : Number(selectedOrder.subtotalPrice || 0).toFixed(2)}
+                                                </span>
                                             </div>
 
                                             {selectedOrder.discounts && selectedOrder.discounts.length > 0 && selectedOrder.discounts.map((discount: any, idx: number) => (
@@ -452,18 +527,33 @@ export function ShopifyOrdersTab() {
                                                         <Badge variant="outline" className="text-[10px] h-4 bg-green-500/10 text-green-600 border-green-600/20">PROMO</Badge>
                                                         {discount.code}
                                                     </span>
-                                                    <span>-{selectedOrder.currency} {discount.amount?.toFixed(2)}</span>
+                                                    <span>
+                                                        -{selectedOrder.currency}{' '}
+                                                        {typeof discount.amount === 'number'
+                                                            ? discount.amount.toFixed(2)
+                                                            : Number(discount.amount || 0).toFixed(2)}
+                                                    </span>
                                                 </div>
                                             ))}
 
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Tax</span>
-                                                <span>{selectedOrder.currency} {selectedOrder.taxPrice?.toFixed(2)}</span>
+                                                <span>
+                                                    {selectedOrder.currency}{' '}
+                                                    {typeof selectedOrder.taxPrice === 'number'
+                                                        ? selectedOrder.taxPrice.toFixed(2)
+                                                        : Number(selectedOrder.taxPrice || 0).toFixed(2)}
+                                                </span>
                                             </div>
                                             <Separator />
                                             <div className="flex justify-between text-lg font-black">
                                                 <span>Total</span>
-                                                <span className="text-primary">{selectedOrder.currency} {selectedOrder.totalPrice?.toFixed(2)}</span>
+                                                <span className="text-primary">
+                                                    {selectedOrder.currency}{' '}
+                                                    {typeof selectedOrder.totalPrice === 'number'
+                                                        ? selectedOrder.totalPrice.toFixed(2)
+                                                        : Number(selectedOrder.totalPrice || 0).toFixed(2)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

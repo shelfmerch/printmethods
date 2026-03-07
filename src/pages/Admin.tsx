@@ -108,6 +108,7 @@ import { toast } from 'sonner';
 import { CatalogToolbar } from '@/components/admin/CatalogToolbar';
 import { BaseProductsTable } from '@/components/admin/BaseProductsTable';
 import logo from '@/assets/logo.webp';
+import { ShopifyOrdersTab } from '@/components/admin/ShopifyOrdersTab';
 
 const Admin = () => {
   const { user, logout } = useAuth();
@@ -173,25 +174,7 @@ const Admin = () => {
   const [ordersAmountSort, setOrdersAmountSort] = useState<string>('none');
   const [ordersAlphabeticalSort, setOrdersAlphabeticalSort] = useState<string>('none');
 
-  // Shopify Orders (Super Admin)
-  const [shopifyOrders, setShopifyOrders] = useState<any[]>([]);
-  const [isLoadingShopifyOrders, setIsLoadingShopifyOrders] = useState(false);
-  const [shopifyOrdersPage, setShopifyOrdersPage] = useState(1);
-  const [shopifyOrdersLimit, setShopifyOrdersLimit] = useState(25);
-  const [shopifyOrdersTotal, setShopifyOrdersTotal] = useState(0);
-  const [shopifyOrdersPages, setShopifyOrdersPages] = useState(1);
-  const [shopifyOrdersShopFilter, setShopifyOrdersShopFilter] = useState('');
-  const [shopifyOrdersFinancialStatus, setShopifyOrdersFinancialStatus] = useState<string>('');
-  const [shopifyOrdersFulfillmentStatus, setShopifyOrdersFulfillmentStatus] = useState<string>('');
-  const [shopifyOrdersDateFrom, setShopifyOrdersDateFrom] = useState<string>('');
-  const [shopifyOrdersDateTo, setShopifyOrdersDateTo] = useState<string>('');
-  const [shopifyOrdersSearch, setShopifyOrdersSearch] = useState<string>('');
-  const [selectedShopifyOrder, setSelectedShopifyOrder] = useState<any | null>(null);
-  const [isShopifyOrderDetailOpen, setIsShopifyOrderDetailOpen] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [fulfillmentCreatingFor, setFulfillmentCreatingFor] = useState<string | null>(null);
-
-  // POD Fulfillment Pipeline - Import Orders
+  // POD Fulfillment Pipeline (deprecated) - keep minimal state so legacy JSX compiles
   const [importOrders, setImportOrders] = useState<any[]>([]);
   const [isLoadingImportOrders, setIsLoadingImportOrders] = useState(false);
   const [importOrdersPage, setImportOrdersPage] = useState(1);
@@ -202,7 +185,6 @@ const Admin = () => {
   const [selectedImportOrder, setSelectedImportOrder] = useState<any | null>(null);
   const [isImportOrderDialogOpen, setIsImportOrderDialogOpen] = useState(false);
 
-  // POD Fulfillment Pipeline - Product Mapping
   const [productMappings, setProductMappings] = useState<any[]>([]);
   const [isLoadingProductMappings, setIsLoadingProductMappings] = useState(false);
   const [productMappingsPage, setProductMappingsPage] = useState(1);
@@ -212,7 +194,6 @@ const Admin = () => {
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
   const [selectedMapping, setSelectedMapping] = useState<any | null>(null);
 
-  // POD Fulfillment Pipeline - Production Jobs
   const [productionJobs, setProductionJobs] = useState<any[]>([]);
   const [isLoadingProductionJobs, setIsLoadingProductionJobs] = useState(false);
   const [productionJobsPage, setProductionJobsPage] = useState(1);
@@ -632,147 +613,8 @@ const Admin = () => {
     }
   }, [activeTab, setSearchParams]);
 
-  // Fetch Shopify Orders (Super Admin tab)
-  useEffect(() => {
-    const fetchShopifyOrders = async () => {
-      if (user?.role !== 'superadmin' || activeTab !== 'shopify-orders') return;
-      setIsLoadingShopifyOrders(true);
-      try {
-        const resp = await adminShopifyOrdersApi.list({
-          page: shopifyOrdersPage,
-          limit: shopifyOrdersLimit,
-          shop: shopifyOrdersShopFilter || undefined,
-          financialStatus: shopifyOrdersFinancialStatus || undefined,
-          fulfillmentStatus: shopifyOrdersFulfillmentStatus || undefined,
-          dateFrom: shopifyOrdersDateFrom || undefined,
-          dateTo: shopifyOrdersDateTo || undefined,
-          search: shopifyOrdersSearch || undefined,
-        });
-        if (resp && resp.success) {
-          setShopifyOrders(resp.orders || []);
-          setShopifyOrdersTotal(resp.total || 0);
-          setShopifyOrdersPages(resp.pages || 1);
-        }
-      } catch (error) {
-        console.error('Failed to fetch Shopify orders:', error);
-        toast.error('Failed to load Shopify orders');
-      } finally {
-        setIsLoadingShopifyOrders(false);
-      }
-    };
-    fetchShopifyOrders();
-  }, [
-    activeTab,
-    user?.role,
-    shopifyOrdersPage,
-    shopifyOrdersLimit,
-    shopifyOrdersShopFilter,
-    shopifyOrdersFinancialStatus,
-    shopifyOrdersFulfillmentStatus,
-    shopifyOrdersDateFrom,
-    shopifyOrdersDateTo,
-    shopifyOrdersSearch,
-  ]);
+  // Shopify Orders data is now handled inside ShopifyOrdersTab component
 
-  // Fetch Import Orders
-  useEffect(() => {
-    const fetchImportOrders = async () => {
-      if (user?.role !== 'superadmin' || activeTab !== 'import-orders') return;
-      setIsLoadingImportOrders(true);
-      try {
-        const resp = await adminImportOrdersApi.list({
-          page: importOrdersPage,
-          limit: 25,
-          shop: importOrdersShopFilter || undefined,
-          status: importOrdersStatusFilter || undefined,
-          search: importOrdersSearch || undefined,
-        });
-        if (resp && resp.success) {
-          setImportOrders(resp.data || []);
-          setImportOrdersTotal(resp.pagination?.total || 0);
-        }
-      } catch (error) {
-        console.error('Failed to fetch import orders:', error);
-        toast.error('Failed to load import orders');
-      } finally {
-        setIsLoadingImportOrders(false);
-      }
-    };
-    fetchImportOrders();
-  }, [
-    activeTab,
-    user?.role,
-    importOrdersPage,
-    importOrdersShopFilter,
-    importOrdersStatusFilter,
-    importOrdersSearch,
-  ]);
-
-  // Fetch Product Mappings
-  useEffect(() => {
-    const fetchProductMappings = async () => {
-      if (user?.role !== 'superadmin' || activeTab !== 'product-mappings') return;
-      setIsLoadingProductMappings(true);
-      try {
-        const resp = await adminProductMappingApi.list({
-          page: productMappingsPage,
-          limit: 25,
-          shop: productMappingsShopFilter || undefined,
-          search: productMappingsSearch || undefined,
-        });
-        if (resp && resp.success) {
-          setProductMappings(resp.data || []);
-          setProductMappingsTotal(resp.pagination?.total || 0);
-        }
-      } catch (error) {
-        console.error('Failed to fetch product mappings:', error);
-        toast.error('Failed to load product mappings');
-      } finally {
-        setIsLoadingProductMappings(false);
-      }
-    };
-    fetchProductMappings();
-  }, [
-    activeTab,
-    user?.role,
-    productMappingsPage,
-    productMappingsShopFilter,
-    productMappingsSearch,
-  ]);
-
-  // Fetch Production Jobs
-  useEffect(() => {
-    const fetchProductionJobs = async () => {
-      if (user?.role !== 'superadmin' || activeTab !== 'production-jobs') return;
-      setIsLoadingProductionJobs(true);
-      try {
-        const resp = await adminProductionJobApi.list({
-          page: productionJobsPage,
-          limit: 25,
-          shop: productionJobsShopFilter || undefined,
-          status: productionJobsStatusFilter || undefined,
-          search: productionJobsSearch || undefined,
-        });
-        if (resp && resp.success) {
-          setProductionJobs(resp.data || []);
-          setProductionJobsTotal(resp.pagination?.total || 0);
-        }
-      } catch (error) {
-        console.error('Failed to fetch production jobs:', error);
-        toast.error('Failed to load production jobs');
-      } finally {
-        setIsLoadingProductionJobs(false);
-      }
-    };
-    fetchProductionJobs();
-  }, [
-    activeTab,
-    user?.role,
-    productionJobsPage,
-    productionJobsShopFilter,
-    productionJobsStatusFilter,
-    productionJobsSearch,
-  ]);
 
   // POD Pipeline Helpers
   const handleImportOrder = async (shop: string, orderId: string) => {
@@ -1121,10 +963,10 @@ const Admin = () => {
             </Button>
           </div>
 
-          {/* POD PIPELINE Section */}
+          {/* Platform - Shopify Orders only */}
           <div className="space-y-1">
             <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              POD Pipeline
+              Platform
             </p>
             <Button
               variant={activeTab === 'shopify-orders' ? 'secondary' : 'ghost'}
@@ -1133,30 +975,6 @@ const Admin = () => {
             >
               <ShoppingBag className="mr-2 h-4 w-4" />
               Shopify Orders
-            </Button>
-            <Button
-              variant={activeTab === 'import-orders' ? 'secondary' : 'ghost'}
-              className={cn("w-full justify-start", activeTab === 'import-orders' && "bg-secondary font-semibold")}
-              onClick={() => setActiveTab('import-orders')}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Import Orders
-            </Button>
-            <Button
-              variant={activeTab === 'product-mappings' ? 'secondary' : 'ghost'}
-              className={cn("w-full justify-start", activeTab === 'product-mappings' && "bg-secondary font-semibold")}
-              onClick={() => setActiveTab('product-mappings')}
-            >
-              <Palette className="mr-2 h-4 w-4" />
-              Product Mapping
-            </Button>
-            <Button
-              variant={activeTab === 'production-jobs' ? 'secondary' : 'ghost'}
-              className={cn("w-full justify-start", activeTab === 'production-jobs' && "bg-secondary font-semibold")}
-              onClick={() => setActiveTab('production-jobs')}
-            >
-              <Activity className="mr-2 h-4 w-4" />
-              Production Jobs
             </Button>
           </div>
 
@@ -1832,233 +1650,7 @@ const Admin = () => {
 
 
           {/* Shopify Orders Tab */}
-          {activeTab === 'shopify-orders' && (
-            <>
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h1 className="text-3xl font-bold">Shopify Orders</h1>
-                  <p className="text-muted-foreground mt-1">
-                    Manage and import orders directly from connected Shopify stores.
-                  </p>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3 items-end mb-6">
-                <div className="w-full sm:w-48">
-                  <Label>Shop Filter</Label>
-                  <Input
-                    placeholder="Filter by shop..."
-                    value={shopifyOrdersShopFilter}
-                    onChange={(e) => {
-                      setShopifyOrdersPage(1);
-                      setShopifyOrdersShopFilter(e.target.value);
-                    }}
-                  />
-                </div>
-                <div className="w-full sm:w-40">
-                  <Label>Financial Status</Label>
-                  <Select
-                    value={shopifyOrdersFinancialStatus || 'all'}
-                    onValueChange={(val) => {
-                      setShopifyOrdersPage(1);
-                      setShopifyOrdersFinancialStatus(val === 'all' ? '' : val);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="authorized">Authorized</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="refunded">Refunded</SelectItem>
-                      <SelectItem value="voided">Voided</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-full sm:w-40">
-                  <Label>Fulfillment Status</Label>
-                  <Select
-                    value={shopifyOrdersFulfillmentStatus || 'all'}
-                    onValueChange={(val) => {
-                      setShopifyOrdersPage(1);
-                      setShopifyOrdersFulfillmentStatus(val === 'all' ? '' : val);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="fulfilled">Fulfilled</SelectItem>
-                      <SelectItem value="partial">Partial</SelectItem>
-                      <SelectItem value="unfulfilled">Unfulfilled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-full sm:w-40">
-                  <Label>Date From</Label>
-                  <Input
-                    type="date"
-                    value={shopifyOrdersDateFrom}
-                    onChange={(e) => {
-                      setShopifyOrdersPage(1);
-                      setShopifyOrdersDateFrom(e.target.value);
-                    }}
-                  />
-                </div>
-                <div className="w-full sm:w-40">
-                  <Label>Date To</Label>
-                  <Input
-                    type="date"
-                    value={shopifyOrdersDateTo}
-                    onChange={(e) => {
-                      setShopifyOrdersPage(1);
-                      setShopifyOrdersDateTo(e.target.value);
-                    }}
-                  />
-                </div>
-                <div className="w-full sm:flex-1">
-                  <Label>Search Orders</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      className="pl-9"
-                      placeholder="Search order ID or customer..."
-                      value={shopifyOrdersSearch}
-                      onChange={(e) => {
-                        setShopifyOrdersPage(1);
-                        setShopifyOrdersSearch(e.target.value);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Recent Shopify Orders ({shopifyOrdersTotal})</CardTitle>
-                      <CardDescription>Source orders captured via webhooks</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingShopifyOrders ? (
-                    <div className="text-center py-10">
-                      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                      <p className="text-muted-foreground">Loading Shopify orders...</p>
-                    </div>
-                  ) : shopifyOrders.length === 0 ? (
-                    <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                      <ShoppingBag className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium">No Shopify orders found</h3>
-                      <p className="text-muted-foreground">Try adjusting your filters or search query.</p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Order</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead>Shop</TableHead>
-                          <TableHead>Financial</TableHead>
-                          <TableHead>Fulfillment</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {shopifyOrders.map((order: any) => (
-                          <TableRow key={order._id}>
-                            <TableCell>
-                              <div className="font-bold flex items-center gap-2">
-                                {order.shopifyOrderName || `#${order.shopifyOrderId}`}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => {
-                                    setSelectedShopifyOrder(order);
-                                    setIsShopifyOrderDetailOpen(true);
-                                  }}
-                                >
-                                  <Info className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              <div className="text-[10px] text-muted-foreground font-mono">
-                                {new Date(order.createdAt).toLocaleString()}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {order.customer?.first_name || '—'} {order.customer?.last_name || ''}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono">{order.shop}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={cn(
-                                order.financialStatus === 'paid' ? "bg-green-500/10 text-green-600" :
-                                  order.financialStatus === 'pending' ? "bg-yellow-500/10 text-yellow-600" : ""
-                              )}>
-                                {order.financialStatus}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {order.fulfillmentStatus || 'unfulfilled'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                disabled={isImporting}
-                                onClick={async () => {
-                                  setIsImporting(true);
-                                  try {
-                                    const res = await adminImportOrdersApi.import({
-                                      shop: order.shop,
-                                      shopifyOrderId: order.shopifyOrderId
-                                    });
-                                    if (res.success) {
-                                      toast.success('Order imported to POD successfully');
-                                      setActiveTab('import-orders');
-                                    }
-                                  } catch (err: any) {
-                                    toast.error(err.message || 'Import failed');
-                                  } finally {
-                                    setIsImporting(false);
-                                  }
-                                }}
-                              >
-                                {isImporting ? 'Importing...' : 'Import to POD'}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Shopify Order Detail Modal */}
-              <Dialog open={isShopifyOrderDetailOpen} onOpenChange={setIsShopifyOrderDetailOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Raw Shopify Order Data</DialogTitle>
-                    <DialogDescription>
-                      Captured payload for {selectedShopifyOrder?.shopifyOrderName || `#${selectedShopifyOrder?.shopifyOrderId}`}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <pre className="bg-muted p-4 rounded-lg text-[10px] overflow-auto max-h-[60vh] font-mono">
-                    {JSON.stringify(selectedShopifyOrder?.raw || {}, null, 2)}
-                  </pre>
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
+          {activeTab === 'shopify-orders' && <ShopifyOrdersTab />}
 
           {/* Orders Tab */}
           {activeTab === 'orders' && (
@@ -2295,8 +1887,8 @@ const Admin = () => {
             </>
           )}
 
-          {/* Import Orders Tab */}
-          {activeTab === 'import-orders' && (
+          {/* Import Orders Tab (removed from UI) */}
+          {false && activeTab === 'import-orders' && (
             <>
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -2620,8 +2212,8 @@ const Admin = () => {
             </>
           )}
 
-          {/* Product Mappings Tab */}
-          {activeTab === 'product-mappings' && (
+          {/* Product Mappings Tab (removed from UI) */}
+          {false && activeTab === 'product-mappings' && (
             <>
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -2957,8 +2549,8 @@ const Admin = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Production Jobs Tab */}
-          {activeTab === 'production-jobs' && (
+          {/* Production Jobs Tab (removed from UI) */}
+          {false && activeTab === 'production-jobs' && (
             <>
               <div className="flex items-center justify-between mb-8">
                 <div>

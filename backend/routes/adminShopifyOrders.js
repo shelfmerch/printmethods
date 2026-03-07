@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ShopifyOrder = require('../models/ShopifyOrder');
+const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 
 /**
@@ -86,6 +87,25 @@ router.get('/', protect, authorize('superadmin'), async (req, res) => {
       .limit(limit)
       .lean();
 
+    const merchantIds = Array.from(
+      new Set(
+        docs
+          .map((doc) => doc.merchantId)
+          .filter((id) => !!id)
+          .map((id) => String(id))
+      )
+    );
+
+    const merchants = merchantIds.length
+      ? await User.find({ _id: { $in: merchantIds } })
+          .select('name')
+          .lean()
+      : [];
+
+    const merchantNameById = new Map(
+      merchants.map((m) => [String(m._id), m.name || ''])
+    );
+
     const orders = docs.map((doc) => {
       const raw = doc.raw || {};
 
@@ -127,9 +147,14 @@ router.get('/', protect, authorize('superadmin'), async (req, res) => {
         raw.fulfillment_status ||
         null;
 
+      const merchantName =
+        merchantNameById.get(String(doc.merchantId || '')) || null;
+
       return {
         _id: doc._id,
         shop: doc.shop,
+        merchantId: doc.merchantId,
+        merchantName,
         shopifyOrderId: doc.shopifyOrderId,
         createdAtShopify: doc.createdAtShopify || doc.createdAt,
         updatedAtShopify: doc.updatedAtShopify || doc.updatedAt,
