@@ -17,7 +17,7 @@ const ExpertCTASection = () => {
               Get answers to your questions and explore how Shelf Merch can transform your merchandise workflows.
             </p>
             
-          <Link to="/auth">
+          <Link to="/support/contact-us">
               <Button className="space-y-4 bg-lime-500 hover:bg-lime-600 text-white font-semibold px-6 py-2.5 rounded-lg flex items-center gap-2 w-fit text-sm">
                 Get Started
                 <ArrowRight className="space-y-4 h-4 w-4" />

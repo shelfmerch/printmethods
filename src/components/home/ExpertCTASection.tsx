@@ -16,7 +16,7 @@ const ExpertCTASection = () => {
             <p className="text-lg text-foreground">
               Get answers to your questions and explore how Shelf Merch can transform your merchandise workflows.
             </p>
-            <Link to="/auth">
+            <Link to="/support/contact-us">
               <Button className="bg-foreground hover:bg-foreground/90 text-background font-semibold px-8 py-3 rounded-lg flex items-center gap-2">
                 Get Started
                 <ArrowRight className="h-4 w-4" />

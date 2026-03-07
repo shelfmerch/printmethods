@@ -526,14 +526,14 @@ const ProductDetail = () => {
                     'accessoryType': (val) => val,
 
                     // Jewelry attributes
-                    'hypoallergenic': (val) => val === 'Yes' ? 'Hypoallergenic' : 'Contains allergens',
-                    'ringSize': (val) => `Size: ${val}`,
-                    'bandWidth': (val) => `${val} band`,
-                    'chainLength': (val) => `${val} chain`,
-                    'chainType': (val) => `${val} chain`,
-                    'claspType': (val) => `${val} clasp`,
-                    'earringType': (val) => `${val} style`,
-                    'backingType': (val) => `${val} backing`,
+                    // 'hypoallergenic': (val) => val === 'Yes' ? 'Hypoallergenic' : 'Contains allergens',
+                    // 'ringSize': (val) => `Size: ${val}`,
+                    // 'bandWidth': (val) => `${val} band`,
+                    // 'chainLength': (val) => `${val} chain`,
+                    // 'chainType': (val) => `${val} chain`,
+                    // 'claspType': (val) => `${val} clasp`,
+                    // 'earringType': (val) => `${val} style`,
+                    // 'backingType': (val) => `${val} backing`,
                   };
 
                   return formatters[key] ? formatters[key](value) : `${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: ${value}`;

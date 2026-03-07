@@ -240,7 +240,7 @@ const Settings = () => {
                   placeholder="Tell customers about your store..."
                 />
               </div>
-              <div>
+              {/* <div>
                 <Label htmlFor="storeTheme">Theme</Label>
                 <Input
                   id="storeTheme"
@@ -269,7 +269,7 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground mt-1">
                   Hex color code for your store's primary color
                 </p>
-              </div>
+              </div> */}
               <div className="flex items-center justify-end pt-4 border-t">
                 <Button onClick={handleStoreSave} disabled={savingStore}>
                   {savingStore ? (

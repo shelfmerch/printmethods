@@ -64,7 +64,7 @@ const Products = () => {
         // Tech
         'IPhone Cases', 'Lap Top Cases', 'IPad Cases', 'Macbook Cases', 'Phone Cases',
         // Jewelry
-        'Rings', 'Necklaces', 'Earrings', 'Bracelets',
+        // 'Rings', 'Necklaces', 'Earrings', 'Bracelets',
     ];
 
     const resolveSubcategorySlugFromSearch = (term: string): string | null => {

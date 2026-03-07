@@ -162,28 +162,28 @@ export const FIELD_DEFINITIONS: Record<CategoryId, {
       ],
     }
   },
-  jewelry: {
-    common: [
-      { key: 'material', label: 'Material', type: 'text', placeholder: 'e.g., Sterling Silver, Gold Plated', required: true },
-      { key: 'finish', label: 'Finish', type: 'select', options: ['Polished', 'Brushed', 'Matte', 'Oxidized'] },
-      { key: 'hypoallergenic', label: 'Hypoallergenic', type: 'select', options: ['Yes', 'No'] },
-    ],
-    bySubcategory: {
-      'Ring': [
-        { key: 'ringSize', label: 'Ring Size', type: 'text', placeholder: 'e.g., Adjustable, Size 7' },
-        { key: 'bandWidth', label: 'Band Width', type: 'text', placeholder: 'e.g., 3mm', unit: 'mm' },
-      ],
-      'Necklace': [
-        { key: 'chainLength', label: 'Chain Length', type: 'text', placeholder: 'e.g., 18 inches', unit: 'inches' },
-        { key: 'chainType', label: 'Chain Type', type: 'select', options: ['Cable', 'Box', 'Rope', 'Snake', 'Curb'] },
-        { key: 'claspType', label: 'Clasp Type', type: 'select', options: ['Lobster', 'Spring Ring', 'Magnetic', 'Toggle'] },
-      ],
-      'Earring': [
-        { key: 'earringType', label: 'Earring Type', type: 'select', options: ['Stud', 'Hoop', 'Drop', 'Dangle', 'Huggie'] },
-        { key: 'backingType', label: 'Backing Type', type: 'select', options: ['Push Back', 'Screw Back', 'Leverback', 'Fish Hook'] },
-      ],
-    }
-  }
+  // jewelry: {
+  //   common: [
+  //     { key: 'material', label: 'Material', type: 'text', placeholder: 'e.g., Sterling Silver, Gold Plated', required: true },
+  //     { key: 'finish', label: 'Finish', type: 'select', options: ['Polished', 'Brushed', 'Matte', 'Oxidized'] },
+  //     { key: 'hypoallergenic', label: 'Hypoallergenic', type: 'select', options: ['Yes', 'No'] },
+  //   ],
+  //   bySubcategory: {
+  //     'Ring': [
+  //       { key: 'ringSize', label: 'Ring Size', type: 'text', placeholder: 'e.g., Adjustable, Size 7' },
+  //       { key: 'bandWidth', label: 'Band Width', type: 'text', placeholder: 'e.g., 3mm', unit: 'mm' },
+  //     ],
+  //     'Necklace': [
+  //       { key: 'chainLength', label: 'Chain Length', type: 'text', placeholder: 'e.g., 18 inches', unit: 'inches' },
+  //       { key: 'chainType', label: 'Chain Type', type: 'select', options: ['Cable', 'Box', 'Rope', 'Snake', 'Curb'] },
+  //       { key: 'claspType', label: 'Clasp Type', type: 'select', options: ['Lobster', 'Spring Ring', 'Magnetic', 'Toggle'] },
+  //     ],
+  //     'Earring': [
+  //       { key: 'earringType', label: 'Earring Type', type: 'select', options: ['Stud', 'Hoop', 'Drop', 'Dangle', 'Huggie'] },
+  //       { key: 'backingType', label: 'Backing Type', type: 'select', options: ['Push Back', 'Screw Back', 'Leverback', 'Fish Hook'] },
+  //     ],
+  //   }
+  // }
 };
 
 /**

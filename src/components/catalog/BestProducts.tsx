@@ -83,9 +83,9 @@ const categorySlugToParentCategory: Record<string, string> = {
   'laptop-cases': 'tech',
 
   // Jewelry
-  'rings': 'jewelry',
-  'necklaces': 'jewelry',
-  'earrings': 'jewelry',
+  // 'rings': 'jewelry',
+  // 'necklaces': 'jewelry',
+  // 'earrings': 'jewelry',
 };
 
 /**

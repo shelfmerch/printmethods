@@ -153,9 +153,9 @@ const categorySlugToParentCategory: Record<string, any> = {
   'phone-cases': 'tech',
 
   // Jewelry
-  'rings': 'jewelry',
-  'necklaces': 'jewelry',
-  'earrings': 'jewelry',
+  // 'rings': 'jewelry',
+  // 'necklaces': 'jewelry',
+  // 'earrings': 'jewelry',
 };
 
 const CategoryProducts = () => {
