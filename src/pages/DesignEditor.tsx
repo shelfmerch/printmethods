@@ -3016,7 +3016,7 @@ const DesignEditor: React.FC = () => {
               disabled={isPublishing}
               className={`rounded-full h-9 px-4 font-semibold text-xs shadow-sm shadow-primary/20 ${!variantValidation.isValid ? 'opacity-50 grayscale' : ''}`}
             >
-              {isPublishing ? '...' : 'Add Product'}
+              {isPublishing ? '...' : 'Add Produt'}
             </Button>
           ) : (
             <>
