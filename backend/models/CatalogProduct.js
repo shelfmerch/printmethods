@@ -3,6 +3,7 @@ const { isValidCategory } = require('../config/productCategories');
 
 const PlaceholderSchema = new mongoose.Schema({
   id: { type: String, required: true },
+  name: { type: String, default: '' },
   xIn: { type: Number, required: true },
   yIn: { type: Number, required: true },
   widthIn: { type: Number },
@@ -232,6 +233,17 @@ const CatalogProductSchema = new mongoose.Schema({
   isPublished: {
     type: Boolean,
     default: false // SUPERADMIN must publish to make available to merchants
+  },
+
+  // Stocks & Inventory
+  stocks: {
+    minimumQuantity: { type: Number, default: 1, min: 1 },
+    stockLocation: { type: String, default: '' },
+    lowStockAlertEnabled: { type: Boolean, default: false },
+    lowStockAlertEmail: { type: String, default: '' },
+    lowStockThreshold: { type: Number, default: 10 },
+    outOfStockBehavior: { type: String, enum: ['deny', 'allow', 'default'], default: 'default' },
+    currentStock: { type: Number }
   }
 }, {
   timestamps: true

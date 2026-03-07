@@ -155,13 +155,13 @@ const Footer = () => {
         <div className="border-t border-muted pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
             {/* Left - Copyright */}
-            <p>© 2024 Chitlu Innovations Pvt Ltd. All rights reserved</p>
+            <p> 2024 Chitlu Innovations Pvt Ltd. All rights reserved</p>
 
             {/* Center - Legal Links */}
             <div className="flex items-center gap-2">
-              <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+              <Link to="/terms-of-conditions" className="hover:text-primary transition-colors">Terms of Service</Link>
               <span className="text-muted-foreground">|</span>
-              <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+              <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
               <span className="text-muted-foreground">|</span>
               <a href="#" className="hover:text-primary transition-colors">Cookie Policy</a>
               <span className="text-muted-foreground">|</span>

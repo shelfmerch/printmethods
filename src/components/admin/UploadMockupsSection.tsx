@@ -106,7 +106,13 @@ export const UploadMockupsSection = ({
                 description: `Sample mockup for ${view} view uploaded successfully`,
             });
         } catch (error) {
-            console.error('Error uploading sample mockup:', error);
+            console.error('❌ [UploadMockupsSection] Error uploading sample mockup:', {
+                error,
+                view,
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type
+            });
             toast({
                 title: 'Upload failed',
                 description: `Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`,

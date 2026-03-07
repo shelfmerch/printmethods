@@ -12,12 +12,11 @@ async function uploadArtwork(file, userId) {
     // Reuse existing S3 upload utility
     const { uploadToS3 } = require('../../utils/s3Upload');
 
-    const result = await uploadToS3({
-        file: file.buffer,
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        folder: `public-api/artworks/${userId}`,
-    });
+    const result = await uploadToS3(
+        file.buffer,
+        file.originalname,
+        `public-api/artworks/${userId}`
+    );
 
     return {
         id: result.key || result.Key,

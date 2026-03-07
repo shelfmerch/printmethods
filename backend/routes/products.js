@@ -159,6 +159,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       details: details || {},
       pricing: pricing || {}, // Preserve pricing object if sent from frontend
       gst: (pricing && pricing.gst) ? pricing.gst : { slab: 18, mode: 'EXCLUSIVE', hsn: '' },
+      stocks: stocks || {},
       createdBy: req.user.id,
       isActive: true,
       isPublished: true // Auto-publish for now (can be changed later)
@@ -178,7 +179,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
             productId: product._id,
             view: view.key,
             placeholderId: ph.id,
-            placeholderName: ph.name || ph.id,
+            placeholderName: ph.name || '',
             placeholderColor: ph.color || '#f472b6',
             xIn: ph.xIn,
             yIn: ph.yIn,
@@ -715,6 +716,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       pricing,
       variants,
       galleryImages,
+      stocks,
       isActive,
       isPublished
     } = req.body;
@@ -735,6 +737,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (shipping) product.shipping = shipping;
     if (pricing) product.pricing = pricing;
     if (galleryImages) product.galleryImages = galleryImages;
+    if (stocks !== undefined) product.stocks = stocks;
     if (isActive !== undefined) product.isActive = isActive;
     if (isPublished !== undefined) product.isPublished = isPublished;
 
@@ -758,7 +761,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
               productId: product._id,
               view: view.key,
               placeholderId: ph.id,
-              placeholderName: ph.name || ph.id,
+              placeholderName: ph.name || '',
               placeholderColor: ph.color || '#f472b6',
               xIn: ph.xIn,
               yIn: ph.yIn,

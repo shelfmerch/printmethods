@@ -2669,9 +2669,17 @@ export const uploadApi = {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`❌ [API Error] Upload Failed (${response.status}):`, errorData);
+
+      let message = errorData.message || 'Failed to upload image';
+      if (response.status === 413) {
+        message = 'File size is too large (Maximum 50MB)';
+      }
+
       throw new ApiError(
-        errorData.message || 'Failed to upload image',
-        response.status
+        message,
+        response.status,
+        errorData.errors
       );
     }
 
@@ -2947,10 +2955,7 @@ export interface CreatePatResponse {
 
 export const developerPatApi = {
   list: async (): Promise<PersonalAccessToken[]> => {
-    const response = await apiRequest<{
-      data: PersonalAccessToken[];
-    }>('/v1/auth/tokens/personal');
-    return response.data;
+    return apiRequest<PersonalAccessToken[]>('/auth/tokens/personal');
   },
 
   create: async (payload: { name: string; scopes: string[]; expiresInDays?: number }): Promise<CreatePatResponse> => {
@@ -2962,22 +2967,19 @@ export const developerPatApi = {
       body.expires_in_days = payload.expiresInDays;
     }
 
-    const response = await apiRequest<{
-      data: CreatePatResponse;
-    }>('/v1/auth/tokens/personal', {
+    return apiRequest<CreatePatResponse>('/auth/tokens/personal', {
       method: 'POST',
       body: JSON.stringify(body),
     });
-
-    return response.data;
   },
 
   revoke: async (id: string): Promise<void> => {
-    await apiRequest(`/v1/auth/tokens/personal/${encodeURIComponent(id)}`, {
+    await apiRequest(`/auth/tokens/personal/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
   },
 };
+
 
 export { getToken, removeTokens, apiRequest };
 

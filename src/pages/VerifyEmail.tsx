@@ -20,8 +20,10 @@ const VerifyEmail: React.FC = () => {
   // Location state passed from the verification gate
   const locationState = (location.state || {}) as {
     returnTo?: string;
+    returnToState?: any;
     nextVerification?: 'phone';
     triggerPublish?: boolean;
+    from?: string;
   };
 
   const handleSendOtp = async () => {
@@ -64,13 +66,17 @@ const VerifyEmail: React.FC = () => {
           navigate(locationState.triggerPublish ? '/verify-phone?source=add-product' : '/verify-phone', {
             state: {
               returnTo: locationState.returnTo,
+              returnToState: locationState.returnToState,
               triggerPublish: locationState.triggerPublish,
               from: locationState.triggerPublish ? 'add-product' : undefined
             },
           });
         } else {
           const shop = new URLSearchParams(location.search).get('shop');
-          navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop));
+          navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop), {
+            state: locationState.returnToState,
+            replace: true
+          });
         }
       }
     } catch (err: any) {
@@ -179,17 +185,22 @@ const VerifyEmail: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={() => {
-              const shop = new URLSearchParams(location.search).get('shop');
-              navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop));
-            }}
-            className="text-gray-400 text-sm hover:text-gray-600 transition-colors"
-          >
-            Skip for now
-          </button>
-        </div>
+        {!isMandatory && (
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => {
+                const shop = new URLSearchParams(location.search).get('shop');
+                navigate(getSafeRedirect(locationState.returnTo, '/dashboard', shop), {
+                  state: locationState.returnToState,
+                  replace: true
+                });
+              }}
+              className="text-gray-400 text-sm hover:text-gray-600 transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

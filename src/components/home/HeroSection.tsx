@@ -14,10 +14,10 @@ const HeroSection = () => {
               Driving Global E-commerce with Locally Produced, Print-On-Demand Products
             </h1>
             <p className="text-base text-foreground max-w-xl">
-              Design, sell, and scale your brand effortlessly with Shelf Merch's powerful print-on-demand platform. Custom merchandise, global delivery, zero upfront costs
+              Design, sell, and scale your brand effortlessly with Shelf Merch's powerful print-on-demand platform. Custom merchandise, global delivery, zero upfront costs.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/auth">
+              <Link to="/dashboard">
                 <Button className="bg-primary hover:bg-lime-dark text-primary-foreground font-semibold px-6 py-3 rounded-lg flex items-center gap-2">
                   Get started for free
                   <ArrowRight className="h-4 w-4" />

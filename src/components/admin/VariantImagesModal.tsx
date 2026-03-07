@@ -62,7 +62,13 @@ export const VariantImagesModal = ({
                 description: `${view.charAt(0).toUpperCase() + view.slice(1)} image uploaded`,
             });
         } catch (error) {
-            console.error('Error uploading variant image:', error);
+            console.error('❌ [VariantImagesModal] Error uploading variant image:', {
+                error,
+                view,
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type
+            });
             toast({
                 title: 'Upload failed',
                 description: `Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -109,7 +115,7 @@ export const VariantImagesModal = ({
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-2xl">
-                {/* <DialogHeader>
+                <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <div
                             className="w-5 h-5 rounded-full border-2"
@@ -120,7 +126,7 @@ export const VariantImagesModal = ({
                         />
                         Variant Images – {variant.size} / {variant.color}
                     </DialogTitle>
-                </DialogHeader> */}
+                </DialogHeader>
 
                 <div className="grid grid-cols-2 gap-4 py-4">
                     {VIEWS.map(({ key, label }) => {

@@ -5,6 +5,8 @@
 const WHITELISTED_DOMAINS = [
   'localhost:8080',
   'localhost:8085',
+  'localhost:3000',
+  'localhost:5000',
   'shelfmerch.com',
   'www.shelfmerch.com',
   'app.shelfmerch.com',
@@ -20,7 +22,7 @@ const WHITELISTED_DOMAINS = [
 const getClientUrl = (req) => {
   const origin = req.headers.origin;
   const referer = req.headers.referer;
-  
+
   // 1. Try to get domain from origin or referer
   let sourceDomain = '';
   if (origin) {
@@ -30,7 +32,7 @@ const getClientUrl = (req) => {
   }
 
   // 2. Check if source domain is in whitelist
-  const isWhitelisted = WHITELISTED_DOMAINS.some(domain => 
+  const isWhitelisted = WHITELISTED_DOMAINS.some(domain =>
     sourceDomain === domain || sourceDomain.endsWith(`.${domain}`)
   );
 
@@ -42,10 +44,10 @@ const getClientUrl = (req) => {
   }
 
   // 3. Fallback to environment variables
-  const fallback = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' 
-    ? 'https://shelfmerch.com' 
+  const fallback = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production'
+    ? 'https://shelfmerch.com'
     : 'http://localhost:8080');
-  
+
   console.log(`⚠️ Using fallback client URL: ${fallback}`);
   return fallback.endsWith('/') ? fallback.slice(0, -1) : fallback;
 };
@@ -58,7 +60,7 @@ const getClientUrl = (req) => {
 const isSafeRedirect = (url) => {
   try {
     const parsed = new URL(url);
-    return WHITELISTED_DOMAINS.some(domain => 
+    return WHITELISTED_DOMAINS.some(domain =>
       parsed.host === domain || parsed.host.endsWith(`.${domain}`)
     );
   } catch (err) {

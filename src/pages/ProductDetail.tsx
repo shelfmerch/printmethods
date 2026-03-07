@@ -454,6 +454,14 @@ const ProductDetail = () => {
               </span>
             </div>
 
+            {/* Minimum Order Notice */}
+            {(product.stocks?.minimumQuantity ?? 1) > 1 && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                <Package className="w-4 h-4 flex-shrink-0" />
+                <span>Minimum quantity for order is <strong>{product.stocks.minimumQuantity}</strong>.</span>
+              </div>
+            )}
+
             {/* Product Features - Dynamic from attributes */}
             <div className="space-y-2.5">
               {product.catalogue?.attributes && (() => {

@@ -92,6 +92,11 @@ interface RealisticWebGLPreviewProps {
 
   // Editor placeholders (master placeholders) for coordinate mapping
   editorPlaceholders?: Placeholder[];
+
+  // Control whether placeholder outlines are drawn on the Pixi canvas.
+  // In the main DesignEditor we render placeholder outlines via Konva instead,
+  // so this defaults to true for backward compatibility and can be disabled.
+  showPlaceholderOutlines?: boolean;
 }
 
 /**
@@ -128,6 +133,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
   enableGarmentTint = false, // Default: disabled - use real variant images as-is
   onLoad,
   showDebugOverlay = false,
+  showPlaceholderOutlines = true,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
@@ -164,6 +170,8 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
     canvasElementsLayer: Container | null; // Only canvas element sprites
     placeholderContainer: Container | null;
     pxPerInch: number;
+    /** Garment image bounds on stage (centered, aspect-fit) for resolution-independent placeholder overlay */
+    imgBounds: { x: number; y: number; w: number; h: number };
     canvasElementSprites: Map<string, Sprite | Text>; // Track canvas element sprites by element ID
     canvasElementMasks: Map<string, Graphics>; // GHOSTING FIX: reuse masks per element
   }>({
@@ -177,6 +185,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
     canvasElementsLayer: null,
     placeholderContainer: null,
     pxPerInch: 1,
+    imgBounds: { x: 0, y: 0, w: 0, h: 0 },
     canvasElementSprites: new Map(),
     canvasElementMasks: new Map(),
   });
@@ -470,6 +479,13 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
         garmentSprite.x = CANVAS_PADDING + (maxWidth - width) / 2;
         garmentSprite.y = CANVAS_PADDING + (maxHeight - height) / 2;
 
+        sceneRef.current.imgBounds = {
+          x: garmentSprite.x,
+          y: garmentSprite.y,
+          w: width,
+          h: height,
+        };
+
         // Only apply garment tint if explicitly enabled
         // By default, use real per-color view images as-is without tinting
         if (enableGarmentTint && garmentTintHex) {
@@ -548,7 +564,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
             mockupUrl: currentUrl?.slice(-20),
           });
         }
-      } catch (error) {
+        } catch (error) {
         console.error('Error loading garment texture:', error);
         // Clear scene on error to prevent black texture
         if (appRef.current && appRef.current === currentApp) {
@@ -562,6 +578,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
           sceneRef.current.placeholderDesignLayer = null;
           sceneRef.current.canvasElementsLayer = null;
           sceneRef.current.placeholderContainer = null;
+          sceneRef.current.imgBounds = { x: 0, y: 0, w: 0, h: 0 };
         }
       }
     };
@@ -741,14 +758,21 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
     }
   }, [settings.scaleX, settings.scaleY]);
 
-  // Render Placeholder Outlines and Interactions (hidden in preview mode)
+  // Render Placeholder Outlines and Interactions (hidden in preview mode or when disabled)
   useEffect(() => {
-    if (!appReady || !appRef.current || !sceneRef.current.placeholderContainer || !sceneRef.current.garmentSprite) {
+    if (
+      !appReady ||
+      !appRef.current ||
+      !sceneRef.current.placeholderContainer ||
+      !sceneRef.current.garmentSprite ||
+      !showPlaceholderOutlines
+    ) {
       console.log('RealisticWebGLPreview: Skipping placeholder render - not ready', {
         appReady,
         hasApp: !!appRef.current,
         hasContainer: !!sceneRef.current.placeholderContainer,
         hasGarment: !!sceneRef.current.garmentSprite,
+        showPlaceholderOutlines,
       });
       return;
     }
@@ -768,7 +792,11 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
       placeholders: placeholders.map(p => ({ id: p.id, xIn: p.xIn, yIn: p.yIn })),
     });
 
+    const imgBounds = sceneRef.current.imgBounds || { x: 0, y: 0, w: 0, h: 0 };
     const pxPerInch = sceneRef.current.pxPerInch || 1;
+    const hasImgBounds = imgBounds.w > 0 && imgBounds.h > 0;
+    const physW = physicalWidth || 20;
+    const physH = physicalHeight || 24;
 
     if (placeholders.length === 0) {
       console.log('RealisticWebGLPreview: No placeholders to render');
@@ -819,10 +847,25 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
         phScreenW = Math.max(...xs) - phScreenX;
         phScreenH = Math.max(...ys) - phScreenY;
       } else {
-        phScreenX = CANVAS_PADDING + placeholder.xIn * pxPerInch;
-        phScreenY = CANVAS_PADDING + placeholder.yIn * pxPerInch;
-        phScreenW = placeholder.widthIn * pxPerInch;
-        phScreenH = placeholder.heightIn * pxPerInch;
+        // Position overlay relative to garment image (same as DesignEditor/CanvasMockup).
+        if (hasImgBounds && (placeholder.normalizedPosition || (physW > 0 && physH > 0))) {
+          const norm = placeholder.normalizedPosition ?? {
+            x: placeholder.xIn / physW,
+            y: placeholder.yIn / physH,
+            w: (placeholder.widthIn || 0) / physW,
+            h: (placeholder.heightIn || 0) / physH,
+          };
+          const scale = placeholder.scale ?? 1;
+          phScreenX = imgBounds.x + norm.x * imgBounds.w;
+          phScreenY = imgBounds.y + norm.y * imgBounds.h;
+          phScreenW = norm.w * imgBounds.w * scale;
+          phScreenH = norm.h * imgBounds.h * scale;
+        } else {
+          phScreenX = CANVAS_PADDING + placeholder.xIn * pxPerInch;
+          phScreenY = CANVAS_PADDING + placeholder.yIn * pxPerInch;
+          phScreenW = placeholder.widthIn * pxPerInch;
+          phScreenH = placeholder.heightIn * pxPerInch;
+        }
 
         graphics.rect(phScreenX, phScreenY, phScreenW, phScreenH);
         graphics.fill({ color: fillColor, alpha: fillAlpha });
@@ -843,7 +886,7 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
 
       container.addChild(graphics);
     });
-  }, [appReady, placeholders, activePlaceholder, onSelectPlaceholder, previewMode]);
+  }, [appReady, placeholders, activePlaceholder, onSelectPlaceholder, previewMode, physicalWidth, physicalHeight, showPlaceholderOutlines]);
 
   // Load and place designs into all placeholders that have sample designs.
   // Designs can be dragged within their placeholder bounds but cannot exceed them.
@@ -893,7 +936,12 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
 
         const designSprite = new Sprite(designTex);
 
-        // Determine placeholder bounds in screen pixels.
+        // Determine placeholder bounds in screen pixels (relative to garment image).
+        const imgBounds = sceneRef.current.imgBounds || { x: 0, y: 0, w: 0, h: 0 };
+        const hasImgBounds = imgBounds.w > 0 && imgBounds.h > 0;
+        const physW = physicalWidth || 20;
+        const physH = physicalHeight || 24;
+
         const isPolygon =
           placeholder.shapeType === 'polygon' &&
           placeholder.polygonPoints &&
@@ -906,7 +954,6 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
         let polygonPointsPx: { x: number; y: number }[] | null = null;
 
         if (isPolygon) {
-          // Convert polygon points from inches to pixels using same mapping as CanvasMockup / DesignEditor.
           polygonPointsPx = placeholder.polygonPoints!.map((pt) => ({
             x: CANVAS_PADDING + pt.xIn * pxPerInch,
             y: CANVAS_PADDING + pt.yIn * pxPerInch,
@@ -914,17 +961,23 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
 
           const xs = polygonPointsPx.map((p) => p.x);
           const ys = polygonPointsPx.map((p) => p.y);
-          const minX = Math.min(...xs);
-          const maxX = Math.max(...xs);
-          const minY = Math.min(...ys);
-          const maxY = Math.max(...ys);
-
-          phScreenX = minX;
-          phScreenY = minY;
-          phScreenW = maxX - minX;
-          phScreenH = maxY - minY;
+          phScreenX = Math.min(...xs);
+          phScreenY = Math.min(...ys);
+          phScreenW = Math.max(...xs) - phScreenX;
+          phScreenH = Math.max(...ys) - phScreenY;
+        } else if (hasImgBounds && (placeholder.normalizedPosition || (physW > 0 && physH > 0))) {
+          const norm = placeholder.normalizedPosition ?? {
+            x: placeholder.xIn / physW,
+            y: placeholder.yIn / physH,
+            w: (placeholder.widthIn || 0) / physW,
+            h: (placeholder.heightIn || 0) / physH,
+          };
+          const scale = placeholder.scale ?? 1;
+          phScreenX = imgBounds.x + norm.x * imgBounds.w;
+          phScreenY = imgBounds.y + norm.y * imgBounds.h;
+          phScreenW = norm.w * imgBounds.w * scale;
+          phScreenH = norm.h * imgBounds.h * scale;
         } else {
-          // Rectangular placeholder: direct inches -> pixels.
           phScreenX = CANVAS_PADDING + placeholder.xIn * pxPerInch;
           phScreenY = CANVAS_PADDING + placeholder.yIn * pxPerInch;
           phScreenW = placeholder.widthIn * pxPerInch;
@@ -1238,6 +1291,10 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
 
     const app = appRef.current;
     const pxPerInch = sceneRef.current.pxPerInch || 1;
+    const imgBounds = sceneRef.current.imgBounds || { x: 0, y: 0, w: 0, h: 0 };
+    const hasImgBounds = imgBounds.w > 0 && imgBounds.h > 0;
+    const physW = physicalWidth || 20;
+    const physH = physicalHeight || 24;
 
     // Create or get debug layer
     let debugLayer = app.stage.getChildByName('debugLayer') as Container;
@@ -1272,10 +1329,28 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
         graphics.closePath();
         graphics.stroke({ color: 0x00ff00, width: 2, alpha: 0.8 });
       } else {
-        const phScreenX = CANVAS_PADDING + placeholder.xIn * pxPerInch;
-        const phScreenY = CANVAS_PADDING + placeholder.yIn * pxPerInch;
-        const phScreenW = placeholder.widthIn * pxPerInch;
-        const phScreenH = placeholder.heightIn * pxPerInch;
+        let phScreenX: number;
+        let phScreenY: number;
+        let phScreenW: number;
+        let phScreenH: number;
+        if (hasImgBounds && (placeholder.normalizedPosition || (physW > 0 && physH > 0))) {
+          const norm = placeholder.normalizedPosition ?? {
+            x: placeholder.xIn / physW,
+            y: placeholder.yIn / physH,
+            w: (placeholder.widthIn || 0) / physW,
+            h: (placeholder.heightIn || 0) / physH,
+          };
+          const scale = placeholder.scale ?? 1;
+          phScreenX = imgBounds.x + norm.x * imgBounds.w;
+          phScreenY = imgBounds.y + norm.y * imgBounds.h;
+          phScreenW = norm.w * imgBounds.w * scale;
+          phScreenH = norm.h * imgBounds.h * scale;
+        } else {
+          phScreenX = CANVAS_PADDING + placeholder.xIn * pxPerInch;
+          phScreenY = CANVAS_PADDING + placeholder.yIn * pxPerInch;
+          phScreenW = placeholder.widthIn * pxPerInch;
+          phScreenH = placeholder.heightIn * pxPerInch;
+        }
 
         // Draw print area outline (green)
         graphics.rect(phScreenX, phScreenY, phScreenW, phScreenH);

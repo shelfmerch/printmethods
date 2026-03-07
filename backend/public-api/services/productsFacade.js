@@ -106,8 +106,9 @@ async function createProduct(userId, data) {
     }
 
     // Validate catalog product exists
+    const blueprintId = data.blueprint_id || data.catalog_product_id;
     const catalogProduct = await CatalogProduct.findOne({
-        _id: data.catalog_product_id,
+        _id: blueprintId,
         isActive: true,
         isPublished: true,
     });
@@ -117,7 +118,7 @@ async function createProduct(userId, data) {
 
     const product = await StoreProduct.create({
         storeId: data.store_id,
-        catalogProductId: data.catalog_product_id,
+        catalogProductId: blueprintId,
         title: data.title || catalogProduct.name,
         description: data.description || catalogProduct.description,
         sellingPrice: data.selling_price,

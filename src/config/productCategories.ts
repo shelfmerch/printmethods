@@ -69,7 +69,6 @@ export const CATEGORIES = {
     subcategories: [
       'Box',
       'Tube',
-      'Dropper Bottle',
       'Pouch',
       'Cosmetic',
       'Bottle'

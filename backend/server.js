@@ -43,7 +43,6 @@ const reviewsRoutes = require('./routes/reviews');
 const { tenantResolver } = require('./middleware/tenantResolver');
 const storeRedirect = require('./middleware/storeRedirect');
 const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
-
 const publicApiV1Router = require('./public-api/v1');
 
 const { WHITELISTED_DOMAINS } = require('./utils/security');
@@ -143,16 +142,16 @@ function forwardToOAuth(targetPath) {
 
     // preserve raw body already parsed by express.raw()
     req.url = targetPath; // rewrite URL for the router
-    
+
     // Use the router directly as middleware
     shopifyOAuthRoutes(req, res, (err) => {
-        if (err) {
-            console.error('[DEBUG] Forwarding error:', err);
-            return next(err);
-        }
-        // If it falls through the router, log it
-        console.warn(`[DEBUG] Webhook forward fell through for: ${targetPath}`);
-        next();
+      if (err) {
+        console.error('[DEBUG] Forwarding error:', err);
+        return next(err);
+      }
+      // If it falls through the router, log it
+      console.warn(`[DEBUG] Webhook forward fell through for: ${targetPath}`);
+      next();
     });
   };
 }
@@ -302,7 +301,12 @@ app.use('/api/products', productRoutes);
 app.use('/api/variants', variantRoutes);
 app.use('/api/variant-options', variantOptionsRoutes);
 app.use('/api/catalogue-fields', catalogueFieldsRoutes);
-app.use('/api/upload', uploadRoutes);
+app.use('/api/upload', (req, res, next) => {
+  console.log(`[DEBUG] Upload Request: ${req.method} ${req.originalUrl}`);
+  console.log(`[DEBUG] Content-Type: ${req.get('Content-Type')}`);
+  console.log(`[DEBUG] Content-Length: ${req.get('Content-Length')}`);
+  next();
+}, uploadRoutes);
 app.use('/api/assets', assetsRoutes);
 app.use('/api/placeholders', require('./routes/placeholders'));
 app.use('/api/shipping-quote', shippingQuoteRoutes);
@@ -340,9 +344,22 @@ app.use((req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message || err);
+  console.error(`❌ [ERROR] ${req.method} ${req.url}:`, err.message || err);
+
+  if (err.name === 'MulterError') {
+    console.error('⚠️ Multer Error:', err.code, err.field);
+  }
+
+  if (err.statusCode === 413 || err.code === 'LIMIT_FILE_SIZE' || err.message?.includes('too large')) {
+    console.warn('🚨 Payload Too Large:', {
+      contentLength: req.get('content-length'),
+      contentType: req.get('content-type'),
+      error: err
+    });
+  }
+
   if (err.stack && process.env.NODE_ENV === 'development') {
-    console.error('Error stack:', err.stack);
+    console.error('Detailed Error Stack:', err.stack);
   }
 
   // CORS error
