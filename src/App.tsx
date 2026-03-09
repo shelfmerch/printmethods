@@ -486,6 +486,8 @@ import CurrentProductionShippingTimesPage from "./pages/rem-pgs/support/CurrentP
 import CustomerSupportPolicyPage from "./pages/rem-pgs/support/CustomerSupportPolicyPage";
 import ContentGuidelinesPage from "./pages/rem-pgs/support/ContentGuidelinesPage";
 import ContactUsPage from "./pages/rem-pgs/support/ContactUsPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import DataDeletionPolicy from "./pages/DataDeletionPolicy";
 import TermsOfConditions from "./pages/TermsOfConditions";
 
 //DEVELOPERS
@@ -551,6 +553,8 @@ const App = () => {
                     <Route path="/support/content-guidelines" element={<ContentGuidelinesPage />} />
                     <Route path="/support/contact-us" element={<ContactUsPage />} />
                     <Route path="/terms-of-conditions" element={<TermsOfConditions />} />
+                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                    <Route path="/data-deletion-policy" element={<DataDeletionPolicy />} />
                     <Route
                       path="/designer/:id"
                       element={<DesignerEditor />}

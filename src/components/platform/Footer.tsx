@@ -163,8 +163,8 @@ const Footer = () => {
               <span className="text-muted-foreground">|</span>
               <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
               <span className="text-muted-foreground">|</span>
-              {/* <a href="#" className="hover:text-primary transition-colors">Cookie Policy</a>
-              <span className="text-muted-foreground">|</span> */}
+              <Link to="/data-deletion-policy" className="hover:text-primary transition-colors">Data Deletion Policy</Link>
+              <span className="text-muted-foreground">|</span>
               <a href="/support/customer-support-policy" className="hover:text-primary transition-colors">Return & Refunds</a>
             </div>
 
