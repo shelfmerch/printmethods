@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const Shopify = require('shopify-api-node');
 const crypto = require('crypto');
 const { verifyShopifyOAuth, verifyShopifyWebhook } = require('../utils/shopifyUtils');
 const ShopifyStore = require('../models/ShopifyStore');
@@ -519,6 +520,37 @@ const handleAppUninstalled = async (req, res) => {
       FulfillmentOrder.deleteMany({ shop: sanitizedShop }),
       WebhookEvent.deleteMany({ shop: sanitizedShop }),
     ]);
+
+    // After internal data is scrubbed, attempt to delete products from Shopify itself
+    const productsToDelete = await ShopifyProduct.find({ shop: sanitizedShop });
+
+    const deleteShopifyProducts = async (products) => {
+      for (let product of products) {
+        try {
+          await shopify.product.delete(product.shopifyProductId);
+          console.log(`Product deleted from Shopify: ${product.shopifyProductId}`);
+        } catch (err) {
+          console.error(`Failed to delete product ${product.shopifyProductId}:`, err);
+        }
+      }
+    };
+
+    if (productsToDelete.length > 0) {
+      if (!process.env.SHOPIFY_API_KEY || !process.env.SHOPIFY_API_SECRET) {
+        console.warn('[Uninstall Webhook] Missing SHOPIFY_API_KEY or SHOPIFY_API_SECRET, cannot delete products from Shopify', {
+          shop: sanitizedShop,
+          productCount: productsToDelete.length,
+        });
+      } else {
+        const shopify = new Shopify({
+          shopName: sanitizedShop,
+          apiKey: process.env.SHOPIFY_API_KEY,
+          password: process.env.SHOPIFY_API_SECRET,
+        });
+
+        await deleteShopifyProducts(productsToDelete);
+      }
+    }
 
     console.log('[Shopify Webhook] topic: app/uninstalled, shop:', shopDomain, 'UNINSTALL PROCESSED WITH DATA DELETION', {
       shop: sanitizedShop,
