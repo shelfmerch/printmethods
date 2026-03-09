@@ -1,19 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/home/Header';
 import Footer from '@/components/home/Footer';
-import { ChevronRight, FileText, Shield, Trash2, Clock, Globe, Lock, Mail } from 'lucide-react';
+import { ChevronRight, Globe, Mail, ArrowRight } from 'lucide-react';
 
-interface Section {
-    id: string;
-    title: string;
-    count?: string;
-}
 
 interface LegalLayoutProps {
     title: string;
     subtitle: string;
     lastUpdated: string;
-    sections: Section[];
     children: React.ReactNode;
 }
 
@@ -21,136 +15,92 @@ const LegalLayout: React.FC<LegalLayoutProps> = ({
     title,
     subtitle,
     lastUpdated,
-    sections,
     children
 }) => {
-    const [activeSection, setActiveSection] = useState<string>(sections[0]?.id || '');
-
-    useEffect(() => {
-        const handleScroll = () => {
-            const scrollPosition = window.scrollY + 100;
-
-            for (const section of sections) {
-                const element = document.getElementById(section.id);
-                if (element) {
-                    const { offsetTop, offsetHeight } = element;
-                    if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-                        setActiveSection(section.id);
-                        break;
-                    }
-                }
-            }
-        };
-
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [sections]);
-
-    const scrollToSection = (id: string) => {
-        const element = document.getElementById(id);
-        if (element) {
-            window.scrollTo({
-                top: element.offsetTop - 80,
-                behavior: 'smooth'
-            });
-        }
-    };
-
     return (
-        <div className="min-h-screen bg-[#fafafa] dark:bg-[#0a0a0a] transition-colors duration-500">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#050505] transition-colors duration-700 selection:bg-primary/20">
             <Header />
 
-            {/* Premium Hero Section */}
-            <section className="relative pt-32 pb-20 overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
-                    <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] animate-pulse" />
-                    <div className="absolute bottom-[-10%] left-[-5%] w-[350px] h-[350px] bg-brand-green/5 rounded-full blur-[100px]" />
-                </div>
-
-                <div className="container-custom relative z-10 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-6 animate-fade-in">
-                        <Globe className="w-3 h-3" />
-                        <span>Official Policy Documentation</span>
-                    </div>
-
-                    <h1 className="text-5xl md:text-7xl font-extrabold text-[#111] dark:text-white tracking-tight mb-6 animate-fade-up">
-                        {title}
-                    </h1>
-
-                    <p className="text-xl text-brand-gray dark:text-brand-gray max-w-2xl mx-auto leading-relaxed animate-fade-up animate-delay-100">
-                        {subtitle}
-                    </p>
-
-                    <div className="mt-8 text-sm font-medium text-brand-gray/60 animate-fade-up animate-delay-200">
-                        Last updated: <span className="text-[#111] dark:text-white">{lastUpdated}</span>
-                    </div>
-                </div>
-            </section>
-
-            <div className="container-custom pb-24">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-
-                    {/* Dynamic Sidebar */}
-                    <aside className="lg:col-span-3">
-                        <div className="sticky top-24 space-y-4">
-                            <div className="p-6 bg-white dark:bg-[#111] rounded-2xl border border-border/50 shadow-sm">
-                                <h3 className="text-xs font-bold text-brand-gray/50 uppercase tracking-[0.2em] mb-6">On this page</h3>
-                                <nav className="space-y-1">
-                                    {sections.map((section, idx) => (
-                                        <button
-                                            key={section.id}
-                                            onClick={() => scrollToSection(section.id)}
-                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${activeSection === section.id
-                                                    ? 'bg-primary text-white shadow-lg shadow-primary/20 translate-x-1'
-                                                    : 'text-brand-gray hover:bg-muted hover:text-[#111] dark:hover:text-white'
-                                                }`}
-                                        >
-                                            <span className={`text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border ${activeSection === section.id ? 'border-white/50' : 'border-border'
-                                                }`}>
-                                                {idx + 1}
-                                            </span>
-                                            <span className="text-sm font-semibold truncate">{section.title}</span>
-                                            {activeSection === section.id && (
-                                                <ChevronRight className="w-4 h-4 ml-auto" />
-                                            )}
-                                        </button>
-                                    ))}
-                                </nav>
-                            </div>
-
-                            {/* Need help card */}
-                            <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 group">
-                                <h4 className="text-sm font-bold text-[#111] dark:text-white mb-2">Need clarification?</h4>
-                                <p className="text-xs text-brand-gray leading-relaxed mb-4">
-                                    Our team is here to help you understand our policies and your rights.
-                                </p>
-                                <a
-                                    href="mailto:shelfmerch@gmail.com"
-                                    className="inline-flex items-center gap-2 text-xs font-bold text-primary group-hover:gap-3 transition-all"
-                                >
-                                    <Mail className="w-3 h-3" />
-                                    Contact Support
-                                </a>
-                            </div>
-                        </div>
-                    </aside>
-
-                    {/* Content Block */}
-                    <main className="lg:col-span-9">
-                        <div className="bg-white dark:bg-[#111] rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-border/50 shadow-xl shadow-black/[0.02]">
-                            <div className="prose prose-slate prose-invert lg:prose-xl max-w-none 
-                prose-headings:text-[#111] dark:prose-headings:text-white 
-                prose-p:text-brand-gray dark:prose-p:text-brand-gray/80
-                prose-strong:text-[#111] dark:prose-strong:text-white
-                prose-li:text-brand-gray dark:prose-li:text-brand-gray/80
-                prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              ">
-                                {children}
-                            </div>
-                        </div>
-                    </main>
-                </div>
+            {/* Modern Mesh Grid Background */}
+            <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,rgba(59,130,246,0.08),transparent_50%)]" />
+                <div className="absolute top-[20%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-green/5 rounded-full blur-[120px]" />
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] contrast-150 brightness-100" />
             </div>
+
+            <main>
+                {/* Dynamic Hero Section */}
+                <section className="relative pt-40 pb-24 overflow-hidden">
+                    <div className="container-custom relative z-10">
+                        <div className="flex flex-col items-center">
+                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-white/5 border border-primary/20 text-primary text-[10px] uppercase font-bold tracking-[0.2em] mb-8 shadow-sm backdrop-blur-md animate-fade-in">
+                                <Globe className="w-3.5 h-3.5" />
+                                <span>Legal & Compliance</span>
+                            </div>
+
+                            <h1 className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white tracking-tighter mb-8 animate-fade-up leading-[0.9]">
+                                {title.split(' ').map((word, i) => (
+                                    <span key={i} className={i === title.split(' ').length - 1 ? "text-primary block md:inline" : "block md:inline"}>
+                                        {word}{' '}
+                                    </span>
+                                ))}
+                            </h1>
+
+                            <p className="text-xl md:text-2xl text-slate-500 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed animate-fade-up animate-delay-100 font-medium">
+                                {subtitle}
+                            </p>
+
+                            <div className="mt-12 flex items-center gap-4 text-sm font-bold animate-fade-up animate-delay-200">
+                                <span className="text-slate-400 uppercase tracking-widest text-[10px]">Updated on</span>
+                                <span className="px-3 py-1 bg-slate-200/50 dark:bg-white/10 rounded-lg text-slate-900 dark:text-white">{lastUpdated}</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div className="px-6 md:px-12 lg:px-20 pb-32">
+                    <div className="w-full">
+                        {/* Premium Content Area */}
+                        <article>
+                            <div className="bg-white dark:bg-[#0c0c0c] rounded-[4rem] p-12 md:p-20 lg:p-24 border border-slate-200 dark:border-white/5 shadow-[0_32px_128px_-32px_rgba(0,0,0,0.08)] relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-blue-400 to-brand-green opacity-50" />
+
+                                <div className="prose prose-slate prose-xl dark:prose-invert max-w-none 
+                  prose-headings:font-black prose-headings:tracking-tighter 
+                  prose-headings:text-slate-900 dark:prose-headings:text-white
+                  prose-p:text-slate-500 dark:prose-p:text-slate-400 prose-p:leading-relaxed
+                  prose-strong:text-slate-900 dark:prose-strong:text-white prose-strong:font-black
+                  prose-li:text-slate-500 dark:prose-li:text-slate-400
+                  prose-a:text-primary prose-a:font-black prose-a:no-underline hover:prose-a:underline
+                  prose-ul:list-none prose-ul:pl-0
+                ">
+                                    {children}
+                                </div>
+
+                                {/* Support Footer within content area */}
+                                <div className="mt-32 pt-16 border-t border-slate-100 dark:border-white/5">
+                                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-12 p-12 bg-slate-50 dark:bg-white/[0.02] rounded-[3rem] border border-slate-200/50 dark:border-white/5">
+                                        <div className="max-w-2xl">
+                                            <h4 className="text-3xl font-black mb-4 tracking-tight">Need a deeper explanation?</h4>
+                                            <p className="text-slate-500 text-lg m-0 font-medium leading-relaxed">
+                                                Our compliance and legal teams are standing by to help you understand our operational standards and your rights as a merchant.
+                                            </p>
+                                        </div>
+                                        <a
+                                            href="mailto:shelfmerch@gmail.com"
+                                            className="inline-flex items-center justify-center gap-3 px-10 py-6 bg-primary text-white rounded-2xl text-lg font-black hover:bg-blue-600 transition-all shadow-2xl shadow-primary/30 active:scale-95 whitespace-nowrap"
+                                        >
+                                            <Mail className="w-6 h-6" />
+                                            Get in Touch
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </main>
 
             <Footer />
         </div>
