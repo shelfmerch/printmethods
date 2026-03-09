@@ -77,11 +77,11 @@ const ATTRIBUTE_CONFIG: Record<string, { icon?: LucideIcon; img?: string; label:
     accessoryType: { icon: Monitor, label: "Accessory Type" },
 
     // Jewelry
-    hypoallergenic: { icon: Heart, label: "Hypoallergenic" },
-    ringSize: { icon: Ruler, label: "Ring Size" },
-    chainType: { icon: Anchor, label: "Chain Type" },
-    claspType: { icon: Anchor, label: "Clasp Type" },
-    earringType: { icon: Gem, label: "Earring Style" },
+    // hypoallergenic: { icon: Heart, label: "Hypoallergenic" },
+    // ringSize: { icon: Ruler, label: "Ring Size" },
+    // chainType: { icon: Anchor, label: "Chain Type" },
+    // claspType: { icon: Anchor, label: "Clasp Type" },
+    // earringType: { icon: Gem, label: "Earring Style" },
 };
 
 // Helper to format values (e.g., boolean to Yes/No, add units if needed)

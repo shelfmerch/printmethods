@@ -18,7 +18,7 @@ const categories: CategoryItem[] = [
   { name: "Print Products", children: ["Business Cards", "Books", "ID Cards", "Stickers", "Posters", "Flyers", "Greeting Cards", "Billboards", "Magazines", "Brochures", "Lanyards", "Banners", "Canvas", "Notebooks"] },
   { name: "Packaging", children: ["Boxes", "Tubes", "Bottles", "Pouch", "Cosmetics", "Bottles"] },
   { name: "Tech", children: ["IPhone Cases", "Lap Top Cases", "IPad Cases", "Macbook Cases", "Phone Cases"] },
-  { name: "Jewelry", children: ["Rings", "Necklaces", "Earrings", "Bracelets"] },
+  // { name: "Jewelry", children: ["Rings", "Necklaces", "Earrings", "Bracelets"] },
 ];
 
 const slugify = (value: string): string => {

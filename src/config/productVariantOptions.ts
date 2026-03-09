@@ -361,46 +361,46 @@ export const VARIANT_OPTIONS: Record<CategoryId, {
     }
   },
 
-  jewelry: {
-    default: {
-      sizes: ['One Size', 'Adjustable'],
-      colors: ['Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 'Bronze', 'Copper'],
-      allowCustomSizes: true,
-      allowCustomColors: true,
-    },
-    bySubcategory: {
-      'Ring': {
-        sizes: ['5', '6', '7', '8', '9', '10', '11', 'Adjustable'],
-        colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
-          'Bronze', 'Copper', 'Brass', 'Platinum'
-        ],
-        allowCustomSizes: true,
-        allowCustomColors: true,
-        sizeLabel: 'Ring Size',
-      },
-      'Necklace': {
-        sizes: ['14"', '16"', '18"', '20"', '22"', '24"', 'Adjustable'],
-        colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
-          'Bronze', 'Copper', 'Brass'
-        ],
-        allowCustomSizes: true,
-        allowCustomColors: true,
-        sizeLabel: 'Chain Length',
-      },
-      'Earring': {
-        sizes: ['Small', 'Medium', 'Large'],
-        colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
-          'Bronze', 'Copper'
-        ],
-        allowCustomSizes: true,
-        allowCustomColors: true,
-        sizeLabel: 'Size',
-      },
-    }
-  }
+  // jewelry: {
+  //   default: {
+  //     sizes: ['One Size', 'Adjustable'],
+  //     colors: ['Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 'Bronze', 'Copper'],
+  //     allowCustomSizes: true,
+  //     allowCustomColors: true,
+  //   },
+  //   bySubcategory: {
+  //     'Ring': {
+  //       sizes: ['5', '6', '7', '8', '9', '10', '11', 'Adjustable'],
+  //       colors: [
+  //         'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
+  //         'Bronze', 'Copper', 'Brass', 'Platinum'
+  //       ],
+  //       allowCustomSizes: true,
+  //       allowCustomColors: true,
+  //       sizeLabel: 'Ring Size',
+  //     },
+  //     'Necklace': {
+  //       sizes: ['14"', '16"', '18"', '20"', '22"', '24"', 'Adjustable'],
+  //       colors: [
+  //         'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
+  //         'Bronze', 'Copper', 'Brass'
+  //       ],
+  //       allowCustomSizes: true,
+  //       allowCustomColors: true,
+  //       sizeLabel: 'Chain Length',
+  //     },
+  //     'Earring': {
+  //       sizes: ['Small', 'Medium', 'Large'],
+  //       colors: [
+  //         'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
+  //         'Bronze', 'Copper'
+  //       ],
+  //       allowCustomSizes: true,
+  //       allowCustomColors: true,
+  //       sizeLabel: 'Size',
+  //     },
+  //   }
+  // }
 };
 
 /**

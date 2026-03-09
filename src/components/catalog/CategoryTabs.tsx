@@ -8,7 +8,7 @@ import homeImg from "@/assets/category-home.jpg";
 import printImg from "@/assets/category-print.jpg";
 import packagingImg from "@/assets/category-packaging.jpg";
 import techImg from "@/assets/category-tech.jpg";
-import jewelryImg from "@/assets/category-jewelry.jpg";
+// import jewelryImg from "@/assets/category-jewelry.jpg";
 import hotNewImg from "@/assets/category-hotnew.jpg";
 import starterImg from "@/assets/category-starter.jpg";
 import kitsImg from "@/assets/category-kits.jpg";
@@ -139,17 +139,17 @@ const categories: Category[] = [
       { name: "Phone Covers", image: subPhonecovers },
     ],
   },
-  {
-    id: "jewelry",
-    name: "Jewelry",
-    image: jewelryImg,
-    subcategories: [
-      { name: "Rings", image: subRings },
-      { name: "Necklaces", image: subNecklaces },
-      { name: "Earrings", image: subEarrings },
-      { name: "Bracelets", image: subBracelets },
-    ],
-  },
+  // {
+  //   id: "jewelry",
+  //   name: "Jewelry",
+  //   image: jewelryImg,
+  //   subcategories: [
+  //     { name: "Rings", image: subRings },
+  //     { name: "Necklaces", image: subNecklaces },
+  //     { name: "Earrings", image: subEarrings },
+  //     { name: "Bracelets", image: subBracelets },
+  //   ],
+  // },
 
 ];
 

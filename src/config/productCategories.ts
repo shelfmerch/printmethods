@@ -85,15 +85,15 @@ export const CATEGORIES = {
       'Phone'
     ]
   },
-  jewelry: {
-    id: 'jewelry',
-    name: 'Jewelry',
-    subcategories: [
-      'Ring',
-      'Necklace',
-      'Earring'
-    ]
-  }
+  // jewelry: {
+  //   id: 'jewelry',
+  //   name: 'Jewelry',
+  //   subcategories: [
+  //     'Ring',
+  //     'Necklace',
+  //     'Earring'
+  //   ]
+  // }
 } as const;
 
 export type CategoryId = keyof typeof CATEGORIES;
