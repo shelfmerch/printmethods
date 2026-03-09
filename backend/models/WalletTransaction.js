@@ -23,7 +23,7 @@ const WalletTransactionSchema = new mongoose.Schema(
         // Transaction type
         type: {
             type: String,
-            enum: ['TOPUP', 'DEBIT', 'REFUND', 'ADJUSTMENT', 'WITHDRAWAL'],
+            enum: ['TOPUP', 'DEBIT', 'PURCHASE', 'REFUND', 'ADJUSTMENT', 'WITHDRAWAL'],
             required: true,
         },
         // Direction of money flow
@@ -77,7 +77,7 @@ const WalletTransactionSchema = new mongoose.Schema(
         // Reference type for tracking
         referenceType: {
             type: String,
-            enum: ['RAZORPAY_ORDER', 'RAZORPAY_PAYMENT', 'INVOICE', 'ORDER', 'ADMIN_ADJUSTMENT', 'WITHDRAWAL_REQUEST'],
+            enum: ['RAZORPAY_ORDER', 'RAZORPAY_PAYMENT', 'INVOICE', 'ORDER', 'ADMIN_ADJUSTMENT', 'WITHDRAWAL_REQUEST', 'AI_CREDITS'],
             required: true,
         },
         // External reference ID (razorpay order id, invoice id, etc.)

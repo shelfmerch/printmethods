@@ -29,7 +29,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Upload, Type, Image as ImageIcon, Folder, Sparkles, Undo2, Redo2,
+  Upload, Type, Image as ImageIcon, Folder, Sparkles,BotIcon, Undo2, Redo2,
   ZoomIn, ZoomOut, Move, Copy, Trash2, X, Plus, Package, Menu, Save, Layers, Eye, EyeOff,
   Lock, Unlock, AlignLeft, AlignCenter, AlignRight, Bold, Italic,
   Underline, Palette, Grid, Ruler, Download, Settings, Settings2, ChevronRight,
@@ -43,6 +43,7 @@ import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
 import { RealisticWebGLPreview } from '@/components/admin/RealisticWebGLPreview';
 import { UploadPanel } from '@/components/designer/UploadPanel';
 import { DisplacementSettingsPanel } from '@/components/designer/DisplacementSettingsPanel';
+import AIimageGen from '@/components/designer/AIimageGen';
 import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
 import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
@@ -720,6 +721,16 @@ const DesignEditor: React.FC = () => {
       toolKey: 'templates' as const,
       onClick: () => {
         setActiveTool('templates');
+        setShowLeftPanel(true);
+        if (isMobile) setMobileToolStage('detail');
+      }
+    },
+    {
+      icon: BotIcon,
+      label: 'AI Image Gen',
+      toolKey: 'ai' as const,
+      onClick: () => {
+        setActiveTool('ai');
         setShowLeftPanel(true);
         if (isMobile) setMobileToolStage('detail');
       }
@@ -3232,6 +3243,13 @@ const DesignEditor: React.FC = () => {
                       );
                     })()}
                     {activeTool === 'templates' && <TemplatesPanel isMobile={true} />}
+                    {activeTool === 'ai' && (
+                      <AIimageGen
+                        onImageClick={addImageToCanvas}
+                        selectedPlaceholderId={selectedPlaceholderId}
+                        onClose={() => setIsMobileMenuOpen(false)}
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -3267,6 +3285,13 @@ const DesignEditor: React.FC = () => {
                   onAddText={(text, font) => {
                     handleAddTextWithParams(text, font);
                   }}
+                  onClose={() => setShowLeftPanel(false)}
+                />
+              )}
+              {activeTool === 'ai' && (
+                <AIimageGen
+                  onImageClick={addImageToCanvas}
+                  selectedPlaceholderId={selectedPlaceholderId}
                   onClose={() => setShowLeftPanel(false)}
                 />
               )}

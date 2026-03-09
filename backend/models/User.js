@@ -115,7 +115,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [100, 'UPI ID cannot be more than 100 characters']
-  }
+  },
+  credits: {
+    type: Number,
+    default: 10
+  },
+  generatedImages: [{
+    url: String,
+    prompt: String,
+    style: String,
+    createdAt: { type: Date, default: Date.now }
+  }]
 }, {
   timestamps: true
 });
