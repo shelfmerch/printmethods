@@ -1,115 +1,182 @@
 import LegalLayout from '@/components/layout/LegalLayout';
-import { Trash2, ShoppingBag, RotateCcw, Calendar, AlertCircle } from 'lucide-react';
+import { Trash2, ShieldCheck, Database, History, Mail, RotateCw, Fingerprint, ArrowRight, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 const DataDeletionPolicy = () => {
-    const sections = [
-        { id: 'how-to-request', title: 'How to Request Deletion' },
-        { id: 'data-collected', title: 'Types of Data Collected' },
-        { id: 'after-deletion', title: 'After Data Deletion' },
-        { id: 'timeframe', title: 'Timeframe for Deletion' },
-        { id: 'exceptions', title: 'Exceptions' },
-    ];
-
     return (
         <LegalLayout
             title="Data Deletion Policy"
-            subtitle="Complete guide on how to request permanent removal of your personal information from our systems."
+            subtitle="Complete transparency on our data scrubbing protocols and your right to be forgotten."
             lastUpdated="March 09, 2026"
-            sections={sections}
         >
-            <section id="how-to-request" className="scroll-mt-24 mb-16">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-                        <Trash2 className="w-6 h-6" />
+            <section id="introduction" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+                        <ShieldCheck className="w-8 h-8" />
                     </div>
-                    <h2 className="text-3xl font-bold m-0">1. How to Request Deletion</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Introduction</h2>
                 </div>
-                <p>
-                    We respect your right to be forgotten. You can request the permanent deletion of your data through any of these premium support channels:
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                    <div className="flex items-start gap-4 p-6 rounded-3xl bg-[#fdfdfd] dark:bg-[#1a1a1a] border border-border group hover:border-primary transition-colors">
-                        <div className="text-2xl font-bold text-primary/20 group-hover:text-primary transition-colors">01</div>
-                        <div>
-                            <h4 className="text-base font-bold mb-1">Direct Email</h4>
-                            <p className="text-sm m-0 opacity-70 italic">Send a request to shelfmerch@gmail.com</p>
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-4 p-6 rounded-3xl bg-[#fdfdfd] dark:bg-[#1a1a1a] border border-border group hover:border-primary transition-colors">
-                        <div className="text-2xl font-bold text-primary/20 group-hover:text-primary transition-colors">02</div>
-                        <div>
-                            <h4 className="text-base font-bold mb-1">Dashboard Feature</h4>
-                            <p className="text-sm m-0 opacity-70 italic">Use the account settings deletion tool</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="data-collected" className="scroll-mt-24 mb-16">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
-                        <ShoppingBag className="w-6 h-6" />
-                    </div>
-                    <h2 className="text-3xl font-bold m-0">2. Types of Data Collected</h2>
-                </div>
-                <p>Information subject to deletion includes:</p>
-                <ul className="space-y-4 mt-6">
-                    <li className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        <span>Profile Identity (Registered Email Addresses)</span>
-                    </li>
-                    <li className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        <span>Fulfillment Data (Saved Shipping Addresses)</span>
-                    </li>
-                    <li className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        <span>Operational History (Non-financial order details)</span>
-                    </li>
-                </ul>
-            </section>
-
-            <section id="after-deletion" className="scroll-mt-24 mb-16">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 rounded-2xl bg-orange-500/10 text-orange-500">
-                        <RotateCcw className="w-6 h-6" />
-                    </div>
-                    <h2 className="text-3xl font-bold m-0">3. What Happens After Deletion</h2>
-                </div>
-                <div className="p-10 rounded-[2.5rem] bg-orange-500/[0.03] border border-orange-500/10 text-center">
-                    <p className="text-lg font-medium leading-relaxed">
-                        All personal identifiers are scrubbed from our active databases.
-                        Your identity will be completely detached from any remaining record, ensuring zero traceability.
+                <div className="bg-slate-50 dark:bg-white/[0.03] p-8 rounded-[2rem] border border-slate-200 dark:border-white/5">
+                    <p className="text-lg leading-relaxed m-0 text-slate-700 dark:text-slate-300 font-medium">
+                        At <strong>ShelfMerch</strong>, we believe you should have total control over your digital footprint.
+                        In strict alignment with Shopify’s privacy standards and global regulations, we provide clear,
+                        automated pathways for the permanent removal of your personal and store-related data.
                     </p>
                 </div>
             </section>
 
-            <section id="timeframe" className="scroll-mt-24 mb-16">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-500">
-                        <Calendar className="w-6 h-6" />
+            <section id="how-to-request" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+                        <Mail className="w-8 h-8" />
                     </div>
-                    <h2 className="text-3xl font-bold m-0">4. Timeframe for Deletion</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Request Deletion</h2>
                 </div>
-                <p>
-                    Efficiency is key. We process and confirm all verified deletion requests within a strict window of
-                    <strong> 30 calendar days</strong>.
-                </p>
+                <p className="mb-10 text-slate-500 dark:text-slate-400">To initiate a manual data scrubbing request, please reach out to our privacy team:</p>
+
+                <div className="relative group overflow-hidden p-8 rounded-[2.5rem] bg-primary text-white shadow-2xl shadow-primary/20">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-1000" />
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                        <div>
+                            <p className="text-white/60 uppercase tracking-[0.3em] text-[10px] font-black mb-2">Direct Channel</p>
+                            <a href="mailto:shelfmerch@gmail.com" className="text-3xl md:text-4xl font-black hover:underline tracking-tighter">shelfmerch@gmail.com</a>
+                        </div>
+                        <ArrowRight className="w-12 h-12 text-white/20 hidden md:block" />
+                    </div>
+                </div>
+
+                <div className="flex items-start gap-5 mt-10 p-8 rounded-[2rem] bg-amber-500/5 border border-amber-500/10">
+                    <Fingerprint className="w-8 h-8 text-amber-600 flex-shrink-0 mt-1" />
+                    <div>
+                        <h4 className="font-black text-amber-900 dark:text-amber-400 mb-1 tracking-tight">Identity Verification Required</h4>
+                        <p className="text-sm m-0 text-amber-800/80 dark:text-amber-500/80 leading-relaxed">
+                            To prevent unauthorized data removal, we may require verification via your registered merchant email before processing any manual deletion request.
+                        </p>
+                    </div>
+                </div>
             </section>
 
-            <section id="exceptions" className="scroll-mt-24">
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 rounded-2xl bg-red-500/10 text-red-500">
-                        <AlertCircle className="w-6 h-6" />
+            <section id="data-collected" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform duration-500">
+                        <Database className="w-8 h-8" />
                     </div>
-                    <h2 className="text-3xl font-bold m-0">5. Exceptions</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Data Inventory</h2>
                 </div>
-                <p>In certain scenarios, we are legally required to retain specific shards of data:</p>
-                <div className="mt-8 p-8 rounded-3xl bg-red-500/5 border border-red-500/10">
-                    <ul className="space-y-4 m-0">
-                        <li><strong>Tax Records:</strong> Financial invoices must be retained according to Indian tax regulations.</li>
-                        <li><strong>Legal Obligations:</strong> Compliance with specific court orders or law enforcement requests.</li>
-                    </ul>
+                <p className="mb-8 text-slate-500 dark:text-slate-400">The following categories of data are eligible for permanent removal from our active clusters:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {[
+                        { title: 'Shopify Store Info', desc: 'Metadata, synchronization settings, and store identifiers.' },
+                        { title: 'Merchant Contacts', desc: 'Email addresses and primary account holder details.' },
+                        { title: 'Product Inventory', desc: 'Designs, configurations, and variant data shards.' },
+                        { title: 'Service History', desc: 'Non-billing related order and fulfillment logs.' }
+                    ].map((item, i) => (
+                        <div key={i} className="p-6 rounded-3xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 group hover:border-primary/20 transition-all">
+                            <h4 className="font-black text-slate-900 dark:text-white mb-2 tracking-tight group-hover:text-primary transition-colors">{item.title}</h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-500 m-0 leading-relaxed font-medium">{item.desc}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <section id="after-deletion" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-green-500/10 text-green-500 group-hover:scale-110 transition-transform duration-500">
+                        <History className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Post-Deletion</h2>
+                </div>
+                <div className="p-10 rounded-[3rem] bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10">
+                    <p className="text-xl font-bold leading-relaxed m-0 text-slate-700 dark:text-slate-300 italic">
+                        "Once purged, your identifiers are detached from our backend. Any remaining system shards are fully anonymized, making reverse-association with your store mathematically impossible."
+                    </p>
+                </div>
+            </section>
+
+            <section id="uninstall-removal" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform duration-500">
+                        <RotateCw className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Uninstall Removal</h2>
+                </div>
+                <div className="p-10 rounded-[3rem] bg-slate-900 text-white overflow-hidden relative shadow-2xl">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 blur-[80px] rounded-full pointer-events-none" />
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400">Automated Trigger</span>
+                    </div>
+                    <h4 className="text-2xl font-black mb-6 tracking-tight">Instant Deletion Protocol</h4>
+                    <p className="text-slate-400 leading-relaxed mb-0 font-medium">
+                        If you uninstall the <strong>ShelfMerch</strong> app, our systems automatically receive a secure webhook from Shopify. This triggers an immediate or near-immediate data purge of all store-associated records, ensuring we respect your exit without delay.
+                    </p>
+                </div>
+            </section>
+
+            <section id="timeframe" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-indigo-500/10 text-indigo-500 group-hover:scale-110 transition-transform duration-500">
+                        <Trash2 className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Timeframe</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <p className="text-lg leading-relaxed text-slate-500 dark:text-slate-400 mb-0 font-medium">
+                            We operate a <strong>zero-lag</strong> deletion policy. Verified requests are flagged for processing instantly. While the scrubbing happens in milliseconds, synchronization across our global CDN may take up to 24 hours to reflect globally.
+                        </p>
+                    </div>
+                    <div className="p-8 rounded-[2.5rem] bg-indigo-500/5 border border-indigo-500/10 flex items-center justify-center">
+                        <div className="text-center">
+                            <p className="text-3xl font-black text-indigo-600 mb-1">~0s</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Target Latency</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="exceptions" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform duration-500">
+                        <ShieldAlert className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Legal Exceptions</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="p-8 rounded-[2rem] bg-red-500/5 border border-red-500/10">
+                        <h4 className="font-black text-red-900 dark:text-red-400 mb-3 uppercase tracking-widest text-[10px]">Tax & Billing</h4>
+                        <p className="text-sm m-0 text-red-800/70 dark:text-red-500/70 leading-relaxed font-medium text-pretty">
+                            Financial records, including invoices and tax-related transaction logs, must be retained according to Indian regulatory standards and cannot be purged upon request.
+                        </p>
+                    </div>
+                    <div className="p-8 rounded-[2rem] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                        <h4 className="font-black text-slate-500 mb-3 uppercase tracking-widest text-[10px]">Legal Hold</h4>
+                        <p className="text-sm m-0 text-slate-500 leading-relaxed font-medium text-pretty">
+                            Data subject to a valid legal hold, law enforcement request, or necessary for the defense of legitimate legal claims will be preserved until the hold is lifted.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="contact" className="scroll-mt-32">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+                        <Mail className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Support</h2>
+                </div>
+                <div className="group relative overflow-hidden p-1 p-px bg-gradient-to-br from-primary via-blue-400 to-green-400 rounded-[2.5rem]">
+                    <div className="bg-white dark:bg-[#0c0c0c] p-10 rounded-[2.4rem] relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                        <div>
+                            <p className="text-xl font-bold mb-2 tracking-tight">Privacy Officer</p>
+                            <p className="text-slate-500 m-0 font-medium">ShelfMerch Compliance Team</p>
+                        </div>
+                        <a
+                            href="mailto:shelfmerch@gmail.com"
+                            className="px-8 py-5 bg-primary text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl shadow-primary/20 active:scale-95"
+                        >
+                            Contact Team
+                        </a>
+                    </div>
                 </div>
             </section>
         </LegalLayout>

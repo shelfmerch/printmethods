@@ -1,138 +1,150 @@
 import LegalLayout from '@/components/layout/LegalLayout';
-import { Gavel, Users, AlertTriangle, XCircle, Landmark, Edit3, MessageCircle } from 'lucide-react';
+import { Gavel, CheckCircle, Package, UserCircle, AlertTriangle, CloudOff, XCircle, Landmark, MessageSquare, ArrowRight, ShieldCheck, ScrollText } from 'lucide-react';
 
 const TermsOfConditions = () => {
-  const sections = [
-    { id: 'introduction', title: 'Introduction' },
-    { id: 'responsibilities', title: 'User Responsibilities' },
-    { id: 'liability', title: 'Limitation of Liability' },
-    { id: 'termination', title: 'Termination' },
-    { id: 'governing-law', title: 'Governing Law' },
-    { id: 'amendments', title: 'Amendments' },
-    { id: 'contact', title: 'Contact' },
-  ];
-
   return (
     <LegalLayout
       title="Terms of Service"
-      subtitle="The rules, guidelines, and legal agreements for using our platform."
+      subtitle="The foundational legal framework defining our partnership and service standards."
       lastUpdated="March 09, 2026"
-      sections={sections}
     >
-      <section id="introduction" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-            <Gavel className="w-6 h-6" />
+      <section id="introduction" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+            <Gavel className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">1. Introduction</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">1. Introduction</h2>
         </div>
-        <p>
-          Welcome to <strong>Shelf Merch</strong>. These Terms of Service govern your access to and use of our platform,
-          including our website at <a href="https://shelfmerch.store/">https://shelfmerch.store/</a> and any related services.
-        </p>
-        <p className="mt-4">
-          Shelf Merch is a premier print-on-demand platform enabling creators to design, sell, and fulfill custom merchandise effortlessly.
-          By accessing our App, you agree to be legally bound by these terms.
-        </p>
-      </section>
-
-      <section id="responsibilities" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
-            <Users className="w-6 h-6" />
-          </div>
-          <h2 className="text-3xl font-bold m-0">2. User Responsibilities</h2>
-        </div>
-        <p>To maintain a safe and creative community, you agree to:</p>
-        <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 list-none p-0 mt-8">
-          <li className="flex items-start gap-3 p-4 rounded-2xl bg-muted/30 border border-border">
-            <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-            <span className="text-sm leading-relaxed">Use the App only for lawful, ethical purposes.</span>
-          </li>
-          <li className="flex items-start gap-3 p-4 rounded-2xl bg-muted/30 border border-border">
-            <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-            <span className="text-sm leading-relaxed">Provide accurate account and business information.</span>
-          </li>
-          <li className="flex items-start gap-3 p-4 rounded-2xl bg-muted/30 border border-border">
-            <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-            <span className="text-sm leading-relaxed">Protect your account credentials from unauthorized access.</span>
-          </li>
-          <li className="flex items-start gap-3 p-4 rounded-2xl bg-muted/30 border border-border">
-            <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-            <span className="text-sm leading-relaxed">Respect intellectual property rights of all creators.</span>
-          </li>
-        </ul>
-      </section>
-
-      <section id="liability" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-red-500/10 text-red-500">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <h2 className="text-3xl font-bold m-0">3. Limitation of Liability</h2>
-        </div>
-        <div className="p-8 rounded-[2.5rem] bg-red-500/[0.03] border border-red-500/10">
-          <p className="text-sm leading-relaxed italic opacity-80">
-            To the maximum extent permitted by law, <strong>Chitlu Innovations Private Limited</strong> shall not be liable for any indirect,
-            incidental, or consequential damages resulting from your use of the App, including data loss or business interruptions.
+        <div className="bg-slate-50 dark:bg-white/[0.03] p-8 rounded-[2rem] border border-slate-200 dark:border-white/5">
+          <p className="text-lg leading-relaxed m-0 text-slate-700 dark:text-slate-300 font-medium">
+            Welcome to <strong>ShelfMerch</strong>. By using our print-on-demand and order fulfillment services, you enter into a binding agreement designed to ensure a secure, transparent, and fair ecommerce ecosystem for all stakeholders.
           </p>
         </div>
       </section>
 
-      <section id="termination" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-zinc-500/10 text-zinc-500">
-            <XCircle className="w-6 h-6" />
+      <section id="acceptance" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform duration-500">
+            <ShieldCheck className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">4. Termination</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">2. Acceptance</h2>
         </div>
-        <p>
-          We reserve the right to suspend or terminate your access immediately, without prior notice, if we determine you have breached these Terms.
-          Your creative freedom comes with the responsibility of following platform guidelines.
-        </p>
+        <div className="p-10 rounded-[3rem] bg-slate-900 text-white relative overflow-hidden shadow-2xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none" />
+          <p className="text-xl font-bold leading-relaxed mb-0 text-slate-200 relative z-10">
+            Installation of the ShelfMerch app signifies your full <span className="text-white underline decoration-blue-500 underline-offset-8">acceptance of these terms</span>. If you do not agree with any provision herein, you must immediately cease usage and uninstall the application.
+          </p>
+        </div>
       </section>
 
-      <section id="governing-law" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-500">
-            <Landmark className="w-6 h-6" />
+      <section id="description" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-indigo-500/10 text-indigo-500 group-hover:scale-110 transition-transform duration-500">
+            <Package className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">5. Governing Law</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">3. Service Scope</h2>
         </div>
-        <p>
-          These Terms are governed by the laws of <strong>India</strong>. Any disputes shall be subject to
-          the exclusive jurisdiction of the courts in <strong>Hyderabad, India</strong>.
-        </p>
+        <p className="mb-10 text-slate-500 dark:text-slate-400">ShelfMerch empowers Shopify merchants with a full-stack fulfillment infrastructure:</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {[
+            { t: 'Product Creation', d: 'High-fidelity POD design tools.', icon: ScrollText },
+            { t: 'Shopify Sync', d: 'Real-time catalog synchronization.', icon: CloudOff },
+            { t: 'Logistics', d: 'Automated order routing and labels.', icon: Package },
+            { t: 'Fulfillment', d: 'Global print and ship network.', icon: CheckCircle }
+          ].map((item, i) => (
+            <div key={i} className="p-8 rounded-[2rem] border border-slate-200 dark:border-white/5 bg-white dark:bg-white/5 flex flex-col items-center text-center group hover:border-primary/30 transition-all">
+              <item.icon className="w-10 h-10 text-slate-300 dark:text-slate-700 group-hover:text-primary transition-colors mb-4" />
+              <h4 className="font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tighter">{item.t}</h4>
+              <p className="text-xs text-slate-500 m-0 font-medium">{item.d}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <section id="amendments" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-teal-500/10 text-teal-500">
-            <Edit3 className="w-6 h-6" />
+      <section id="responsibilities" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform duration-500">
+            <UserCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">6. Amendments</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">4. Duties</h2>
         </div>
-        <p>
-          We evolve constantly. As such, we may update these Terms periodically.
-          Significant changes will be communicated via the platform or updated on this page.
-        </p>
+        <div className="space-y-4">
+          {[
+            'Merchants retain full ownership of uploaded designs.',
+            'Responsibility for ensuring IP rights compliance.',
+            'Maintaining accurate product descriptions and pricing.',
+            'Primary customer support for end-consumers.'
+          ].map((duty, i) => (
+            <div key={i} className="flex items-center gap-5 p-6 rounded-3xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 group">
+              <div className="w-2 h-2 rounded-full bg-purple-500 group-hover:scale-150 transition-transform" />
+              <span className="font-bold text-slate-700 dark:text-slate-300">{duty}</span>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <section id="contact" className="scroll-mt-24">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-            <MessageCircle className="w-6 h-6" />
+      <section id="liability" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform duration-500">
+            <AlertTriangle className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">7. Contact Information</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">5. Liability</h2>
         </div>
-        <p>For legal inquiries or clarifications regarding these terms, please contact:</p>
-        <div className="mt-8 flex items-center p-6 rounded-3xl bg-primary/5 border border-primary/10">
-          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white mr-4">
-            <Landmark className="w-6 h-6" />
+        <div className="p-10 rounded-[3rem] bg-red-500/5 border border-red-500/10">
+          <p className="text-lg font-bold leading-relaxed m-0 text-red-800 dark:text-red-400 italic text-center">
+            ShelfMerch shall not be liable for any indirect, incidental, or consequential damages including revenue loss or fulfillment delays outside our immediate control.
+          </p>
+        </div>
+      </section>
+
+      <section id="termination" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-zinc-500/10 text-zinc-500 group-hover:scale-110 transition-transform duration-500">
+            <XCircle className="w-8 h-8" />
           </div>
-          <div>
-            <p className="font-bold m-0 text-foreground">Legal Department</p>
-            <p className="text-sm m-0 opacity-70">shelfmerch@gmail.com</p>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">7. Termination</h2>
+        </div>
+        <div className="p-8 rounded-[2rem] border-4 border-dashed border-slate-200 dark:border-white/10 text-center">
+          <p className="text-xl font-bold text-slate-500 dark:text-slate-400 m-0">
+            Service integration terminates automatically and immediately upon the uninstallation of the ShelfMerch App from your Shopify store.
+          </p>
+        </div>
+      </section>
+
+      <section id="governing-law" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform duration-500">
+            <Landmark className="w-8 h-8" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">8. Governing Law</h2>
+        </div>
+        <div className="p-10 rounded-[3rem] bg-emerald-500/5 border border-emerald-500/10">
+          <p className="text-lg font-bold text-emerald-800 dark:text-emerald-400 m-0 leading-relaxed">
+            These terms are governed by the laws of India. Any disputes arising from the use of the platform shall be subject to the exclusive jurisdiction of the courts in Hyderabad, Telangana.
+          </p>
+        </div>
+      </section>
+
+      <section id="contact" className="scroll-mt-32">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+            <MessageSquare className="w-8 h-8" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Support</h2>
+        </div>
+        <div className="group relative overflow-hidden p-1 p-px bg-gradient-to-br from-primary via-blue-400 to-indigo-500 rounded-[2.5rem]">
+          <div className="bg-white dark:bg-[#0c0c0c] p-10 rounded-[2.4rem] relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div>
+              <p className="text-xl font-bold mb-2 tracking-tight">Legal Inquiries</p>
+              <p className="text-slate-500 m-0 font-medium">ShelfMerch Governance Council</p>
+            </div>
+            <a
+              href="mailto:shelfmerch@gmail.com"
+              className="px-10 py-5 bg-primary text-white rounded-2xl font-black text-xl hover:bg-blue-600 transition-all flex items-center gap-3 active:scale-95"
+            >
+              Contact Legal
+              <ArrowRight className="w-6 h-6" />
+            </a>
           </div>
         </div>
       </section>

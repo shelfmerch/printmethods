@@ -1,159 +1,198 @@
 import LegalLayout from '@/components/layout/LegalLayout';
-import { Shield, Eye, Share2, Cookie, CheckCircle, Mail, MapPin, Globe, Lock } from 'lucide-react';
+import { Shield, Database, UserCheck, Truck, Cog, Share2, Lock, History, Trash2, Globe, RefreshCcw, Mail, CheckCircle2, ArrowRight } from 'lucide-react';
 
 const PrivacyPolicy = () => {
-  const sections = [
-    { id: 'introduction', title: 'Introduction' },
-    { id: 'data-collection', title: 'Data Collection' },
-    { id: 'data-usage', title: 'Data Usage' },
-    { id: 'data-sharing', title: 'Data Sharing' },
-    { id: 'cookies', title: 'Cookies & Tech' },
-    { id: 'compliance', title: 'Legal Compliance' },
-    { id: 'contact', title: 'Contact' },
-  ];
-
   return (
     <LegalLayout
       title="Privacy Policy"
-      subtitle="How we handle your personal information and ensure your data remains secure."
+      subtitle="How ShelfMerch safeguards your store data and customer privacy with industry-leading standards."
       lastUpdated="March 09, 2026"
-      sections={sections}
     >
-      <section id="introduction" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-            <Shield className="w-6 h-6" />
+      <section id="introduction" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+            <Shield className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">1. Introduction</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">1. Introduction</h2>
         </div>
-        <p>
-          At <strong>Shelf Merch</strong> (a product of <strong>Chitlu Innovations Private Limited</strong>),
-          your privacy is our priority. This policy outlines how we collect, use, and protect your information when you interact with our platform.
-        </p>
-        <p className="mt-4">
-          We operate under the principles of transparency and security. By using our services, you trust us with your data,
-          and we are committed to maintaining that trust.
-        </p>
-      </section>
-
-      <section id="data-collection" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
-            <Eye className="w-6 h-6" />
-          </div>
-          <h2 className="text-3xl font-bold m-0">2. Data Collection</h2>
-        </div>
-        <p>We collect only the essential information required to provide you with a seamless experience:</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <div className="p-6 rounded-3xl bg-[#fdfdfd] dark:bg-[#1a1a1a] border border-border shadow-sm">
-            <h4 className="text-lg font-bold mb-2">Personal Identity</h4>
-            <p className="text-sm m-0">Email addresses for account management and order tracking.</p>
-          </div>
-          <div className="p-6 rounded-3xl bg-[#fdfdfd] dark:bg-[#1a1a1a] border border-border shadow-sm">
-            <h4 className="text-lg font-bold mb-2">Logistics Data</h4>
-            <p className="text-sm m-0">Shipping addresses to ensure accurate delivery of your merchandise.</p>
-          </div>
-        </div>
-        <p className="mt-6 italic text-sm opacity-70">
-          * We do NOT track analytics using third-party services like Google Analytics or Firebase to ensure maximum privacy.
-        </p>
-      </section>
-
-      <section id="data-usage" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-green-500/10 text-green-500">
-            <CheckCircle className="w-6 h-6" />
-          </div>
-          <h2 className="text-3xl font-bold m-0">3. How We Use Data</h2>
-        </div>
-        <p>Your data empowerment allows us to:</p>
-        <ul className="space-y-3 mt-4">
-          <li>Fulfill and ship your custom product orders.</li>
-          <li>Process payments securely through encrypted gateways.</li>
-          <li>Provide dedicated customer support and technical assistance.</li>
-          <li>Keep you informed about significant updates to our platform.</li>
-        </ul>
-      </section>
-
-      <section id="data-sharing" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-orange-500/10 text-orange-500">
-            <Share2 className="w-6 h-6" />
-          </div>
-          <h2 className="text-3xl font-bold m-0">4. Data Sharing</h2>
-        </div>
-        <div className="p-8 rounded-[2rem] bg-orange-500/5 border border-orange-500/10">
-          <p className="text-lg font-semibold text-orange-600 dark:text-orange-400 m-0 leading-relaxed">
-            We operate on a zero-third-party sharing policy. We do not sell, trade, or transfer your personal data to outside parties.
+        <div className="bg-slate-50 dark:bg-white/[0.03] p-8 rounded-[2rem] border border-slate-200 dark:border-white/5">
+          <p className="text-lg leading-relaxed m-0">
+            At <strong>ShelfMerch</strong>, your data privacy isn't just a policy—it's a foundation.
+            We respect the trust you place in us when integrating our fulfillment platform into your Shopify store.
+            This document details our rigorous commitment to handling your information with maximum transparency and security.
           </p>
         </div>
       </section>
 
-      <section id="cookies" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-500">
-            <Cookie className="w-6 h-6" />
+      <section id="shopify-api" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform duration-500">
+            <Database className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">5. Cookies</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">2. Shopify APIs</h2>
         </div>
-        <p>
-          We use functional cookies to enhance site navigation and remember your preferences. These are small text files
-          stored on your device that help us provide a better user experience without intrusive tracking.
-        </p>
+        <p className="mb-8">To provide seamless fulfillment, ShelfMerch requests secure access to the following Shopify data categories:</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[
+            { title: 'Store Identity', desc: 'General store identification and locale settings.', icon: Globe },
+            { title: 'Product Catalog', desc: 'Listings, variants, and inventory metadata.', icon: Cog },
+            { title: 'Order History', desc: 'Quantities, SKUs, and transaction totals.', icon: History },
+            { title: 'Fulfillment Info', desc: 'Customer addresses required for shipping.', icon: Truck }
+          ].map((item, i) => (
+            <div key={i} className="flex gap-5 p-6 rounded-3xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:border-primary/30 transition-all group">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
+                <item.icon className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 dark:text-white mb-1 tracking-tight">{item.title}</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 m-0">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <section id="compliance" className="scroll-mt-24 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 rounded-2xl bg-indigo-500/10 text-indigo-500">
-            <Lock className="w-6 h-6" />
+      <section id="merchant-direct" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform duration-500">
+            <UserCheck className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">6. GDPR / CCPA Compliance</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">3. Merchant Data</h2>
         </div>
-        <p>
-          Currently, Shelf Merch serves customers exclusively outside the EU and California.
-          As such, we are not directly subject to GDPR or CCPA requirements, but we maintain high internal security standards
-          that align with global best practices.
-        </p>
+        <div className="p-8 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-white/10 space-y-6">
+          <p className="m-0 italic">Information we collect directly from you to maintain your master account:</p>
+          <div className="flex flex-wrap gap-3">
+            {['Merchant Full Name', 'Verified Email Address', 'Account Configuration', 'Localization Prefs'].map((tag, i) => (
+              <span key={i} className="px-4 py-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full text-xs font-black uppercase tracking-widest">{tag}</span>
+            ))}
+          </div>
+        </div>
       </section>
 
-      <section id="contact" className="scroll-mt-24">
-        <div className="flex items-center gap-4 mb-10">
-          <div className="p-3 rounded-2xl bg-primary/10 text-primary">
-            <Mail className="w-6 h-6" />
+      <section id="customer-processing" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-orange-500/10 text-orange-500 group-hover:scale-110 transition-transform duration-500">
+            <Truck className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-bold m-0">7. Contact Information</h2>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">4. Customer Data</h2>
         </div>
+        <div className="relative p-10 rounded-[2.5rem] bg-slate-900 text-white overflow-hidden shadow-2xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-[80px] rounded-full pointer-events-none" />
+          <h4 className="text-orange-500 uppercase tracking-[0.3em] text-[10px] font-black mb-4">Limited Scope Processing</h4>
+          <p className="text-xl font-bold leading-relaxed mb-0 text-slate-200">
+            We process customer PII <span className="text-white underline decoration-orange-500 underline-offset-8">strictly for logistics</span>.
+            Names and addresses are utilized only to generate labels and complete deliveries. We never store this data longer than necessary or use it for marketing.
+          </p>
+        </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Mail className="w-5 h-5 text-primary mt-1" />
-              <div>
-                <p className="font-bold m-0">Email Support</p>
-                <a href="mailto:shelfmerch@gmail.com" className="text-primary hover:underline">shelfmerch@gmail.com</a>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Globe className="w-5 h-5 text-primary mt-1" />
-              <div>
-                <p className="font-bold m-0">Official Website</p>
-                <a href="https://shelfmerch.store/" className="text-primary hover:underline">https://shelfmerch.store/</a>
-              </div>
-            </div>
+      <section id="usage" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-indigo-500/10 text-indigo-500 group-hover:scale-110 transition-transform duration-500">
+            <Cog className="w-8 h-8" />
           </div>
-
-          <div className="p-6 rounded-3xl bg-muted/30 border border-border">
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-primary mt-1" />
-              <div>
-                <p className="font-bold m-0">Headquarters</p>
-                <p className="text-sm m-0 mt-1 opacity-70">
-                  Chitlu Innovations Private Limited<br />
-                  G2, Win Win Towers, Madhapur, Hi-Tech City,<br />
-                  Hyderabad, Telangana 500081
-                </p>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">5. Usage Scope</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[
+            'Bilateral product synchronization',
+            'Smart order processing & routing',
+            'Full-cycle fulfillment & delivery',
+            'Infrastructure security monitoring',
+            'Proactive merchant support'
+          ].map((item, i) => (
+            <div key={i} className="flex items-center gap-4 group">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 transition-transform group-hover:rotate-[360deg] duration-500" />
               </div>
+              <span className="font-bold text-slate-700 dark:text-slate-300">{item}</span>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="sharing" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-amber-500/10 text-amber-500 group-hover:scale-110 transition-transform duration-500">
+            <Share2 className="w-8 h-8" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">6. Data Sharing</h2>
+        </div>
+        <div className="p-10 rounded-[3rem] bg-amber-500/5 border border-amber-500/10">
+          <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter mb-6">Zero Selling Policy</p>
+          <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-0">
+            ShelfMerch does not sell your data. Sharing is confined to high-compliance partners:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+            {[
+              { t: 'Platform', d: 'Shopify infrastructure' },
+              { t: 'Secure Hosting', d: 'AWS/Google Cloud' },
+              { t: 'Legal', d: 'By official court order only' }
+            ].map((box, i) => (
+              <div key={i} className="bg-white dark:bg-white/5 p-6 rounded-3xl border border-amber-500/10">
+                <p className="font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest text-[10px] mb-2">{box.t}</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white m-0 leading-tight">{box.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="security" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-teal-500/10 text-teal-500 group-hover:scale-110 transition-transform duration-500">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">7. Storage & Security</h2>
+        </div>
+        <div className="p-10 rounded-[3rem] bg-slate-50 dark:bg-white/5 flex flex-col md:flex-row items-center gap-10">
+          <div className="text-center md:text-left">
+            <p className="text-lg font-bold leading-relaxed m-0 text-slate-700 dark:text-slate-300">
+              Your data is fortified by AES-256 encryption at rest and TLS 1.3 in transit. Our servers are audited
+              regularly to maintain the highest defense against unauthorized access.
+            </p>
+          </div>
+          <div className="flex-shrink-0 w-32 h-32 rounded-full border-4 border-teal-500/20 flex items-center justify-center animate-spin-slow">
+            <div className="w-20 h-20 rounded-full border-4 border-t-teal-500 border-l-transparent border-r-transparent border-b-transparent" />
+          </div>
+        </div>
+      </section>
+
+      <section id="uninstall" className="scroll-mt-32 mb-20">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform duration-500">
+            <Trash2 className="w-8 h-8" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">9. Uninstall & Deletion</h2>
+        </div>
+        <p>
+          Upon uninstallation, your store's "Right to be Forgotten" is prioritized.
+        </p>
+        <div className="flex items-center gap-4 mt-8 p-6 rounded-3xl bg-red-500/5 border border-red-500/10">
+          <RefreshCcw className="w-6 h-6 text-red-500 animate-spin-slow" />
+          <p className="font-bold text-red-700 dark:text-red-400 m-0 leading-tight italic">
+            Our uninstall webhook automatically initiates a comprehensive data scrubbing protocol from all active databases.
+          </p>
+        </div>
+      </section>
+
+      <section id="contact" className="scroll-mt-32">
+        <div className="flex items-center gap-6 mb-8 group">
+          <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+            <Mail className="w-8 h-8" />
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">12. Support</h2>
+        </div>
+        <div className="group relative overflow-hidden p-1 p-px bg-gradient-to-br from-primary via-blue-400 to-teal-500 rounded-[2.5rem]">
+          <div className="bg-white dark:bg-[#0c0c0c] p-10 rounded-[2.4rem] relative z-10">
+            <p className="text-xl font-bold mb-6 tracking-tight">Need a deep dive into our privacy stack?</p>
+            <a
+              href="mailto:shelfmerch@gmail.com"
+              className="inline-flex items-center gap-3 text-2xl md:text-4xl font-black text-primary hover:gap-6 transition-all duration-500 tracking-tighter"
+            >
+              shelfmerch@gmail.com
+              <ArrowRight className="w-8 h-8 md:w-12 md:h-12" />
+            </a>
           </div>
         </div>
       </section>
