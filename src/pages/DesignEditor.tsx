@@ -2037,8 +2037,8 @@ const DesignEditor: React.FC = () => {
       }
       return;
     }
-
-    const initialText = text.trim() || 'Text';
+    //default text inside placeholder
+    const initialText = text.trim() || 'Enter Text';
     // Require a placeholder - text must be created within a print area
     const targetPlaceholder = selectedPlaceholderIdRef.current
       ? placeholders.find(p => p.id === selectedPlaceholderIdRef.current)
@@ -4052,6 +4052,7 @@ const DesignEditor: React.FC = () => {
                               maxWidth: maxWidth ? `${maxWidth}px` : undefined,
                               height: `${(el.fontSize || 24) * 1.2}px`,
                               lineHeight: 1.2,
+                              textAlign: (el.align as any) || 'left',
                             }}
                             ref={(ref) => {
                               if (ref) {
@@ -4059,7 +4060,6 @@ const DesignEditor: React.FC = () => {
                                 ref.style.height = (ref.scrollHeight) + 'px';
                                 if (document.activeElement !== ref) {
                                   ref.focus();
-                                  ref.select();
                                 }
                               }
                             }}
