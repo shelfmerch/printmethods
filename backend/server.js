@@ -320,6 +320,7 @@ app.use('/api/admin/fulfillment-orders', require('./routes/adminFulfillmentOrder
 
 app.use('/api/shopify', shopifyPublishRoutes);
 app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
+app.use('/api/ai', require('./routes/ai'));
 
 // Log registered endpoints (including /api/v1/*) at startup for verification
 try {
