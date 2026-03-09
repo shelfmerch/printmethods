@@ -8,6 +8,7 @@ const WebhookEvent = require('../models/WebhookEvent');
 const Order = require('../models/Order');
 const ShopifyOrder = require('../models/ShopifyOrder');
 const ShopifyProduct = require('../models/ShopifyProduct');
+const FulfillmentOrder = require('../models/FulfillmentOrder');
 const { protect } = require('../middleware/auth');
 const { requireStoreOwnership } = require('../middleware/requireStoreOwnership');
 const { syncForShop, ShopifyApiError, SYNC_MODE } = require('../services/shopifySync');
@@ -492,18 +493,38 @@ const handleAppUninstalled = async (req, res) => {
       return res.status(200).send('OK');
     }
 
+    // Immediately mark the store as uninstalled and scrub sensitive linkage data
     await ShopifyStore.findOneAndUpdate(
       { shop: sanitizedShop },
       {
         $set: {
           isActive: false,
           accessToken: null,
+          merchantId: null,
+          scopes: [],
+          scope: '',
+          webhookIds: {},
+          lastSyncAt: null,
+          lastWebhookSyncAt: null,
           uninstalledAt: new Date()
         }
       }
     );
 
-    console.log('[Shopify Webhook] topic: app/uninstalled, shop:', shopDomain, 'UNINSTALL PROCESSED');
+    // Hard-delete all shop-scoped data that may contain customer, order, or product information
+    const deletionResults = await Promise.all([
+      ShopifyOrder.deleteMany({ shop: sanitizedShop }),
+      Order.deleteMany({ shop: sanitizedShop }),
+      ShopifyProduct.deleteMany({ shop: sanitizedShop }),
+      FulfillmentOrder.deleteMany({ shop: sanitizedShop }),
+      WebhookEvent.deleteMany({ shop: sanitizedShop }),
+    ]);
+
+    console.log('[Shopify Webhook] topic: app/uninstalled, shop:', shopDomain, 'UNINSTALL PROCESSED WITH DATA DELETION', {
+      shop: sanitizedShop,
+      deletions: deletionResults.map((r) => r.deletedCount)
+    });
+
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('[Uninstall Webhook Error]', err);
