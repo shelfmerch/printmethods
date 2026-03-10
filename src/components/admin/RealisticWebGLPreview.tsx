@@ -393,31 +393,6 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
       try {
         console.log('RealisticWebGLPreview: Loading mockup image:', currentUrl);
 
-        // Pre-validate image by loading it first
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error(`Image load timeout: ${currentUrl}`));
-          }, 10000); // 10 second timeout
-
-          img.onload = () => {
-            clearTimeout(timeout);
-            console.log('RealisticWebGLPreview: Image loaded successfully:', currentUrl, img.width, 'x', img.height);
-            resolve();
-          };
-
-          img.onerror = (err) => {
-            clearTimeout(timeout);
-            console.error('RealisticWebGLPreview: Failed to load mockup image:', currentUrl, err);
-            reject(new Error(`Failed to load image: ${currentUrl}`));
-          };
-
-          img.src = `${currentUrl}?t=${Date.now()}`;
-        });
-
-        if (cancelled) return;
-
         // Unload any previous texture for the old URL to avoid stale caches
         // Only unload if URL actually changed
         if (prevMockupUrlRef.current && prevMockupUrlRef.current !== currentUrl) {
@@ -429,9 +404,9 @@ export const RealisticWebGLPreview: React.FC<RealisticWebGLPreviewProps> = ({
           }
         }
 
-        // Now load as PixiJS texture
+        // Now load as PixiJS texture (use stable URL to benefit from caching)
         console.log('RealisticWebGLPreview: Loading texture via PixiJS Assets...');
-        const garmentTexture = await Assets.load(`${mockupImageUrl}?t=${Date.now()}`);
+        const garmentTexture = await Assets.load(currentUrl as string);
         if (cancelled) return;
 
         console.log('RealisticWebGLPreview: Texture loaded:', garmentTexture.width, 'x', garmentTexture.height);

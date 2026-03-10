@@ -39,6 +39,13 @@ function toDTO(product) {
             is_primary: img.isPrimary,
             type: img.imageType,
         })),
+        mockup_images: (product.mockupImages || []).map(img => ({
+            id: img.id,
+            url: img.url,
+            position: img.position,
+            is_primary: img.isPrimary,
+            type: img.imageType,
+        })),
         published_at: product.publishedAt || null,
         created_at: product.createdAt,
         updated_at: product.updatedAt,
@@ -124,6 +131,7 @@ async function createProduct(userId, data) {
         sellingPrice: data.selling_price,
         compareAtPrice: data.compare_at_price,
         tags: data.tags || [],
+        mockup_images: data.mockup_images || [],
         variantsSummary: data.variants || [],
         status: 'draft',
     });

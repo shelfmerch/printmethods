@@ -40,7 +40,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { productApi, storeApi, storeProductsApi } from '@/lib/api';
 import TextPanel from '@/components/designer/TextPanel';
 import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
-import { RealisticWebGLPreview } from '@/components/admin/RealisticWebGLPreview';
 import { UploadPanel } from '@/components/designer/UploadPanel';
 import { DisplacementSettingsPanel } from '@/components/designer/DisplacementSettingsPanel';
 import AIimageGen from '@/components/designer/AIimageGen';
@@ -207,6 +206,78 @@ const calculateRotatedBounds = (x: number, y: number, width: number, height: num
     relMaxY: Math.max(...ys)
   };
 };
+
+// Module-level image cache shared across all renders and mode switches
+const _imageCache = new Map<string, HTMLImageElement>();
+
+const getCachedImage = (url: string): Promise<HTMLImageElement> => {
+  const cached = _imageCache.get(url);
+  if (cached && cached.complete && cached.naturalWidth > 0) {
+    return Promise.resolve(cached);
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      _imageCache.set(url, img);
+      resolve(img);
+    };
+    img.onerror = () => reject(new Error(`Failed to load: ${url}`));
+    img.src = url;
+  });
+};
+
+// Module-level cache: key = `${imageUrl}|${hexColor}`
+const _tintCache = new Map<string, HTMLCanvasElement>();
+
+/**
+ * Apply a multiply-blend color tint to a garment image at the pixel level.
+ * Only affects non-transparent pixels, so PNG mockups with transparent backgrounds
+ * (the shirt silhouette) are tinted correctly while the background stays clear.
+ * Falls back to the un-tinted canvas gracefully if CORS blocks pixel access.
+ */
+function tintGarmentImage(img: HTMLImageElement, hexColor: string): HTMLCanvasElement {
+  const cacheKey = `${img.src}|${hexColor}`;
+  const cached = _tintCache.get(cacheKey);
+  if (cached) return cached;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { _tintCache.set(cacheKey, canvas); return canvas; }
+
+  ctx.drawImage(img, 0, 0);
+
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  // No tint needed for white/near-white colours
+  if (r > 240 && g > 240 && b > 240) {
+    _tintCache.set(cacheKey, canvas);
+    return canvas;
+  }
+
+  try {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 10) continue; // skip fully-transparent pixels (background)
+      // Multiply blend: result = (pixel * tintChannel) / 255
+      d[i]     = Math.round(d[i]     * r / 255);
+      d[i + 1] = Math.round(d[i + 1] * g / 255);
+      d[i + 2] = Math.round(d[i + 2] * b / 255);
+    }
+    ctx.putImageData(imageData, 0, 0);
+  } catch {
+    // CORS policy blocked getImageData — draw un-tinted (silent fallback)
+  }
+
+  _tintCache.set(cacheKey, canvas);
+  return canvas;
+}
 
 const DesignEditor: React.FC = () => {
   const { id } = useParams();
@@ -380,15 +451,37 @@ const DesignEditor: React.FC = () => {
   const [currentView, setCurrentView] = useState<'front' | 'back' | 'sleeves'>('front');
   const [showGrid, setShowGrid] = useState(false);
   const [showRulers, setShowRulers] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false); // true = hide overlay/panels, show only WebGL mockup
+  const [previewMode, setPreviewMode] = useState(false); // true = hide overlay/panels, show only mockup + design
+  const [isPreviewTemporarilyDisabled, setIsPreviewTemporarilyDisabled] = useState(false);
   const [primaryColorHex, setPrimaryColorHex] = useState<string | null>(null);
   const previewModeRef = useRef(false); // Ref to ensure previewMode persists across view changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Track if there are unsaved changes
+  const editActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced edit-activity tracker to gate Preview tab while edits are in-flight
+  const registerEditActivity = useCallback(() => {
+    setIsPreviewTemporarilyDisabled(true);
+    if (editActivityTimeoutRef.current) {
+      clearTimeout(editActivityTimeoutRef.current);
+    }
+    editActivityTimeoutRef.current = setTimeout(() => {
+      setIsPreviewTemporarilyDisabled(false);
+    }, 800);
+  }, []);
 
   // Sync ref with state
   useEffect(() => {
     previewModeRef.current = previewMode;
   }, [previewMode]);
+
+  // Clear any pending timers on unmount
+  useEffect(() => {
+    return () => {
+      if (editActivityTimeoutRef.current) {
+        clearTimeout(editActivityTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const fetchUserPreviews = useCallback(async () => {
     try {
@@ -442,10 +535,11 @@ const DesignEditor: React.FC = () => {
       },
     }));
     setHasUnsavedChanges(true); // Mark as having unsaved changes
+    registerEditActivity();
     // Mark this specific view as dirty for design changes
     setDirtyViewsForDesign(prev => new Set([...prev, view]));
     console.log('Design changed for view, marking dirty:', view);
-  }, []);
+  }, [registerEditActivity]);
 
   const removeDesignUrlForView = useCallback((view: string, placeholderId: string) => {
     setDesignUrlsByPlaceholder(prev => {
@@ -468,7 +562,8 @@ const DesignEditor: React.FC = () => {
       };
     });
     setHasUnsavedChanges(true); // Mark as having unsaved changes
-  }, []);
+    registerEditActivity();
+  }, [registerEditActivity]);
 
   // Get placements for a specific view
   const getPlacementsForView = useCallback((view: string): Record<string, DesignPlacement> => {
@@ -485,7 +580,8 @@ const DesignEditor: React.FC = () => {
       },
     }));
     setHasUnsavedChanges(true);
-  }, []);
+    registerEditActivity();
+  }, [registerEditActivity]);
 
   const handleTextDblClick = useCallback((id: string) => {
     setEditingTextId(id);
@@ -537,12 +633,15 @@ const DesignEditor: React.FC = () => {
   const [mockupImagesByView, setMockupImagesByView] = useState<Record<string, HTMLImageElement | null>>({});
   const [imageSizesByView, setImageSizesByView] = useState<Record<string, { width: number; height: number; x: number; y: number }>>({});
 
-  // Current view's mockup (derived from mockupImagesByView)
-  const mockupImage = mockupImagesByView[currentView] || null;
-  const imageSize = imageSizesByView[currentView] || { width: 0, height: 0, x: 0, y: 0 };
+
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]); // Keep for backward compatibility
   const [selectedSizesByColor, setSelectedSizesByColor] = useState<Record<string, string[]>>({});
+  // Current view's mockup — always the base product image (view.mockupImageUrl)
+  const _primaryColorNorm = (selectedColors[0] || '').toLowerCase().trim();
+  const _mockupCacheKey = currentView; // cache keyed by view only
+  const mockupImage = mockupImagesByView[currentView] ?? null;
+  const imageSize = imageSizesByView[currentView] ?? { width: 0, height: 0, x: 0, y: 0 };
   const [isPublishing, setIsPublishing] = useState(false);
   const [displacementSettings, setDisplacementSettings] = useState<DisplacementSettings>({
     scaleX: 20,
@@ -599,9 +698,10 @@ const DesignEditor: React.FC = () => {
   const handleDisplacementSettingsChange = useCallback((settings: DisplacementSettings) => {
     setDisplacementSettings(settings);
     setHasUnsavedChanges(true); // Mark as having unsaved changes
+    registerEditActivity();
     // Mark current view as dirty for design changes (settings affect preview)
     setDirtyViewsForDesign(prev => new Set([...prev, currentView]));
-  }, [currentView]);
+  }, [currentView, registerEditActivity]);
 
   // Handle global color change - mark ALL views dirty
   useEffect(() => {
@@ -749,79 +849,56 @@ const DesignEditor: React.FC = () => {
     setStageSize({ width: canvasWidth, height: canvasHeight });
   }, [canvasWidth, canvasHeight]);
 
-  // Function to load mockup for a specific view
+  // Function to load the base product mockup for a specific view.
+  // Always uses view.mockupImageUrl — the clean studio/base product image.
+  // sampleMockups (lifestyle photos) are for mockup generation only, NOT the canvas background.
+  // Color changes are handled visually by tintGarmentImage() at render time.
   const loadMockupForView = useCallback((viewKey: string, views: ProductView[]) => {
+    const alreadyLoaded = mockupImagesByView[viewKey];
+    if (alreadyLoaded) return;
+
     const view = views.find((v: ProductView) => v.key === viewKey);
+    const mockupUrl = view?.mockupImageUrl;
 
-    if (view?.mockupImageUrl) {
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        // Store mockup image per view
-        setMockupImagesByView(prev => ({
-          ...prev,
-          [viewKey]: img
-        }));
+    if (!mockupUrl) {
+      console.warn(`No mockup image found for ${viewKey} view`);
+      setMockupImagesByView(prev => ({ ...prev, [viewKey]: null }));
+      setImageSizesByView(prev => ({ ...prev, [viewKey]: { width: 0, height: 0, x: 0, y: 0 } }));
+      return;
+    }
 
-        // Calculate size to fit canvas while maintaining aspect ratio with padding
+    getCachedImage(mockupUrl)
+      .then((img) => {
+        setMockupImagesByView(prev => ({ ...prev, [viewKey]: img }));
+
         const aspectRatio = img.width / img.height;
         const maxWidth = effectiveCanvasWidth;
         const maxHeight = effectiveCanvasHeight;
-
         let width = maxWidth;
         let height = maxWidth / aspectRatio;
-
-        // If height exceeds, fit to height instead
         if (height > maxHeight) {
           height = maxHeight;
           width = maxHeight * aspectRatio;
         }
 
-        // Center the image
         const x = canvasPadding + (maxWidth - width) / 2;
         const y = canvasPadding + (maxHeight - height) / 2;
 
         const calculatedSize = { width, height, x, y };
-        // Store image size per view
-        setImageSizesByView(prev => ({
-          ...prev,
-          [viewKey]: calculatedSize
-        }));
+        setImageSizesByView(prev => ({ ...prev, [viewKey]: calculatedSize }));
         setStageSize({ width: canvasWidth, height: canvasHeight });
 
-        console.log(`Mockup image loaded for ${viewKey} view:`, {
+        console.log(`Mockup loaded for ${viewKey}:`, {
           original: { width: img.width, height: img.height },
           displayed: calculatedSize,
-          canvas: { width: canvasWidth, height: canvasHeight }
         });
-      };
-      img.onerror = () => {
+      })
+      .catch(() => {
         toast.error(`Failed to load mockup image for ${viewKey} view`);
-        console.error(`Failed to load mockup for ${viewKey} view`);
-        // Store null to prevent retrying
-        setMockupImagesByView(prev => ({
-          ...prev,
-          [viewKey]: null
-        }));
-        setImageSizesByView(prev => ({
-          ...prev,
-          [viewKey]: { width: 0, height: 0, x: 0, y: 0 }
-        }));
-      };
-      img.src = `${view.mockupImageUrl}?t=${Date.now()}`;
-    } else {
-      // No mockup available for this view
-      console.warn(`No mockup image found for ${viewKey} view`);
-      setMockupImagesByView(prev => ({
-        ...prev,
-        [viewKey]: null
-      }));
-      setImageSizesByView(prev => ({
-        ...prev,
-        [viewKey]: { width: 0, height: 0, x: 0, y: 0 }
-      }));
-    }
-  }, [effectiveCanvasWidth, effectiveCanvasHeight, canvasPadding, canvasWidth, canvasHeight]);
+        setMockupImagesByView(prev => ({ ...prev, [viewKey]: null }));
+        setImageSizesByView(prev => ({ ...prev, [viewKey]: { width: 0, height: 0, x: 0, y: 0 } }));
+      });
+  }, [effectiveCanvasWidth, effectiveCanvasHeight, canvasPadding, canvasWidth, canvasHeight, mockupImagesByView]);
 
   // Fetch product data
   useEffect(() => {
@@ -848,9 +925,14 @@ const DesignEditor: React.FC = () => {
             setSavedPreviewImages(previews);
           }
 
-          // Load mockup image for current view
+          // Load mockup images for all views (current view immediately, others in background)
           if (response.data.design?.views) {
             loadMockupForView(currentView, response.data.design.views);
+            response.data.design.views.forEach((v: ProductView) => {
+              if (v.key !== currentView && v.mockupImageUrl) {
+                getCachedImage(v.mockupImageUrl).catch(() => { });
+              }
+            });
           }
 
           // Initialize displacement settings from product design (if present)
@@ -985,21 +1067,16 @@ const DesignEditor: React.FC = () => {
     fetchPlaceholders();
   }, [product?._id, currentView]);
 
-  // Load mockup when view changes (if not already loaded)
+  // Load mockup when view changes
   useEffect(() => {
-    if (product?.design?.views) {
-      // Only load if not already loaded for this view
-      const existingMockup = mockupImagesByView[currentView];
-      if (!existingMockup) {
-        console.log(`Loading mockup for view: ${currentView}`);
-        loadMockupForView(currentView, product.design.views);
-      } else {
-        console.log(`Using existing mockup for view: ${currentView}`);
-        // Update stage size when switching to a view that already has a mockup
-        const size = imageSizesByView[currentView];
-        if (size && size.width > 0) {
-          setStageSize({ width: canvasWidth, height: canvasHeight });
-        }
+    if (!product?.design?.views) return;
+    const existingMockup = mockupImagesByView[currentView];
+    if (!existingMockup) {
+      loadMockupForView(currentView, product.design.views);
+    } else {
+      const size = imageSizesByView[currentView];
+      if (size && size.width > 0) {
+        setStageSize({ width: canvasWidth, height: canvasHeight });
       }
     }
   }, [currentView, product?.design?.views, loadMockupForView, mockupImagesByView, imageSizesByView, canvasWidth, canvasHeight]);
@@ -1526,6 +1603,7 @@ const DesignEditor: React.FC = () => {
   };
 
   const updateElement = (id: string, updates: Partial<CanvasElement>, saveHistory = true) => {
+    registerEditActivity();
     // Track the updated element for placement calculation
     let updatedElement: CanvasElement | null = null;
 
@@ -2944,26 +3022,28 @@ const DesignEditor: React.FC = () => {
     setSelectedIds([]);
   };
 
+  const isPreviewButtonDisabled = isPreviewTemporarilyDisabled || isSavingPreview;
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden selection:bg-primary/20 no-scrollbar">
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
+
         @keyframes pulse-ring {
           0% { transform: scale(0.8); opacity: 0.5; }
           100% { transform: scale(1.6); opacity: 0; }
         }
-        
+
         @keyframes glow {
           0%, 100% { box-shadow: 0 0 15px 2px rgba(var(--primary), 0.3); }
           50% { box-shadow: 0 0 25px 5px rgba(var(--primary), 0.5); }
         }
-        
+
         .cta-pulse {
           position: relative;
         }
-        
+
         .cta-pulse::before {
           content: '';
           position: absolute;
@@ -2974,7 +3054,7 @@ const DesignEditor: React.FC = () => {
           z-index: -1;
           animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
-        
+
         .stop-pulse::before {
           animation: none;
           display: none;
@@ -3003,7 +3083,9 @@ const DesignEditor: React.FC = () => {
           <Button
             variant={!previewMode ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => setPreviewMode(false)}
+            onClick={() => {
+              setPreviewMode(false);
+            }}
             className="h-8 rounded-md text-xs font-medium"
           >
             Edit
@@ -3011,7 +3093,12 @@ const DesignEditor: React.FC = () => {
           <Button
             variant={previewMode ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => setPreviewMode(true)}
+            onClick={() => {
+              if (!isPreviewButtonDisabled) {
+                setPreviewMode(true);
+              }
+            }}
+            disabled={isPreviewButtonDisabled}
             className="h-8 rounded-md text-xs font-medium"
           >
             Preview
@@ -3380,119 +3467,15 @@ const DesignEditor: React.FC = () => {
                   transformOrigin: 'center',
                 }}
               >
-                {previewMode && (() => {
-                  const cacheKey = getPreviewCacheKey(currentView);
-                  const cachedPreview = previewCache[cacheKey];
-                  const isDirtyForColor = dirtyViewsForColor.has(currentView);
-                  const isDirtyForDesign = dirtyViewsForDesign.has(currentView);
-
-                  // Show cached preview only if view is clean AND cache exists
-                  if (!isDirtyForColor && !isDirtyForDesign && cachedPreview) {
-                    return (
-                      <img
-                        src={cachedPreview}
-                        alt="Cached preview"
-                        className="block max-w-full max-h-full"
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                        }}
-                      />
-                    );
-                  }
-
-                  // Otherwise show live WebGL (rendered below)
-                  return null;
-                })()}
-                {/* Pixi always visible (renders garment). Canvas elements only in preview mode. */}
-                <div>
-                  <RealisticWebGLPreview
-                    key={`preview-${currentView}-${currentViewData?.mockupImageUrl ? currentViewData.mockupImageUrl.slice(-20) : 'no-mockup'}-${getDesignUrlsHash(currentView)}`}
-                    mockupImageUrl={
-                      currentViewData?.mockupImageUrl &&
-                        typeof currentViewData.mockupImageUrl === 'string' &&
-                        currentViewData.mockupImageUrl.trim() !== ''
-                        ? currentViewData.mockupImageUrl
-                        : null
-                    }
-                    activePlaceholder={
-                      currentViewData.placeholders?.find(
-                        (p) => p.id === selectedPlaceholderId,
-                      )
-                        ? ({
-                          ...currentViewData.placeholders.find(
-                            (p) => p.id === selectedPlaceholderId,
-                          )!,
-                          rotationDeg:
-                            currentViewData.placeholders.find(
-                              (p) => p.id === selectedPlaceholderId,
-                            )?.rotationDeg ?? 0,
-                        } as any)
-                        : null
-                    }
-                    placeholders={
-                      (currentViewData.placeholders || []).map((p) => ({
-                        ...p,
-                        rotationDeg: p.rotationDeg ?? 0,
-                      })) as any
-                    }
-                    physicalWidth={
-                      product?.design?.physicalDimensions?.width ??
-                      DEFAULT_PHYSICAL_WIDTH
-                    }
-                    physicalHeight={
-                      product?.design?.physicalDimensions?.height ??
-                      DEFAULT_PHYSICAL_HEIGHT
-                    }
-                    settings={displacementSettings}
-                    onSettingsChange={handleDisplacementSettingsChange}
-                    onDesignUpload={(placeholderId, designUrl) => {
-                      setDesignUrlForView(currentView, placeholderId, designUrl);
-                    }}
-                    designUrlsByPlaceholder={getDesignUrlsForView(currentView)}
-                    designPlacements={getPlacementsForView(currentView)}
-                    onPlacementChange={(placeholderId, placement) => {
-                      setPlacementForView(currentView, placeholderId, placement);
-                      console.log('📐 Placement updated from WebGL preview:', {
-                        view: currentView,
-                        placeholderId,
-                        placement,
-                      });
-                    }}
-                    onSelectPlaceholder={(id) => {
-                      if (id) {
-                        console.log('Placeholder selected via WebGL:', id);
-                        setSelectedPlaceholderId(id);
-                        selectedPlaceholderIdRef.current = id;
-                        // toast.info(`Placeholder ${id.slice(0, 8)}... selected`);
-                      } else {
-                        setSelectedPlaceholderId(null);
-                        selectedPlaceholderIdRef.current = null;
-                      }
-                    }}
-                    previewMode={previewMode}
-                    garmentTintHex={primaryColorHex}
-                    enableGarmentTint={true}
-                    canvasElements={previewMode ? elements : []}  // GHOSTING FIX: only render canvas elements in preview
-                    currentView={currentView}
-                    canvasPadding={canvasPadding}
-                    PX_PER_INCH={PX_PER_INCH}
-                    showPlaceholderOutlines={false} // Konva handles placeholder outlines in the editor
-                  />
-                </div>
-
-                {/* Konva Overlay - Just for Grid & Rulers now */}
-                {!previewMode && (
-                  <div
-                    className="absolute inset-0 pointer-events-auto"
-                  >
-                    <Stage
+                {/* Single Konva canvas used for both Edit and Preview */}
+                <div
+                  className="absolute inset-0 pointer-events-auto"
+                >
+                  <Stage
                       ref={stageRef}
                       width={stageSize.width}
                       height={stageSize.height}
-                      onMouseDown={(e: any) => {
+                    onMouseDown={!previewMode ? ((e: any) => {
                         const isBackground = e.target === e.target.getStage() || e.target.attrs.isPlaceholder || e.target.getType() === 'Layer';
 
                         if (activeTool === 'select') {
@@ -3526,8 +3509,8 @@ const DesignEditor: React.FC = () => {
                         } else if (isBackground) {
                           setSelectedIds([]);
                         }
-                      }}
-                      onMouseMove={(e: any) => {
+                      }) : undefined}
+                    onMouseMove={!previewMode ? ((e: any) => {
                         if (!selectionBox || !selectionBox.active) return;
                         const stage = e.target.getStage();
                         const pos = stage.getRelativePointerPosition();
@@ -3574,8 +3557,8 @@ const DesignEditor: React.FC = () => {
                             setSelectedIds(intersectedIds);
                           }
                         }
-                      }}
-                      onMouseUp={(e: any) => {
+                      }) : undefined}
+                    onMouseUp={!previewMode ? ((e: any) => {
                         if (!selectionBox || !selectionBox.active) return;
 
                         // Final selection check is already handled by onMouseMove
@@ -3586,8 +3569,8 @@ const DesignEditor: React.FC = () => {
 
                         setSelectionBox(null);
                         initialSelectedIdsRef.current = [];
-                      }}
-                      onTouchStart={(e: any) => {
+                      }) : undefined}
+                    onTouchStart={!previewMode ? ((e: any) => {
                         const isBackground = e.target === e.target.getStage() || e.target.attrs.isPlaceholder || e.target.getType() === 'Layer';
 
                         if (activeTool === 'select' && e.evt.touches.length === 1) {
@@ -3614,8 +3597,8 @@ const DesignEditor: React.FC = () => {
                             setIsMobileMenuOpen(false);
                           }
                         }
-                      }}
-                      onTouchMove={(e: any) => {
+                      }) : undefined}
+                    onTouchMove={!previewMode ? ((e: any) => {
                         if (!selectionBox || !selectionBox.active || e.evt.touches.length > 1) {
                           if (selectionBox) setSelectionBox(null);
                           return;
@@ -3623,8 +3606,8 @@ const DesignEditor: React.FC = () => {
                         const stage = e.target.getStage();
                         const pos = stage.getRelativePointerPosition();
                         setSelectionBox(prev => prev ? { ...prev, x2: pos.x, y2: pos.y } : null);
-                      }}
-                      onTouchEnd={() => {
+                      }) : undefined}
+                    onTouchEnd={!previewMode ? (() => {
                         if (!selectionBox || !selectionBox.active) return;
 
                         const rect = {
@@ -3652,8 +3635,29 @@ const DesignEditor: React.FC = () => {
                         }
 
                         setSelectionBox(null);
-                      }}
+                      }) : undefined}
                     >
+                      {/* Garment mockup background */}
+                      <Layer listening={false}>
+                        {mockupImage && imageSize.width > 0 && imageSize.height > 0 && (
+                          <Image
+                            image={
+                              // When a colour is selected, pixel-tint the base product image
+                              // so the garment silhouette changes colour.
+                              // tintGarmentImage() skips transparent/background pixels and
+                              // caches the result, so it's fast after the first render.
+                              (primaryColorHex && _primaryColorNorm)
+                                ? tintGarmentImage(mockupImage, primaryColorHex) as any
+                                : mockupImage
+                            }
+                            x={imageSize.x}
+                            y={imageSize.y}
+                            width={imageSize.width}
+                            height={imageSize.height}
+                          />
+                        )}
+                      </Layer>
+
                       <Layer listening={false}>
                         {/* Grid */}
                         {showGrid && (
@@ -3714,9 +3718,9 @@ const DesignEditor: React.FC = () => {
                         )}
                       </Layer>
 
-                      {/* Placeholder Outlines Layer (Konva) - independent of WebGL */}
+                      {/* Placeholder Outlines Layer — only in edit mode */}
                       <Layer>
-                        {!placeholdersLoading && (() => {
+                        {!previewMode && !placeholdersLoading && (() => {
                           // Show only one visible placeholder at a time in the editor:
                           // - If a placeholder is selected, render just that one
                           // - Otherwise, render the first placeholder for the current view
@@ -3829,6 +3833,7 @@ const DesignEditor: React.FC = () => {
                                   }}
                                   printArea={elPrintArea}
                                   isEditMode={!previewMode && !el.locked}
+                                  previewMode={previewMode}
                                 />
                               );
                             }
@@ -3857,6 +3862,7 @@ const DesignEditor: React.FC = () => {
                                   }}
                                   printArea={elPrintArea}
                                   isEditMode={!previewMode && !el.locked}
+                                  previewMode={previewMode}
                                 />
                               );
                             }
@@ -3876,6 +3882,7 @@ const DesignEditor: React.FC = () => {
                                   }}
                                   printArea={elPrintArea}
                                   isEditMode={!previewMode && !el.locked}
+                                  previewMode={previewMode}
                                 />
                               );
                             }
@@ -4010,8 +4017,8 @@ const DesignEditor: React.FC = () => {
                           />
                         )}
                       </Layer>
-                      {/* Selection Box Visualizer */}
-                      {selectionBox && selectionBox.active && (
+                      {/* Selection Box Visualizer - edit mode only */}
+                      {!previewMode && selectionBox && selectionBox.active && (
                         <Layer>
                           <Rect
                             x={Math.min(selectionBox.x1, selectionBox.x2)}
@@ -4022,6 +4029,43 @@ const DesignEditor: React.FC = () => {
                             stroke="#3b82f6"
                             strokeWidth={1}
                             listening={false}
+                          />
+                        </Layer>
+                      )}
+
+
+                      {/* Fabric texture overlay — preview mode only */}
+                      {previewMode && printArea && (
+                        <Layer listening={false}>
+                          <Shape
+                            sceneFunc={(ctx, shape) => {
+                              const { x, y, width, height } = printArea;
+                              ctx.save();
+                              ctx.beginPath();
+                              ctx.rect(x, y, width, height);
+                              ctx.clip();
+                              // Subtle crosshatch weave to simulate fabric texture
+                              ctx.globalAlpha = 0.045;
+                              ctx.strokeStyle = '#000000';
+                              ctx.lineWidth = 0.5;
+                              for (let i = x; i < x + width; i += 3) {
+                                ctx.beginPath();
+                                ctx.moveTo(i, y);
+                                ctx.lineTo(i, y + height);
+                                ctx.stroke();
+                              }
+                              for (let j = y; j < y + height; j += 3) {
+                                ctx.beginPath();
+                                ctx.moveTo(x, j);
+                                ctx.lineTo(x + width, j);
+                                ctx.stroke();
+                              }
+                              ctx.restore();
+                              // Required: fill the shape (transparent)
+                              ctx.fillStrokeShape(shape);
+                            }}
+                            fill="transparent"
+                            perfectDrawEnabled={false}
                           />
                         </Layer>
                       )}
@@ -4210,8 +4254,7 @@ const DesignEditor: React.FC = () => {
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
 
               {/* View Switcher - Desktop Only */}
               {!isMobile && availableViews.length > 0 && (
@@ -4579,9 +4622,13 @@ const DesignEditor: React.FC = () => {
 };
 
 // Helper Components
-// Custom hook for loading images
+// Custom hook for loading images (uses shared cache)
 const useImageLoader = (url: string | undefined) => {
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [image, setImage] = useState<HTMLImageElement | null>(() => {
+    if (!url) return null;
+    const cached = _imageCache.get(url);
+    return cached && cached.complete && cached.naturalWidth > 0 ? cached : null;
+  });
 
   useEffect(() => {
     if (!url) {
@@ -4589,11 +4636,23 @@ const useImageLoader = (url: string | undefined) => {
       return;
     }
 
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => setImage(img);
-    img.onerror = () => setImage(null);
-    img.src = url;
+    let cancelled = false;
+
+    getCachedImage(url)
+      .then((img) => {
+        if (!cancelled) {
+          setImage(img);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setImage(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
 
   return image;
@@ -4606,7 +4665,8 @@ const ImageElement: React.FC<{
   onUpdate: (updates: Partial<CanvasElement>, saveImmediately?: boolean) => void;
   printArea?: { x: number; y: number; width: number; height: number; isPolygon?: boolean; polygonPointsPx?: number[] };
   isEditMode?: boolean;
-}> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true }) => {
+  previewMode?: boolean;
+}> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true, previewMode = false }) => {
   const image = useImageLoader(element.imageUrl);
 
   if (!image) return null;
@@ -4707,9 +4767,11 @@ const ImageElement: React.FC<{
     'luminosity': 'luminosity',
   };
 
-  const compositeOperation = element.blendMode
-    ? blendModeMap[element.blendMode] || 'source-over'
-    : 'source-over';
+  // In preview mode: use multiply so design absorbs garment texture/shadows.
+  // Elements that already have a user-set blend mode keep it even in preview.
+  const compositeOperation = previewMode
+    ? (element.blendMode && element.blendMode !== 'normal' ? (blendModeMap[element.blendMode] || 'multiply') : 'multiply')
+    : (element.blendMode ? blendModeMap[element.blendMode] || 'source-over' : 'source-over');
 
   // Enhanced shadow with realistic opacity
   // Calculate shadow opacity based on shadowOpacity property
@@ -4749,7 +4811,7 @@ const ImageElement: React.FC<{
     height: element.height,
     scaleX: flipScaleX,
     scaleY: flipScaleY,
-    opacity: element.opacity !== undefined ? element.opacity : 1,
+    opacity: previewMode ? (element.opacity !== undefined ? element.opacity * 0.95 : 0.95) : (element.opacity !== undefined ? element.opacity : 1),
     rotation: element.rotation,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
@@ -4819,7 +4881,8 @@ const TextElement: React.FC<{
   isEditMode?: boolean;
   onDblClick?: () => void;
   isEditing?: boolean;
-}> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true, onDblClick, isEditing }) => {
+  previewMode?: boolean;
+}> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true, onDblClick, isEditing, previewMode = false }) => {
   // Helper to calculate text bounding box considering rotation
 
 
@@ -4952,9 +5015,9 @@ const TextElement: React.FC<{
     'luminosity': 'luminosity',
   };
 
-  const compositeOperation: CompositeOperation = element.blendMode
-    ? (blendModeMap[element.blendMode] || 'source-over')
-    : 'source-over';
+  const compositeOperation: CompositeOperation = previewMode
+    ? 'multiply'
+    : (element.blendMode ? (blendModeMap[element.blendMode] || 'source-over') : 'source-over');
 
   // Enhanced shadow with realistic opacity
   const shadowAlpha = element.shadowOpacity !== undefined
@@ -4995,7 +5058,7 @@ const TextElement: React.FC<{
     fontStyle: fontStyle,
     fontWeight: fontWeight,
     fill: element.fill || '#000000',
-    opacity: isEditing ? 0 : (element.opacity !== undefined ? element.opacity : 1),
+    opacity: isEditing ? 0 : (previewMode ? (element.opacity !== undefined ? element.opacity * 0.95 : 0.95) : (element.opacity !== undefined ? element.opacity : 1)),
     rotation: element.rotation || 0,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
@@ -5177,7 +5240,8 @@ const ShapeElement: React.FC<{
   onUpdate: (updates: Partial<CanvasElement>) => void;
   printArea?: { x: number; y: number; width: number; height: number; isPolygon?: boolean; polygonPointsPx?: number[] };
   isEditMode?: boolean;
-}> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true }) => {
+  previewMode?: boolean;
+}> = ({ element, isSelected, onSelect, onUpdate, printArea, isEditMode = true, previewMode = false }) => {
   // Constrain shape to print area when dragging
   const handleDragEnd = (e: any) => {
     let newX = e.target.x();
@@ -5246,9 +5310,9 @@ const ShapeElement: React.FC<{
     'luminosity': 'luminosity',
   };
 
-  const compositeOperation: CompositeOperation = element.blendMode
-    ? (blendModeMap[element.blendMode] || 'source-over')
-    : 'source-over';
+  const compositeOperation: CompositeOperation = previewMode
+    ? 'multiply'
+    : (element.blendMode ? (blendModeMap[element.blendMode] || 'source-over') : 'source-over');
 
   // Enhanced shadow with realistic opacity
   const shadowAlpha = element.shadowOpacity !== undefined
@@ -5273,7 +5337,7 @@ const ShapeElement: React.FC<{
     fill: element.fillColor || '#000000',
     stroke: element.strokeColor || '#000000',
     strokeWidth: element.strokeWidth || 2,
-    opacity: element.opacity !== undefined ? element.opacity : 1,
+    opacity: previewMode ? (element.opacity !== undefined ? element.opacity * 0.95 : 0.95) : (element.opacity !== undefined ? element.opacity : 1),
     rotation: element.rotation || 0,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
@@ -7371,5 +7435,3 @@ const TemplatesPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) 
 
 
 export default DesignEditor;
-
-
