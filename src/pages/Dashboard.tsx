@@ -8,6 +8,7 @@ import {
   IndianRupee,
   ShoppingBag,
   TrendingUp,
+  Store,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '@/types';
@@ -41,6 +42,7 @@ import { Loader2 } from 'lucide-react';
 const Dashboard = () => {
   const { selectedStore, stores, loading: storesLoading } = useStore();
   const navigate = useNavigate();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [storageUsage, setStorageUsage] = useState<{ used: number; limit: number } | null>(null);
@@ -470,11 +472,29 @@ const Dashboard = () => {
         {/* No Stores Message or Loading state */}
         {!selectedStore && !storesLoading && (
           <Card className="p-12 text-center mb-8">
-            <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">No Store Selected</h2>
-            <p className="text-muted-foreground mb-6">
-              Select a store from the sidebar to view its dashboard.
-            </p>
+            {stores.length === 0 ? (
+              <>
+                <Store className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No Stores Yet</h2>
+                <p className="text-muted-foreground mb-6">
+                  You haven't connected any stores to ShelfMerch.
+                </p>
+                <Link to="/connect-store">
+                  <Button size="lg" className="gap-2">
+                    <Plus className="h-5 w-5" />
+                    Connect Your First Store
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No Store Selected</h2>
+                <p className="text-muted-foreground mb-6">
+                  Select a store from the sidebar to view its dashboard.
+                </p>
+              </>
+            )}
           </Card>
         )}
 

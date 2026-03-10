@@ -72,7 +72,7 @@ const categorySlugToParentCategory: Record<string, string> = {
   'boxes': 'packaging',
   'tubes': 'packaging',
   'bottles': 'packaging',
-  'cosmetics': 'packaging',
+  // 'cosmetics': 'packaging',
 
   // Tech
   'iphone-cases': 'tech',
