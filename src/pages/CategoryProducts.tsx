@@ -74,7 +74,7 @@ const categorySlugToSubcategory: Record<string, string> = {
   'boxes': 'Box',
   'tubes': 'Tube',
   'pouches': 'Pouch',
-  'cosmetics': 'Cosmetic',
+  // 'cosmetics': 'Cosmetic',
   'bottles': 'Bottle',
 
   // Tech
@@ -142,7 +142,7 @@ const categorySlugToParentCategory: Record<string, any> = {
   'tubes': 'packaging',
   'dropper-bottles': 'packaging',
   'pouches': 'packaging',
-  'cosmetics': 'packaging',
+  // 'cosmetics': 'packaging',
   'bottles': 'packaging',
 
   // Tech
@@ -211,7 +211,7 @@ const CategoryProducts = () => {
   // Known subcategory names (aligned with CategorySidebar)
   const subcategoryNames: string[] = [
     // Apparel
-    "T-shirts", "Hoodies", "Sweatshirts", "Jackets", "Crop Tops", "Tank Tops",
+    "T-shirts", "Hoodies", "Sweatshirts", "Jackets",
     // Accessories
     "Tote Bags", "Caps", "Phone Covers", "Gaming Pads", "Beanies",
     // Home & Living
@@ -219,7 +219,7 @@ const CategoryProducts = () => {
     // Print Products
     "Business Cards", "Books", "ID Cards", "Stickers", "Posters", "Flyers", "Greeting Cards", "Billboards", "Magazines", "Brochures", "Lanyards", "Banners", "Canvas", "Notebooks",
     // Packaging
-    "Boxes", "Tubes", "Bottles", "Pouch", "Cosmetics",
+    "Boxes", "Tubes", "Bottles", "Pouch",
     // Tech
     "IPhone Cases", "Lap Top Cases", "IPad Cases", "Macbook Cases", "Phone Cases",
     // Jewelry

@@ -11,12 +11,12 @@ interface CategoryItem {
 const categories: CategoryItem[] = [
   {
     name: "Apparel",
-    children: ["T-shirts", "Hoodies", "Sweatshirts", "Jackets", "Crop Tops", "Tank Tops"],
+    children: ["T-shirts", "Hoodies", "Sweatshirts", "Jackets"],
   },
   { name: "Accessories", children: ["Tote Bags", "Caps", "Phone Covers", "Gaming Pads", "Beanies"] },
   { name: "Home & Living", children: ["Mugs", "Cushions", "Cans", "Frames", "Coasters"] },
   { name: "Print Products", children: ["Business Cards", "Books", "ID Cards", "Stickers", "Posters", "Flyers", "Greeting Cards", "Billboards", "Magazines", "Brochures", "Lanyards", "Banners", "Canvas", "Notebooks"] },
-  { name: "Packaging", children: ["Boxes", "Tubes", "Bottles", "Pouch", "Cosmetics", "Bottles"] },
+  { name: "Packaging", children: ["Boxes", "Tubes", "Bottles", "Pouch", "Bottles"] },
   { name: "Tech", children: ["IPhone Cases", "Lap Top Cases", "IPad Cases", "Macbook Cases", "Phone Cases"] },
   // { name: "Jewelry", children: ["Rings", "Necklaces", "Earrings", "Bracelets"] },
 ];

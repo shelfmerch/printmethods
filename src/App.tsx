@@ -28,6 +28,7 @@ import ProfilePage from "./pages/ProfilePage";
 import Screenshots from "./pages/Screenshots";
 import Orders from "./pages/Orders";
 import Stores from "./pages/Stores";
+import ConnectStore from "./pages/ConnectStore";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import DeveloperDashboard from "./pages/DeveloperDashboard";
@@ -221,6 +222,14 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <Stores />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/connect-store"
+                      element={
+                        <ProtectedRoute>
+                          <ConnectStore />
                         </ProtectedRoute>
                       }
                     />

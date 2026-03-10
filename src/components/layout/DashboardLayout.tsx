@@ -276,7 +276,7 @@
 
 
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { storeApi } from '@/lib/api';
@@ -316,6 +316,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout, isAdmin } = useAuth();
   const { selectedStore, selectStoreById, stores, loading: storesLoading } = useStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Close sidebar when route changes on mobile
@@ -410,6 +411,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       onClick={() => {
                         selectStoreById(store.id || store._id || '');
                         setIsSidebarOpen(false);
+                        if (location.pathname === '/stores' || location.pathname === '/connect-store') {
+                          navigate('/dashboard');
+                        }
                       }}
                       className={`flex items-center justify-between cursor-pointer ${isSelected ? 'bg-muted font-medium' : ''}`}
                     >
@@ -434,7 +438,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </DropdownMenu>
           ) : (
             <p className="text-xs text-muted-foreground">
-              No stores yet. <Link to="/stores" className="underline">Create one</Link>.
+              No stores yet. <Link to="/connect-store" className="underline">Create one</Link>.
             </p>
           )}
         </div>

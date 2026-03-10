@@ -80,6 +80,22 @@ const StoreLayout: React.FC<StoreLayoutProps> = ({ children, store: propStore, p
         );
     }
 
+    if (store && store.isActive === false) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center p-8 max-w-md">
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Loader2 className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <h1 className="text-3xl font-bold mb-4">Store currently inactive</h1>
+                    <p className="text-muted-foreground">
+                        This store is currently not accepting visitors. Please check back later.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     if (!store) {
         return <>{children}</>;
     }

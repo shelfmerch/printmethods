@@ -107,11 +107,11 @@ export const mockProducts: Product[] = [
 export const categories = [
   // Apparel
   { name: 'T-Shirts', slug: 't-shirts', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400' },
-  { name: 'Tank Tops', slug: 'tank-tops', image: 'https://images.unsplash.com/photo-1622445275463-afa2ab738c34?w=400' },
+  // { name: 'Tank Tops', slug: 'tank-tops', image: 'https://images.unsplash.com/photo-1622445275463-afa2ab738c34?w=400' },
   { name: 'Hoodies', slug: 'hoodies', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400' },
   { name: 'Sweatshirts', slug: 'sweatshirts', image: 'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=400' },
   { name: 'Jackets', slug: 'jackets', image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400' },
-  { name: 'Crop Tops', slug: 'crop-tops', image: 'https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=400' },
+  // { name: 'Crop Tops', slug: 'crop-tops', image: 'https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=400' },
   
   // Accessories
   { name: 'Tote Bags', slug: 'bags', image: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=400' },

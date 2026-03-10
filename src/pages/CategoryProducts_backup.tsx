@@ -73,7 +73,7 @@ const categorySlugToSubcategory: Record<string, string> = {
   'boxes': 'Box',
   'tubes': 'Tube',
   'pouches': 'Pouch',
-  'cosmetics': 'Cosmetic',
+  // 'cosmetics': 'Cosmetic',
   'bottles': 'Bottle',
 
   // Tech
@@ -138,7 +138,7 @@ const categorySlugToParentCategory: Record<string, any> = {
   'tubes': 'packaging',
   'dropper-bottles': 'packaging',
   'pouches': 'packaging',
-  'cosmetics': 'packaging',
+  // 'cosmetics': 'packaging',
   'bottles': 'packaging',
 
   // Tech
