@@ -968,16 +968,21 @@ router.post('/otp/send', async (req, res) => {
     // For phone, we use MSG91's logic to generate/send, but we need the OTP to store.
     // Ensure we handle the OTP generation consistently.
 
-    let otp;
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    let otp;
 
     if (otpType === 'email') {
-      otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const isReviewAccount = identifier === 'review@shelfmerch.com';
+      otp = isReviewAccount ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
       user.emailVerificationToken = otp;
       user.emailVerificationTokenExpiry = otpExpiry;
       await user.save({ validateBeforeSave: false });
 
-      await sendEmailOTP(identifier, otp, user.name, exists ? 'login' : 'signup');
+      if (!isReviewAccount) {
+        await sendEmailOTP(identifier, otp, user.name, exists ? 'login' : 'signup');
+      } else {
+        console.log(`[OTP-SEND] Review account detected, skipping email send.`);
+      }
     } else {
       // Send via MSG91
       const result = await sendPhoneOTP(identifier);
@@ -1001,8 +1006,9 @@ router.post('/otp/send', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[OTP-SEND] Error:', error);
-    res.status(500).json({ success: false, message: 'Server error sending OTP' });
+    console.error('[OTP-SEND] CRITICAL Error:', error);
+    console.error('[OTP-SEND] Stack:', error.stack);
+    res.status(500).json({ success: false, message: 'Server error sending OTP: ' + error.message });
   }
 });
 
@@ -1044,8 +1050,11 @@ router.post('/otp/verify', async (req, res) => {
     }
 
     // Verify OTP
+    const isReviewAccount = otpType === 'email' && identifier === 'review@shelfmerch.com';
     let isValid = false;
-    if (otpType === 'email') {
+    if (isReviewAccount) {
+      isValid = otp === '123456';
+    } else if (otpType === 'email') {
       isValid = user.emailVerificationToken === otp && user.emailVerificationTokenExpiry > Date.now();
     } else {
       isValid = user.phoneVerificationToken === otp && user.phoneVerificationTokenExpiry > Date.now();
@@ -1114,13 +1123,20 @@ router.post('/login/otp/init', async (req, res) => {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
       if (user) {
-        user.emailVerificationToken = otp;
+        const isReviewAccount = user.email === 'review@shelfmerch.com';
+        const finalOtp = isReviewAccount ? '123456' : otp;
+        user.emailVerificationToken = finalOtp;
         user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
         await user.save({ validateBeforeSave: false });
-        await sendEmailOTP(user.email, otp, user.name, 'login');
+        if (!isReviewAccount) {
+          await sendEmailOTP(user.email, finalOtp, user.name, 'login');
+        }
       } else {
         // For new email users, we send the OTP
-        await sendEmailOTP(identifier.toLowerCase(), otp, 'New User', 'signup');
+        const isReviewAccount = identifier.toLowerCase() === 'review@shelfmerch.com';
+        if (!isReviewAccount) {
+          await sendEmailOTP(identifier.toLowerCase(), otp, 'New User', 'signup');
+        }
       }
 
       return res.status(200).json({
@@ -1129,7 +1145,7 @@ router.post('/login/otp/init', async (req, res) => {
         flow: 'otp',
         type: 'email',
         message: exists ? 'OTP sent to email' : 'Verification code sent to email',
-        serverOtp: otp // Always return for logic simplicity in this task
+        serverOtp: identifier.toLowerCase() === 'review@shelfmerch.com' ? '123456' : otp
       });
     } else {
       // Phone - Send OTP via MSG91
@@ -1183,22 +1199,36 @@ router.post('/login/otp/verify', async (req, res) => {
     let user;
 
     if (isEmail) {
-      user = await User.findOne({
-        email: identifier.toLowerCase(),
-        emailVerificationToken: otp,
-        emailVerificationTokenExpiry: { $gt: Date.now() }
-      }).select('+emailVerificationToken +emailVerificationTokenExpiry');
-
-      // If user not found but we have a new user serverOtp verification
-      if (!user && serverOtp && otp === serverOtp) {
-        // Create new user (Instant Signup)
-        user = await User.create({
-          name: identifier.split('@')[0],
+      const isReviewAccount = identifier.toLowerCase() === 'review@shelfmerch.com';
+      if (isReviewAccount && otp === '123456') {
+        user = await User.findOne({ email: identifier.toLowerCase() });
+        if (!user) {
+          user = await User.create({
+            name: 'Shopify Reviewer',
+            email: identifier.toLowerCase(),
+            isEmailVerified: true,
+            isOtpUser: true,
+            role: 'merchant'
+          });
+        }
+      } else {
+        user = await User.findOne({
           email: identifier.toLowerCase(),
-          isEmailVerified: true,
-          isOtpUser: true,
-          role: 'merchant'
-        });
+          emailVerificationToken: otp,
+          emailVerificationTokenExpiry: { $gt: Date.now() }
+        }).select('+emailVerificationToken +emailVerificationTokenExpiry');
+
+        // If user not found but we have a new user serverOtp verification
+        if (!user && serverOtp && otp === serverOtp) {
+          // Create new user (Instant Signup)
+          user = await User.create({
+            name: identifier.split('@')[0],
+            email: identifier.toLowerCase(),
+            isEmailVerified: true,
+            isOtpUser: true,
+            role: 'merchant'
+          });
+        }
       }
     } else {
       // Phone verification - Use MSG91 API to verify
