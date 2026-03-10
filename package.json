@@ -46,6 +46,8 @@
         "@react-three/drei": "^9.114.3",
         "@react-three/fiber": "^8.17.10",
         "@shopify/app-bridge": "^3.7.11",
+        "@shopify/polaris": "^13.9.5",
+        "@shopify/polaris-icons": "^9.3.1",
         "@tanstack/react-query": "^5.90.7",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",

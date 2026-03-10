@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { shopifyApi } from '@/lib/shopifyApi';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toast } from 'sonner';
-import { Loader2, RefreshCw, ArrowLeft, Package } from 'lucide-react';
+import {
+    Page,
+    Layout,
+    Card,
+    IndexTable,
+    Text,
+    Badge,
+    Button,
+    InlineStack,
+    Box,
+    EmptyState,
+    Thumbnail,
+    useIndexResourceState,
+    ProgressBar,
+} from '@shopify/polaris';
+import {
+    ArrowLeftIcon,
+    RefreshIcon,
+    ProductIcon,
+} from '@shopify/polaris-icons';
+import { ShopifyHeader } from '@/components/ShopifyHeader';
 
 interface ShopifyProduct {
     shopifyProductId: number;
@@ -14,10 +30,12 @@ interface ShopifyProduct {
     status: string;
     vendor: string;
     updatedAtShopify: string;
+    image?: string; // Optional if available
 }
 
 const ShopifyProducts: React.FC = () => {
     const { shop } = useParams<{ shop: string }>();
+    const navigate = useNavigate();
     const decodedShop = decodeURIComponent(shop || '');
     const [products, setProducts] = useState<ShopifyProduct[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,9 +49,7 @@ const ShopifyProducts: React.FC = () => {
             const response = await shopifyApi.getProducts(decodedShop);
             setProducts(response.products || []);
         } catch (err: any) {
-            console.error('Failed to fetch products:', err);
             setError(err.message || 'Failed to load products');
-            toast.error('Failed to load products');
         } finally {
             setLoading(false);
         }
@@ -43,96 +59,124 @@ const ShopifyProducts: React.FC = () => {
         fetchProducts();
     }, [decodedShop]);
 
-    const formatDate = (dateStr: string | null) => {
-        if (!dateStr) return '-';
-        return new Date(dateStr).toLocaleString();
+    const resourceName = {
+        singular: 'product',
+        plural: 'products',
     };
 
-    return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" asChild>
-                        <Link to="/dashboard/shopify">
-                            <ArrowLeft className="h-4 w-4" />
-                        </Link>
-                    </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Synced Products</h1>
-                        <p className="text-muted-foreground">{decodedShop}</p>
-                    </div>
-                </div>
-                <Button onClick={fetchProducts} disabled={loading} variant="outline" size="sm">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                    Refresh
-                </Button>
-            </div>
+    const { selectedResources, allResourcesSelected, handleSelectionChange } =
+        useIndexResourceState(products as any);
 
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle>Products</CardTitle>
-                            <CardDescription>Showing locally synced products from Shopify.</CardDescription>
-                        </div>
-                        <div className="bg-primary/10 px-3 py-1 rounded-full flex items-center gap-2">
-                            <Package className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-medium text-primary">{products.length} Products</span>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {loading && products.length === 0 ? (
-                        <div className="flex justify-center py-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                        </div>
-                    ) : error ? (
-                        <div className="text-center py-12 text-destructive">
-                            <p>{error}</p>
-                            <Button onClick={fetchProducts} variant="link" className="mt-2">Try Again</Button>
-                        </div>
-                    ) : products.length === 0 ? (
-                        <div className="text-center py-20 border-2 border-dashed rounded-lg bg-muted/20">
-                            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-                            <p className="text-muted-foreground">No products found for this store.</p>
-                            <p className="text-xs text-muted-foreground mt-1">Try triggering a manual sync from the dashboard.</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Title</TableHead>
-                                        <TableHead>Handle</TableHead>
-                                        <TableHead>Shopify ID</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Vendor</TableHead>
-                                        <TableHead className="text-right">Last Optimized (Shopify)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {products.map((product) => (
-                                        <TableRow key={product.shopifyProductId}>
-                                            <TableCell className="font-medium">{product.title}</TableCell>
-                                            <TableCell className="text-muted-foreground">{product.handle}</TableCell>
-                                            <TableCell className="font-mono text-xs">{product.shopifyProductId}</TableCell>
-                                            <TableCell>
-                                                <span className={`px-2 py-1 rounded-full text-xs ${product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                    {product.status}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>{product.vendor}</TableCell>
-                                            <TableCell className="text-right">{formatDate(product.updatedAtShopify)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+    const rowMarkup = products.map(
+        (
+            { shopifyProductId, title, handle, status, vendor, updatedAtShopify, image },
+            index,
+        ) => (
+            <IndexTable.Row
+                id={shopifyProductId.toString()}
+                key={shopifyProductId}
+                selected={selectedResources.includes(shopifyProductId.toString())}
+                position={index}
+            >
+                <IndexTable.Cell>
+                    <InlineStack gap="300" align="start" blockAlign="center">
+                        <Thumbnail
+                            source={image || ProductIcon}
+                            alt={title}
+                            size="small"
+                        />
+                        <Text variant="bodyMd" fontWeight="bold" as="span">
+                            {title}
+                        </Text>
+                    </InlineStack>
+                </IndexTable.Cell>
+                <IndexTable.Cell>{handle}</IndexTable.Cell>
+                <IndexTable.Cell>
+                    <Text variant="bodyMd" tone="subdued" as="span">
+                        {vendor}
+                    </Text>
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                    <Badge tone={status === 'active' ? 'success' : 'attention'}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Badge>
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                    {new Date(updatedAtShopify).toLocaleDateString()}
+                </IndexTable.Cell>
+                <IndexTable.Cell>
+                    <Button variant="tertiary" onClick={() => window.open(`https://${decodedShop}/admin/products/${shopifyProductId}`, '_blank')}>
+                        View in Shopify
+                    </Button>
+                </IndexTable.Cell>
+            </IndexTable.Row>
+        ),
+    );
+
+    if (loading && products.length === 0) {
+        return (
+            <Box padding="1000">
+                <InlineStack align="center">
+                    <ProgressBar size="small" />
+                </InlineStack>
+            </Box>
+        );
+    }
+
+    return (
+        <div style={{ backgroundColor: 'var(--p-color-bg-surface-secondary)', minHeight: '100vh' }}>
+            <ShopifyHeader shop={decodedShop} />
+            <Page
+                backAction={{ content: 'Dashboard', onAction: () => navigate('/dashboard/shopify') }}
+                title="Synced Products"
+                subtitle={decodedShop}
+                primaryAction={
+                    <Button icon={RefreshIcon} onClick={fetchProducts} loading={loading}>
+                        Refresh
+                    </Button>
+                }
+            >
+                <Layout>
+                    <Layout.Section>
+                        {products.length === 0 ? (
+                            <Card>
+                                <EmptyState
+                                    heading="No products yet"
+                                    action={{ content: 'Add Product', onAction: () => window.open('https://app.shelfmerch.com/designer', '_blank') }}
+                                    secondaryAction={{ content: 'Learn more', url: 'https://docs.shelfmerch.com' }}
+                                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                                >
+                                    <p>Start by designing your first product and syncing it to your Shopify store.</p>
+                                </EmptyState>
+                            </Card>
+                        ) : (
+                            <Card padding="0">
+                                <IndexTable
+                                    resourceName={resourceName}
+                                    itemCount={products.length}
+                                    selectedItemsCount={
+                                        allResourcesSelected ? 'All' : selectedResources.length
+                                    }
+                                    onSelectionChange={handleSelectionChange}
+                                    headings={[
+                                        { title: 'Product' },
+                                        { title: 'Handle' },
+                                        { title: 'Vendor' },
+                                        { title: 'Status' },
+                                        { title: 'Inventory' }, // Simplified for UI
+                                        { title: 'Action' },
+                                    ]}
+                                >
+                                    {rowMarkup}
+                                </IndexTable>
+                            </Card>
+                        )}
+                    </Layout.Section>
+                </Layout>
+            </Page>
         </div>
     );
 };
 
 export default ShopifyProducts;
+
