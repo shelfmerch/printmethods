@@ -166,78 +166,75 @@ const ShopifyDashboard: React.FC = () => {
     );
 
     return (
-        <div style={{ backgroundColor: 'var(--p-color-bg-surface-secondary)', minHeight: '100vh' }}>
-            <ShopifyHeader shop="All Stores" />
-            <Page
-                title="Shopify Integration"
-                subtitle="Manage your connected Shopify stores and sync data."
-                primaryAction={
-                    <Button icon={RefreshIcon} onClick={fetchStores} loading={loading}>
-                        Refresh
-                    </Button>
-                }
-            >
-                <Layout>
-                    <Layout.Section>
-                        <Card>
-                            <BlockStack gap="400">
-                                <Text as="h2" variant="headingMd">Connect New Store</Text>
-                                <InlineStack gap="400" align="start" blockAlign="end">
-                                    <Box minWidth="300px">
-                                        <TextField
-                                            label="Store Domain"
-                                            placeholder="example.myshopify.com"
-                                            value={connectShop}
-                                            onChange={setConnectShop}
-                                            autoComplete="off"
-                                        />
-                                    </Box>
-                                    <Button variant="primary" icon={PlusIcon} onClick={handleConnect}>
-                                        Connect
-                                    </Button>
-                                </InlineStack>
-                            </BlockStack>
-                        </Card>
-                    </Layout.Section>
+        <Page
+            title="Shopify Integration"
+            subtitle="Manage your connected Shopify stores and sync data."
+            primaryAction={
+                <Button icon={RefreshIcon} onClick={fetchStores} loading={loading}>
+                    Refresh
+                </Button>
+            }
+        >
+            <Layout>
+                <Layout.Section>
+                    <Card>
+                        <BlockStack gap="400">
+                            <Text as="h2" variant="headingMd">Connect New Store</Text>
+                            <InlineStack gap="400" align="start" blockAlign="end">
+                                <Box minWidth="300px">
+                                    <TextField
+                                        label="Store Domain"
+                                        placeholder="example.myshopify.com"
+                                        value={connectShop}
+                                        onChange={setConnectShop}
+                                        autoComplete="off"
+                                    />
+                                </Box>
+                                <Button variant="primary" icon={PlusIcon} onClick={handleConnect}>
+                                    Connect
+                                </Button>
+                            </InlineStack>
+                        </BlockStack>
+                    </Card>
+                </Layout.Section>
 
-                    <Layout.Section>
-                        <Card padding="0">
-                            {loading && stores.length === 0 ? (
-                                <Box padding="1000">
-                                    <InlineStack align="center">
-                                        <ProgressBar size="small" />
-                                    </InlineStack>
-                                </Box>
-                            ) : stores.length === 0 ? (
-                                <Box padding="1000">
-                                    <Text as="p" alignment="center" tone="subdued">
-                                        No Shopify stores connected yet.
-                                    </Text>
-                                </Box>
-                            ) : (
-                                <IndexTable
-                                    resourceName={resourceName}
-                                    itemCount={stores.length}
-                                    selectedItemsCount={
-                                        allResourcesSelected ? 'All' : selectedResources.length
-                                    }
-                                    onSelectionChange={handleSelectionChange}
-                                    headings={[
-                                        { title: 'Shop' },
-                                        { title: 'Status' },
-                                        { title: 'Last Sync' },
-                                        { title: 'Connected At' },
-                                        { title: 'Actions' },
-                                    ]}
-                                >
-                                    {rowMarkup}
-                                </IndexTable>
-                            )}
-                        </Card>
-                    </Layout.Section>
-                </Layout>
-            </Page>
-        </div>
+                <Layout.Section>
+                    <Card padding="0">
+                        {loading && stores.length === 0 ? (
+                            <Box padding="1000">
+                                <InlineStack align="center">
+                                    <ProgressBar size="small" />
+                                </InlineStack>
+                            </Box>
+                        ) : stores.length === 0 ? (
+                            <Box padding="1000">
+                                <Text as="p" alignment="center" tone="subdued">
+                                    No Shopify stores connected yet.
+                                </Text>
+                            </Box>
+                        ) : (
+                            <IndexTable
+                                resourceName={resourceName}
+                                itemCount={stores.length}
+                                selectedItemsCount={
+                                    allResourcesSelected ? 'All' : selectedResources.length
+                                }
+                                onSelectionChange={handleSelectionChange}
+                                headings={[
+                                    { title: 'Shop' },
+                                    { title: 'Status' },
+                                    { title: 'Last Sync' },
+                                    { title: 'Connected At' },
+                                    { title: 'Actions' },
+                                ]}
+                            >
+                                {rowMarkup}
+                            </IndexTable>
+                        )}
+                    </Card>
+                </Layout.Section>
+            </Layout>
+        </Page>
     );
 };
 
