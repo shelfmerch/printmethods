@@ -14,11 +14,14 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { BackgroundRemoverBanner } from './BackgroundRemoverBanner';
+
 
 interface AIimageGenProps {
     onImageClick?: (imageUrl: string, assetName?: string) => void;
     selectedPlaceholderId?: string | null;
     onClose?: () => void;
+    onBgRemoverClick?: () => void;
 }
 
 const STYLES = [
@@ -36,7 +39,7 @@ const CREDIT_PACKS = [
     { id: "150_credits", credits: 150, price: 999, originalPrice: 1500, discount: 33 },
 ];
 
-export default function AIimageGen({ onImageClick, selectedPlaceholderId, onClose }: AIimageGenProps) {
+export default function AIimageGen({ onImageClick, selectedPlaceholderId, onClose, onBgRemoverClick }: AIimageGenProps) {
     const [prompt, setPrompt] = useState("");
     const [style, setStyle] = useState("illustration");
     const [loading, setLoading] = useState(false);
@@ -194,6 +197,7 @@ export default function AIimageGen({ onImageClick, selectedPlaceholderId, onClos
 
             {/* Content Container */}
             <div className="p-4 space-y-5 overflow-y-auto">
+
                 {/* Prompt Box */}
                 <div className="space-y-2">
                     <div className="flex justify-between items-center">
@@ -244,6 +248,8 @@ export default function AIimageGen({ onImageClick, selectedPlaceholderId, onClos
                         </>
                     )}
                 </Button>
+
+                <BackgroundRemoverBanner onClick={() => onBgRemoverClick?.()} />
 
                 <div className="flex items-center gap-2 pt-2">
                     <div className="h-[1px] flex-1 bg-border"></div>

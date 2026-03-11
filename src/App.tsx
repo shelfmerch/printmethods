@@ -414,10 +414,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import '@shopify/polaris/build/esm/styles.css';
-<<<<<<< HEAD
 
-=======
->>>>>>> pr-83
 import { AuthProvider } from "./contexts/AuthContext";
 import { StoreAuthProvider } from "./contexts/StoreAuthContext";
 import { StoreProvider } from "./contexts/StoreContext";
