@@ -91,6 +91,7 @@ router.post('/generate', protect, async (req, res) => {
     }
 });
 
+
 /**
  * @route   GET /api/ai/me
  * @desc    Get user's AI stats and history

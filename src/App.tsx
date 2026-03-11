@@ -411,6 +411,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import { AppProvider } from '@shopify/polaris';
+import enTranslations from '@shopify/polaris/locales/en.json';
+import '@shopify/polaris/build/esm/styles.css';
+
+
 import { AuthProvider } from "./contexts/AuthContext";
 import { StoreAuthProvider } from "./contexts/StoreAuthContext";
 import { StoreProvider } from "./contexts/StoreContext";

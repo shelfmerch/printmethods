@@ -29,12 +29,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Upload, Type, Image as ImageIcon, Folder, Sparkles,BotIcon, Undo2, Redo2,
+  Upload, Type, Image as ImageIcon, Folder, Sparkles, BotIcon, Undo2, Redo2,
   ZoomIn, ZoomOut, Move, Copy, Trash2, X, Plus, Package, Menu, Save, Layers, Eye, EyeOff,
   Lock, Unlock, AlignLeft, AlignCenter, AlignRight, Bold, Italic,
   Underline, Palette, Grid, Ruler, Download, Settings, Settings2, ChevronRight,
   ChevronLeft, Maximize2, Minimize2, RotateCw, Square, Circle as CircleIcon, Triangle, Sparkles as SparklesIcon, Wand2,
-  Heart, Star as StarIcon, ArrowRight, Search, Filter, SortAsc, FolderOpen, ArrowLeft, ArrowUp, ArrowDown, Pen, Camera, Layout, Hand
+  Heart, Star as StarIcon, ArrowRight, Search, Filter, SortAsc, FolderOpen, ArrowLeft, ArrowUp, ArrowDown, Pen, Camera, Layout, Hand, Eraser
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { productApi, storeApi, storeProductsApi } from '@/lib/api';
@@ -43,6 +43,7 @@ import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
 import { UploadPanel } from '@/components/designer/UploadPanel';
 import { DisplacementSettingsPanel } from '@/components/designer/DisplacementSettingsPanel';
 import AIimageGen from '@/components/designer/AIimageGen';
+import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
 import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
 import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
@@ -266,7 +267,7 @@ function tintGarmentImage(img: HTMLImageElement, hexColor: string): HTMLCanvasEl
     for (let i = 0; i < d.length; i += 4) {
       if (d[i + 3] < 10) continue; // skip fully-transparent pixels (background)
       // Multiply blend: result = (pixel * tintChannel) / 255
-      d[i]     = Math.round(d[i]     * r / 255);
+      d[i] = Math.round(d[i] * r / 255);
       d[i + 1] = Math.round(d[i + 1] * g / 255);
       d[i + 2] = Math.round(d[i + 2] * b / 255);
     }
@@ -330,6 +331,39 @@ const DesignEditor: React.FC = () => {
   const [fetchedPlaceholders, setFetchedPlaceholders] = useState<Placeholder[]>([]);
   const [placeholdersLoading, setPlaceholdersLoading] = useState<boolean>(true);
   const [storeProductId, setStoreProductId] = useState<string | null>(null);
+
+  const [bgRemovingId, setBgRemovingId] = useState<string | null>(null);
+
+  const handleBgRemoverAction = () => {
+    const selectedElement = elements.find(el => selectedIds.includes(el.id));
+    if (!selectedElement || selectedElement.type !== 'image') {
+      toast.error("Please click an image on the canvas to select it first.");
+      return;
+    }
+    handleRemoveBackground(selectedElement);
+  };
+
+  const handleRemoveBackground = async (element: CanvasElement) => {
+    if (!element.imageUrl || bgRemovingId) return;
+
+    setBgRemovingId(element.id);
+    const toastId = toast.loading("Removing background... This may take a moment the first time.");
+
+    try {
+      // Use imgly's in-browser AI model to remove background
+      const imageBlob = await imglyRemoveBackground(element.imageUrl);
+      const newImageUrl = URL.createObjectURL(imageBlob);
+
+      setElements(prev => prev.map(el => el.id === element.id ? { ...el, imageUrl: newImageUrl } : el));
+      toast.success("Background removed successfully!", { id: toastId });
+      setHasUnsavedChanges(true);
+    } catch (err: any) {
+      console.error("Background removal error:", err);
+      toast.error(err.message || "Failed to remove background", { id: toastId });
+    } finally {
+      setBgRemovingId(null);
+    }
+  };
 
   // Track if selection is from adding an asset (to prevent auto-opening properties on mobile)
   const isAddingAssetRef = useRef(false);
@@ -746,6 +780,16 @@ const DesignEditor: React.FC = () => {
 
   const tools = [
     {
+      icon: BotIcon,
+      label: 'AI Image Gen',
+      toolKey: 'ai' as const,
+      onClick: () => {
+        setActiveTool('ai');
+        setShowLeftPanel(true);
+        if (isMobile) setMobileToolStage('detail');
+      }
+    },
+    {
       icon: Upload,
       label: 'Upload',
       toolKey: 'upload' as const,
@@ -825,16 +869,7 @@ const DesignEditor: React.FC = () => {
         if (isMobile) setMobileToolStage('detail');
       }
     },
-    {
-      icon: BotIcon,
-      label: 'AI Image Gen',
-      toolKey: 'ai' as const,
-      onClick: () => {
-        setActiveTool('ai');
-        setShowLeftPanel(true);
-        if (isMobile) setMobileToolStage('detail');
-      }
-    }
+    
   ];
 
   // Canvas dimensions - fixed size like admin
@@ -3164,12 +3199,12 @@ const DesignEditor: React.FC = () => {
                   <Button
                     key={tool.label}
                     variant={activeTool === tool.toolKey ? 'default' : 'outline'}
-                    size="icon"
                     onClick={tool.onClick}
-                    className="h-16 w-20 rounded-none border-none"
+                    className="h-16 w-20 rounded-none border-none flex flex-col items-center justify-center gap-1.5"
                     title={tool.label}
                   >
-                    <tool.icon className="w-10 h-10" />
+                    <tool.icon className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-[10px] font-medium leading-none">{tool.label}</span>
                   </Button>
                 ))}
               </div>
@@ -3264,6 +3299,7 @@ const DesignEditor: React.FC = () => {
                           height: p.height,
                           rotation: p.rotation,
                         }))}
+                        onBgRemoverClick={handleBgRemoverAction}
                       />
                     )}
                     {activeTool === 'text' && (
@@ -3335,8 +3371,10 @@ const DesignEditor: React.FC = () => {
                         onImageClick={addImageToCanvas}
                         selectedPlaceholderId={selectedPlaceholderId}
                         onClose={() => setIsMobileMenuOpen(false)}
+                        onBgRemoverClick={handleBgRemoverAction}
                       />
                     )}
+
                   </div>
                 </div>
               )}
@@ -3365,6 +3403,7 @@ const DesignEditor: React.FC = () => {
                     height: p.height,
                     rotation: p.rotation,
                   }))}
+                  onBgRemoverClick={handleBgRemoverAction}
                 />
               )}
               {activeTool === 'text' && (
@@ -3380,8 +3419,10 @@ const DesignEditor: React.FC = () => {
                   onImageClick={addImageToCanvas}
                   selectedPlaceholderId={selectedPlaceholderId}
                   onClose={() => setShowLeftPanel(false)}
+                  onBgRemoverClick={handleBgRemoverAction}
                 />
               )}
+
               {(() => {
                 const selectedPlaceholderName = selectedPlaceholderId
                   ? placeholders.find(p => p.id === selectedPlaceholderId)?.original?.name || null
@@ -3472,789 +3513,789 @@ const DesignEditor: React.FC = () => {
                   className="absolute inset-0 pointer-events-auto"
                 >
                   <Stage
-                      ref={stageRef}
-                      width={stageSize.width}
-                      height={stageSize.height}
+                    ref={stageRef}
+                    width={stageSize.width}
+                    height={stageSize.height}
                     onMouseDown={!previewMode ? ((e: any) => {
-                        const isBackground = e.target === e.target.getStage() || e.target.attrs.isPlaceholder || e.target.getType() === 'Layer';
+                      const isBackground = e.target === e.target.getStage() || e.target.attrs.isPlaceholder || e.target.getType() === 'Layer';
 
-                        if (activeTool === 'select') {
-                          const pos = e.target.getStage().getRelativePointerPosition();
-                          // Marquee selection starts if we hit the background, a placeholder, or something that's not a design element
-                          const targetType = e.target.attrs.type;
-                          const isDesignElement = targetType === 'image' || targetType === 'text' || targetType === 'shape';
+                      if (activeTool === 'select') {
+                        const pos = e.target.getStage().getRelativePointerPosition();
+                        // Marquee selection starts if we hit the background, a placeholder, or something that's not a design element
+                        const targetType = e.target.attrs.type;
+                        const isDesignElement = targetType === 'image' || targetType === 'text' || targetType === 'shape';
 
-                          if (isBackground || !isDesignElement) {
-                            selectionStartPos.current = pos;
-                            setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, active: true });
+                        if (isBackground || !isDesignElement) {
+                          selectionStartPos.current = pos;
+                          setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, active: true });
 
-                            // For multi-selection support
-                            if (e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) {
-                              initialSelectedIdsRef.current = [...selectedIds];
-                            } else {
-                              initialSelectedIdsRef.current = [];
-                              setSelectedIds([]);
-                            }
-                          }
-
-                          if (isBackground) {
-                            if (!e.evt.shiftKey && !e.evt.ctrlKey && !e.evt.metaKey) {
-                              setSelectedIds([]);
-                            }
-                            if (isMobile) {
-                              setShowRightPanel(false);
-                              setIsMobileMenuOpen(false);
-                            }
-                          }
-                        } else if (isBackground) {
-                          setSelectedIds([]);
-                        }
-                      }) : undefined}
-                    onMouseMove={!previewMode ? ((e: any) => {
-                        if (!selectionBox || !selectionBox.active) return;
-                        const stage = e.target.getStage();
-                        const pos = stage.getRelativePointerPosition();
-
-                        const newX1 = selectionBox.x1;
-                        const newY1 = selectionBox.y1;
-                        const newX2 = pos.x;
-                        const newY2 = pos.y;
-
-                        setSelectionBox(prev => prev ? { ...prev, x2: newX2, y2: newY2 } : null);
-
-                        // Real-time highlight logic
-                        const rect = {
-                          minX: Math.min(newX1, newX2),
-                          maxX: Math.max(newX1, newX2),
-                          minY: Math.min(newY1, newY2),
-                          maxY: Math.max(newY1, newY2)
-                        };
-
-                        const intersectedIds: string[] = [];
-                        elements.forEach(el => {
-                          if ((el.view && el.view !== currentView) || el.visible === false) return;
-
-                          const elBounds = calculateRotatedBounds(el.x, el.y, el.width || 0, el.height || 0, el.rotation || 0);
-
-                          // Intersection check
-                          if (!(elBounds.minX > rect.maxX ||
-                            elBounds.maxX < rect.minX ||
-                            elBounds.minY > rect.maxY ||
-                            elBounds.maxY < rect.minY)) {
-                            intersectedIds.push(el.id);
-                          }
-                        });
-
-                        // Combine with initial selection if modifier is held
-                        if (e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) {
-                          const combined = [...new Set([...initialSelectedIdsRef.current, ...intersectedIds])];
-                          // Only update if changed to avoid unnecessary re-renders
-                          if (combined.length !== selectedIds.length || !combined.every(id => selectedIds.includes(id))) {
-                            setSelectedIds(combined);
-                          }
-                        } else {
-                          if (intersectedIds.length !== selectedIds.length || !intersectedIds.every(id => selectedIds.includes(id))) {
-                            setSelectedIds(intersectedIds);
-                          }
-                        }
-                      }) : undefined}
-                    onMouseUp={!previewMode ? ((e: any) => {
-                        if (!selectionBox || !selectionBox.active) return;
-
-                        // Final selection check is already handled by onMouseMove
-                        // But we open the panel on desktop if selection is non-empty
-                        if (selectedIds.length > 0 && !isMobile) {
-                          setRightPanelTab('properties');
-                        }
-
-                        setSelectionBox(null);
-                        initialSelectedIdsRef.current = [];
-                      }) : undefined}
-                    onTouchStart={!previewMode ? ((e: any) => {
-                        const isBackground = e.target === e.target.getStage() || e.target.attrs.isPlaceholder || e.target.getType() === 'Layer';
-
-                        if (activeTool === 'select' && e.evt.touches.length === 1) {
-                          const pos = e.target.getStage().getRelativePointerPosition();
-                          const targetType = e.target.attrs.type;
-                          const isDesignElement = targetType === 'image' || targetType === 'text' || targetType === 'shape';
-
-                          if (isBackground || !isDesignElement) {
-                            selectionStartPos.current = pos;
-                            setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, active: true });
-                          }
-
-                          if (isBackground) {
+                          // For multi-selection support
+                          if (e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) {
+                            initialSelectedIdsRef.current = [...selectedIds];
+                          } else {
+                            initialSelectedIdsRef.current = [];
                             setSelectedIds([]);
-                            if (isMobile) {
-                              setShowRightPanel(false);
-                              setIsMobileMenuOpen(false);
-                            }
                           }
-                        } else if (isBackground) {
+                        }
+
+                        if (isBackground) {
+                          if (!e.evt.shiftKey && !e.evt.ctrlKey && !e.evt.metaKey) {
+                            setSelectedIds([]);
+                          }
+                          if (isMobile) {
+                            setShowRightPanel(false);
+                            setIsMobileMenuOpen(false);
+                          }
+                        }
+                      } else if (isBackground) {
+                        setSelectedIds([]);
+                      }
+                    }) : undefined}
+                    onMouseMove={!previewMode ? ((e: any) => {
+                      if (!selectionBox || !selectionBox.active) return;
+                      const stage = e.target.getStage();
+                      const pos = stage.getRelativePointerPosition();
+
+                      const newX1 = selectionBox.x1;
+                      const newY1 = selectionBox.y1;
+                      const newX2 = pos.x;
+                      const newY2 = pos.y;
+
+                      setSelectionBox(prev => prev ? { ...prev, x2: newX2, y2: newY2 } : null);
+
+                      // Real-time highlight logic
+                      const rect = {
+                        minX: Math.min(newX1, newX2),
+                        maxX: Math.max(newX1, newX2),
+                        minY: Math.min(newY1, newY2),
+                        maxY: Math.max(newY1, newY2)
+                      };
+
+                      const intersectedIds: string[] = [];
+                      elements.forEach(el => {
+                        if ((el.view && el.view !== currentView) || el.visible === false) return;
+
+                        const elBounds = calculateRotatedBounds(el.x, el.y, el.width || 0, el.height || 0, el.rotation || 0);
+
+                        // Intersection check
+                        if (!(elBounds.minX > rect.maxX ||
+                          elBounds.maxX < rect.minX ||
+                          elBounds.minY > rect.maxY ||
+                          elBounds.maxY < rect.minY)) {
+                          intersectedIds.push(el.id);
+                        }
+                      });
+
+                      // Combine with initial selection if modifier is held
+                      if (e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) {
+                        const combined = [...new Set([...initialSelectedIdsRef.current, ...intersectedIds])];
+                        // Only update if changed to avoid unnecessary re-renders
+                        if (combined.length !== selectedIds.length || !combined.every(id => selectedIds.includes(id))) {
+                          setSelectedIds(combined);
+                        }
+                      } else {
+                        if (intersectedIds.length !== selectedIds.length || !intersectedIds.every(id => selectedIds.includes(id))) {
+                          setSelectedIds(intersectedIds);
+                        }
+                      }
+                    }) : undefined}
+                    onMouseUp={!previewMode ? ((e: any) => {
+                      if (!selectionBox || !selectionBox.active) return;
+
+                      // Final selection check is already handled by onMouseMove
+                      // But we open the panel on desktop if selection is non-empty
+                      if (selectedIds.length > 0 && !isMobile) {
+                        setRightPanelTab('properties');
+                      }
+
+                      setSelectionBox(null);
+                      initialSelectedIdsRef.current = [];
+                    }) : undefined}
+                    onTouchStart={!previewMode ? ((e: any) => {
+                      const isBackground = e.target === e.target.getStage() || e.target.attrs.isPlaceholder || e.target.getType() === 'Layer';
+
+                      if (activeTool === 'select' && e.evt.touches.length === 1) {
+                        const pos = e.target.getStage().getRelativePointerPosition();
+                        const targetType = e.target.attrs.type;
+                        const isDesignElement = targetType === 'image' || targetType === 'text' || targetType === 'shape';
+
+                        if (isBackground || !isDesignElement) {
+                          selectionStartPos.current = pos;
+                          setSelectionBox({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, active: true });
+                        }
+
+                        if (isBackground) {
                           setSelectedIds([]);
                           if (isMobile) {
                             setShowRightPanel(false);
                             setIsMobileMenuOpen(false);
                           }
                         }
-                      }) : undefined}
+                      } else if (isBackground) {
+                        setSelectedIds([]);
+                        if (isMobile) {
+                          setShowRightPanel(false);
+                          setIsMobileMenuOpen(false);
+                        }
+                      }
+                    }) : undefined}
                     onTouchMove={!previewMode ? ((e: any) => {
-                        if (!selectionBox || !selectionBox.active || e.evt.touches.length > 1) {
-                          if (selectionBox) setSelectionBox(null);
-                          return;
-                        }
-                        const stage = e.target.getStage();
-                        const pos = stage.getRelativePointerPosition();
-                        setSelectionBox(prev => prev ? { ...prev, x2: pos.x, y2: pos.y } : null);
-                      }) : undefined}
+                      if (!selectionBox || !selectionBox.active || e.evt.touches.length > 1) {
+                        if (selectionBox) setSelectionBox(null);
+                        return;
+                      }
+                      const stage = e.target.getStage();
+                      const pos = stage.getRelativePointerPosition();
+                      setSelectionBox(prev => prev ? { ...prev, x2: pos.x, y2: pos.y } : null);
+                    }) : undefined}
                     onTouchEnd={!previewMode ? (() => {
-                        if (!selectionBox || !selectionBox.active) return;
+                      if (!selectionBox || !selectionBox.active) return;
 
-                        const rect = {
-                          minX: Math.min(selectionBox.x1, selectionBox.x2),
-                          maxX: Math.max(selectionBox.x1, selectionBox.x2),
-                          minY: Math.min(selectionBox.y1, selectionBox.y2),
-                          maxY: Math.max(selectionBox.y1, selectionBox.y2)
-                        };
+                      const rect = {
+                        minX: Math.min(selectionBox.x1, selectionBox.x2),
+                        maxX: Math.max(selectionBox.x1, selectionBox.x2),
+                        minY: Math.min(selectionBox.y1, selectionBox.y2),
+                        maxY: Math.max(selectionBox.y1, selectionBox.y2)
+                      };
 
-                        const newlySelectedIds: string[] = [];
-                        elements.forEach(el => {
-                          if (el.view !== currentView || el.visible === false) return;
-                          const elBounds = calculateRotatedBounds(el.x, el.y, el.width || 0, el.height || 0, el.rotation || 0);
+                      const newlySelectedIds: string[] = [];
+                      elements.forEach(el => {
+                        if (el.view !== currentView || el.visible === false) return;
+                        const elBounds = calculateRotatedBounds(el.x, el.y, el.width || 0, el.height || 0, el.rotation || 0);
 
-                          if (!(elBounds.minX > rect.maxX ||
-                            elBounds.maxX < rect.minX ||
-                            elBounds.minY > rect.maxY ||
-                            elBounds.maxY < rect.minY)) {
-                            newlySelectedIds.push(el.id);
-                          }
-                        });
-
-                        if (newlySelectedIds.length > 0) {
-                          setSelectedIds(newlySelectedIds);
+                        if (!(elBounds.minX > rect.maxX ||
+                          elBounds.maxX < rect.minX ||
+                          elBounds.minY > rect.maxY ||
+                          elBounds.maxY < rect.minY)) {
+                          newlySelectedIds.push(el.id);
                         }
+                      });
 
-                        setSelectionBox(null);
-                      }) : undefined}
-                    >
-                      {/* Garment mockup background */}
-                      <Layer listening={false}>
-                        {mockupImage && imageSize.width > 0 && imageSize.height > 0 && (
-                          <Image
-                            image={
-                              // When a colour is selected, pixel-tint the base product image
-                              // so the garment silhouette changes colour.
-                              // tintGarmentImage() skips transparent/background pixels and
-                              // caches the result, so it's fast after the first render.
-                              (primaryColorHex && _primaryColorNorm)
-                                ? tintGarmentImage(mockupImage, primaryColorHex) as any
-                                : mockupImage
-                            }
-                            x={imageSize.x}
-                            y={imageSize.y}
-                            width={imageSize.width}
-                            height={imageSize.height}
-                          />
-                        )}
-                      </Layer>
+                      if (newlySelectedIds.length > 0) {
+                        setSelectedIds(newlySelectedIds);
+                      }
 
-                      <Layer listening={false}>
-                        {/* Grid */}
-                        {showGrid && (
-                          <>
-                            {Array.from({ length: Math.ceil(stageSize.width / 20) }).map((_, i) => (
-                              <Line
-                                key={`v-${i}`}
-                                points={[i * 20, 0, i * 20, stageSize.height]}
-                                stroke="#e0e0e0"
-                                strokeWidth={0.5}
-                              />
-                            ))}
-                            {Array.from({ length: Math.ceil(stageSize.height / 20) }).map((_, i) => (
-                              <Line
-                                key={`h-${i}`}
-                                points={[0, i * 20, stageSize.width, i * 20]}
-                                stroke="#e0e0e0"
-                                strokeWidth={0.5}
-                              />
-                            ))}
-                          </>
-                        )}
+                      setSelectionBox(null);
+                    }) : undefined}
+                  >
+                    {/* Garment mockup background */}
+                    <Layer listening={false}>
+                      {mockupImage && imageSize.width > 0 && imageSize.height > 0 && (
+                        <Image
+                          image={
+                            // When a colour is selected, pixel-tint the base product image
+                            // so the garment silhouette changes colour.
+                            // tintGarmentImage() skips transparent/background pixels and
+                            // caches the result, so it's fast after the first render.
+                            (primaryColorHex && _primaryColorNorm)
+                              ? tintGarmentImage(mockupImage, primaryColorHex) as any
+                              : mockupImage
+                          }
+                          x={imageSize.x}
+                          y={imageSize.y}
+                          width={imageSize.width}
+                          height={imageSize.height}
+                        />
+                      )}
+                    </Layer>
 
-                        {/* Rulers */}
-                        {showRulers && (
-                          <>
-                            {/* Ruler backgrounds */}
-                            <Rect x={0} y={0} width={stageSize.width} height={24} fill="#f8fafc" stroke="#e5e7eb" strokeWidth={1} listening={false} />
-                            <Rect x={0} y={0} width={24} height={stageSize.height} fill="#f8fafc" stroke="#e5e7eb" strokeWidth={1} listening={false} />
+                    <Layer listening={false}>
+                      {/* Grid */}
+                      {showGrid && (
+                        <>
+                          {Array.from({ length: Math.ceil(stageSize.width / 20) }).map((_, i) => (
+                            <Line
+                              key={`v-${i}`}
+                              points={[i * 20, 0, i * 20, stageSize.height]}
+                              stroke="#e0e0e0"
+                              strokeWidth={0.5}
+                            />
+                          ))}
+                          {Array.from({ length: Math.ceil(stageSize.height / 20) }).map((_, i) => (
+                            <Line
+                              key={`h-${i}`}
+                              points={[0, i * 20, stageSize.width, i * 20]}
+                              stroke="#e0e0e0"
+                              strokeWidth={0.5}
+                            />
+                          ))}
+                        </>
+                      )}
 
-                            {/* Unit labels */}
-                            <Text x={4} y={6} text={"in"} fontSize={10} fill="#64748b" listening={false} />
-                            <Text x={4} y={4} text={"in"} fontSize={10} fill="#64748b" listening={false} />
+                      {/* Rulers */}
+                      {showRulers && (
+                        <>
+                          {/* Ruler backgrounds */}
+                          <Rect x={0} y={0} width={stageSize.width} height={24} fill="#f8fafc" stroke="#e5e7eb" strokeWidth={1} listening={false} />
+                          <Rect x={0} y={0} width={24} height={stageSize.height} fill="#f8fafc" stroke="#e5e7eb" strokeWidth={1} listening={false} />
 
-                            {/* Top ruler ticks and labels (inches) */}
-                            {Array.from({ length: Math.ceil((stageSize.width - canvasPadding * 2) / PX_PER_INCH) + 1 }).map((_, i) => {
-                              const x = Math.round(canvasPadding + i * PX_PER_INCH);
-                              const isMajor = true; // inch marks only
-                              return (
-                                <Group key={`rt-${i}`} listening={false}>
-                                  <Line points={[x, 24, x, 14]} stroke="#94a3b8" strokeWidth={1} />
-                                  <Text x={x + 2} y={6} text={`${i}"`} fontSize={10} fill="#64748b" />
-                                </Group>
-                              );
-                            })}
+                          {/* Unit labels */}
+                          <Text x={4} y={6} text={"in"} fontSize={10} fill="#64748b" listening={false} />
+                          <Text x={4} y={4} text={"in"} fontSize={10} fill="#64748b" listening={false} />
 
-                            {/* Left ruler ticks and labels (inches) */}
-                            {Array.from({ length: Math.ceil((stageSize.height - canvasPadding * 2) / PX_PER_INCH) + 1 }).map((_, i) => {
-                              const y = Math.round(canvasPadding + i * PX_PER_INCH);
-                              return (
-                                <Group key={`rl-${i}`} listening={false}>
-                                  <Line points={[24, y, 14, y]} stroke="#94a3b8" strokeWidth={1} />
-                                  <Text x={4} y={y + 2} text={`${i}"`} fontSize={10} fill="#64748b" />
-                                </Group>
-                              );
-                            })}
-                          </>
-                        )}
-                      </Layer>
-
-                      {/* Placeholder Outlines Layer — only in edit mode */}
-                      <Layer>
-                        {!previewMode && !placeholdersLoading && (() => {
-                          // Show only one visible placeholder at a time in the editor:
-                          // - If a placeholder is selected, render just that one
-                          // - Otherwise, render the first placeholder for the current view
-                          const visiblePlaceholders =
-                            selectedPlaceholderId
-                              ? placeholders.filter((p) => p.id === selectedPlaceholderId)
-                              : placeholders.slice(0, 1);
-
-                          return visiblePlaceholders.map((ph) => {
-                            const isSelected = selectedPlaceholderId === ph.id;
-                            const baseColor = ph.original.color || '#f472b6';
-
-                            const hexToRgba = (hex: string, alpha: number) => {
-                              if (!hex.startsWith('#') || hex.length !== 7) return `rgba(251, 207, 232, ${alpha})`;
-                              const r = parseInt(hex.slice(1, 3), 16);
-                              const g = parseInt(hex.slice(3, 5), 16);
-                              const b = parseInt(hex.slice(5, 7), 16);
-                              return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                            };
-
-                            const stroke = baseColor;
-                            const strokeWidth = isSelected ? 2 : 1;
-                            const fill = hexToRgba(baseColor, isSelected ? 0.25 : 0.15);
-
-                            const commonHandlers = {
-                              onClick: () => {
-                                setSelectedPlaceholderId(ph.id);
-                                selectedPlaceholderIdRef.current = ph.id;
-                                // toast.info(`${ph.original.name || 'Placeholder'} selected`);
-                              },
-                              onTap: () => {
-                                setSelectedPlaceholderId(ph.id);
-                                selectedPlaceholderIdRef.current = ph.id;
-                                // toast.info(`${ph.original.name || 'Placeholder'} selected`);
-                              },
-                            } as any;
-
-                            if (ph.isPolygon && ph.polygonPointsPx && ph.polygonPointsPx.length >= 6) {
-                              return (
-                                <Line
-                                  key={ph.id}
-                                  points={ph.polygonPointsPx}
-                                  closed
-                                  stroke={stroke}
-                                  strokeWidth={strokeWidth}
-                                  fill={fill}
-                                  listening
-                                  isPlaceholder={true}
-                                  perfectDrawEnabled={false}
-                                  {...commonHandlers}
-                                />
-                              );
-                            }
-
+                          {/* Top ruler ticks and labels (inches) */}
+                          {Array.from({ length: Math.ceil((stageSize.width - canvasPadding * 2) / PX_PER_INCH) + 1 }).map((_, i) => {
+                            const x = Math.round(canvasPadding + i * PX_PER_INCH);
+                            const isMajor = true; // inch marks only
                             return (
-                              <Rect
+                              <Group key={`rt-${i}`} listening={false}>
+                                <Line points={[x, 24, x, 14]} stroke="#94a3b8" strokeWidth={1} />
+                                <Text x={x + 2} y={6} text={`${i}"`} fontSize={10} fill="#64748b" />
+                              </Group>
+                            );
+                          })}
+
+                          {/* Left ruler ticks and labels (inches) */}
+                          {Array.from({ length: Math.ceil((stageSize.height - canvasPadding * 2) / PX_PER_INCH) + 1 }).map((_, i) => {
+                            const y = Math.round(canvasPadding + i * PX_PER_INCH);
+                            return (
+                              <Group key={`rl-${i}`} listening={false}>
+                                <Line points={[24, y, 14, y]} stroke="#94a3b8" strokeWidth={1} />
+                                <Text x={4} y={y + 2} text={`${i}"`} fontSize={10} fill="#64748b" />
+                              </Group>
+                            );
+                          })}
+                        </>
+                      )}
+                    </Layer>
+
+                    {/* Placeholder Outlines Layer — only in edit mode */}
+                    <Layer>
+                      {!previewMode && !placeholdersLoading && (() => {
+                        // Show only one visible placeholder at a time in the editor:
+                        // - If a placeholder is selected, render just that one
+                        // - Otherwise, render the first placeholder for the current view
+                        const visiblePlaceholders =
+                          selectedPlaceholderId
+                            ? placeholders.filter((p) => p.id === selectedPlaceholderId)
+                            : placeholders.slice(0, 1);
+
+                        return visiblePlaceholders.map((ph) => {
+                          const isSelected = selectedPlaceholderId === ph.id;
+                          const baseColor = ph.original.color || '#f472b6';
+
+                          const hexToRgba = (hex: string, alpha: number) => {
+                            if (!hex.startsWith('#') || hex.length !== 7) return `rgba(251, 207, 232, ${alpha})`;
+                            const r = parseInt(hex.slice(1, 3), 16);
+                            const g = parseInt(hex.slice(3, 5), 16);
+                            const b = parseInt(hex.slice(5, 7), 16);
+                            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                          };
+
+                          const stroke = baseColor;
+                          const strokeWidth = isSelected ? 2 : 1;
+                          const fill = hexToRgba(baseColor, isSelected ? 0.25 : 0.15);
+
+                          const commonHandlers = {
+                            onClick: () => {
+                              setSelectedPlaceholderId(ph.id);
+                              selectedPlaceholderIdRef.current = ph.id;
+                              // toast.info(`${ph.original.name || 'Placeholder'} selected`);
+                            },
+                            onTap: () => {
+                              setSelectedPlaceholderId(ph.id);
+                              selectedPlaceholderIdRef.current = ph.id;
+                              // toast.info(`${ph.original.name || 'Placeholder'} selected`);
+                            },
+                          } as any;
+
+                          if (ph.isPolygon && ph.polygonPointsPx && ph.polygonPointsPx.length >= 6) {
+                            return (
+                              <Line
                                 key={ph.id}
-                                x={ph.x}
-                                y={ph.y}
-                                width={ph.width}
-                                height={ph.height}
+                                points={ph.polygonPointsPx}
+                                closed
                                 stroke={stroke}
                                 strokeWidth={strokeWidth}
                                 fill={fill}
                                 listening
                                 isPlaceholder={true}
+                                perfectDrawEnabled={false}
                                 {...commonHandlers}
                               />
                             );
-                          });
-                        })()}
-                      </Layer>
-
-                      {/* Interactive Elements Layer */}
-                      <Layer>
-                        {elements
-                          .filter((el) => el.view === currentView && el.visible !== false)
-                          .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-                          .map((el) => {
-                            const placeholder = el.placeholderId
-                              ? placeholders.find((p) => p.id === el.placeholderId)
-                              : undefined;
-                            const elPrintArea = placeholder
-                              ? {
-                                x: placeholder.x,
-                                y: placeholder.y,
-                                width: placeholder.width,
-                                height: placeholder.height,
-                                isPolygon: placeholder.isPolygon,
-                                polygonPointsPx: placeholder.polygonPointsPx,
-                              }
-                              : printArea;
-
-                            if (el.type === 'image') {
-                              return (
-                                <ImageElement
-                                  key={el.id}
-                                  element={el}
-                                  isSelected={selectedIds.includes(el.id)}
-                                  onSelect={() => {
-                                    if (activeTool === 'move') return;
-                                    setSelectedIds([el.id]);
-                                    if (!isMobile) setRightPanelTab('properties');
-                                  }}
-                                  onUpdate={(updates, saveImmediately = false) => {
-                                    updateElement(el.id, updates, !saveImmediately);
-                                    if (saveImmediately) {
-                                      setTimeout(() => saveToHistory(true), 0);
-                                    }
-                                  }}
-                                  printArea={elPrintArea}
-                                  isEditMode={!previewMode && !el.locked}
-                                  previewMode={previewMode}
-                                />
-                              );
-                            }
-                            if (el.type === 'text') {
-                              return (
-                                <TextElement
-                                  key={el.id}
-                                  element={el}
-                                  isSelected={selectedIds.includes(el.id)}
-                                  onSelect={() => {
-                                    if (activeTool === 'move') return;
-                                    if (selectedIds.includes(el.id)) {
-                                      handleTextDblClick(el.id);
-                                    } else {
-                                      setSelectedIds([el.id]);
-                                      if (!isMobile) setRightPanelTab('properties');
-                                    }
-                                  }}
-                                  onDblClick={() => handleTextDblClick(el.id)}
-                                  isEditing={editingTextId === el.id}
-                                  onUpdate={(updates, saveImmediately = false) => {
-                                    updateElement(el.id, updates, !saveImmediately);
-                                    if (saveImmediately) {
-                                      setTimeout(() => saveToHistory(true), 0);
-                                    }
-                                  }}
-                                  printArea={elPrintArea}
-                                  isEditMode={!previewMode && !el.locked}
-                                  previewMode={previewMode}
-                                />
-                              );
-                            }
-                            if (el.type === 'shape') {
-                              return (
-                                <ShapeElement
-                                  key={el.id}
-                                  element={el}
-                                  isSelected={selectedIds.includes(el.id)}
-                                  onSelect={() => {
-                                    if (activeTool === 'move') return;
-                                    setSelectedIds([el.id]);
-                                    if (!isMobile) setRightPanelTab('properties');
-                                  }}
-                                  onUpdate={(updates) => {
-                                    updateElement(el.id, updates, true);
-                                  }}
-                                  printArea={elPrintArea}
-                                  isEditMode={!previewMode && !el.locked}
-                                  previewMode={previewMode}
-                                />
-                              );
-                            }
-                            return null;
-                          })}
-
-                        {/* X/Y axis guides and handles for active image (edit mode only) */}
-                        {(!previewMode && selectedIds.length === 1) && (() => {
-                          const sel = elements.find(e => e.id === selectedIds[0]);
-                          if (!sel || sel.type !== 'image' || !sel.width || !sel.height) return null;
-                          const ph = sel.placeholderId
-                            ? placeholders.find(p => p.id === sel.placeholderId)
-                            : undefined;
-                          const area = ph
-                            ? { x: ph.x, y: ph.y, width: ph.width, height: ph.height }
-                            : printArea;
-                          if (!area) return null;
-                          const centerX = (sel.x || 0) + (sel.width || 0) / 2;
-                          const centerY = (sel.y || 0) + (sel.height || 0) / 2;
-
-                          const horizY = Math.max(area.y, Math.min(centerY, area.y + area.height));
-                          const vertX = Math.max(area.x, Math.min(centerX, area.x + area.width));
-
-                          const handleSize = 12;
-                          const halfH = (sel.height || 0) / 2;
-                          const halfW = (sel.width || 0) / 2;
-
-                          const rightHandleX = centerX + halfW - handleSize / 2;
-                          const topHandleY = centerY - halfH - handleSize / 2;
+                          }
 
                           return (
-                            <>
-                              {/* Guide lines */}
-                              <Line points={[area.x, horizY, area.x + area.width, horizY]} stroke="#ef4444" strokeWidth={1} dash={[6, 6]} listening={false} />
-                              <Line points={[vertX, area.y, vertX, area.y + area.height]} stroke="#ef4444" strokeWidth={1} dash={[6, 6]} listening={false} />
-
-                              {/* Horizontal resize handle (adjust width symmetrically) */}
-                              <Rect
-                                x={rightHandleX}
-                                y={centerY - handleSize / 2}
-                                width={handleSize}
-                                height={handleSize}
-                                fill="#3b82f6"
-                                stroke="#2563eb"
-                                strokeWidth={1}
-                                cornerRadius={2}
-                                draggable
-                                dragBoundFunc={(pos) => {
-                                  // lock Y to center, constrain X inside area
-                                  const y = centerY - handleSize / 2;
-                                  const minX = area.x - handleSize / 2;
-                                  const maxX = area.x + area.width - handleSize / 2;
-                                  return { x: Math.max(minX, Math.min(pos.x, maxX)), y };
-                                }}
-                                onDragMove={(e) => {
-                                  const handleX = e.target.x() + handleSize / 2;
-                                  const newHalfW = Math.abs(handleX - centerX);
-                                  let newW = Math.max(10, Math.min(newHalfW * 2, area.width));
-                                  // Constrain so image stays within area horizontally
-                                  const newX = Math.max(area.x, Math.min(centerX - newW / 2, area.x + area.width - newW));
-                                  updateElement(sel.id, { width: newW, x: newX });
-                                }}
-                              />
-
-                              {/* Vertical resize handle (adjust height symmetrically) */}
-                              <Rect
-                                x={centerX - handleSize / 2}
-                                y={topHandleY}
-                                width={handleSize}
-                                height={handleSize}
-                                fill="#3b82f6"
-                                stroke="#2563eb"
-                                strokeWidth={1}
-                                cornerRadius={2}
-                                draggable
-                                dragBoundFunc={(pos) => {
-                                  // lock X to center, constrain Y inside area
-                                  const x = centerX - handleSize / 2;
-                                  const minY = area.y - handleSize / 2;
-                                  const maxY = area.y + area.height - handleSize / 2;
-                                  return { x, y: Math.max(minY, Math.min(pos.y, maxY)) };
-                                }}
-                                onDragMove={(e) => {
-                                  const handleY = e.target.y() + handleSize / 2;
-                                  const newHalfH = Math.abs(handleY - centerY);
-                                  let newH = Math.max(10, Math.min(newHalfH * 2, area.height));
-                                  // Constrain so image stays within area vertically
-                                  const newY = Math.max(area.y, Math.min(centerY - newH / 2, area.y + area.height - newH));
-                                  updateElement(sel.id, { height: newH, y: newY });
-                                }}
-                              />
-                            </>
+                            <Rect
+                              key={ph.id}
+                              x={ph.x}
+                              y={ph.y}
+                              width={ph.width}
+                              height={ph.height}
+                              stroke={stroke}
+                              strokeWidth={strokeWidth}
+                              fill={fill}
+                              listening
+                              isPlaceholder={true}
+                              {...commonHandlers}
+                            />
                           );
-                        })()}
+                        });
+                      })()}
+                    </Layer>
 
-                        {/* Transformer for selected element - always visible when selected */}
-                        {selectedIds.length === 1 && !previewMode && (
-                          <Transformer
-                            ref={transformerRef}
-                            rotateEnabled={true}
-                            borderEnabled={true}
-                            borderStroke="#3b82f6"
-                            borderStrokeWidth={2}
-                            anchorFill="#ffffff"
-                            anchorStroke="#3b82f6"
-                            anchorStrokeWidth={2}
-                            anchorSize={isMobile ? 14 : 10}
-                            anchorCornerRadius={isMobile ? 7 : 4}
-                            keepRatio={false}
-                            boundBoxFunc={(oldBox, newBox) => {
-                              // Constrain transformer to print area if element has placeholder
-                              const selectedElement = elements.find(e => e.id === selectedIds[0]);
-                              if (selectedElement && selectedElement.placeholderId) {
-                                const placeholder = placeholders.find(p => p.id === selectedElement.placeholderId);
-                                if (placeholder) {
-                                  const minX = placeholder.x;
-                                  const minY = placeholder.y;
-                                  const maxX = placeholder.x + placeholder.width;
-                                  const maxY = placeholder.y + placeholder.height;
+                    {/* Interactive Elements Layer */}
+                    <Layer>
+                      {elements
+                        .filter((el) => el.view === currentView && el.visible !== false)
+                        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+                        .map((el) => {
+                          const placeholder = el.placeholderId
+                            ? placeholders.find((p) => p.id === el.placeholderId)
+                            : undefined;
+                          const elPrintArea = placeholder
+                            ? {
+                              x: placeholder.x,
+                              y: placeholder.y,
+                              width: placeholder.width,
+                              height: placeholder.height,
+                              isPolygon: placeholder.isPolygon,
+                              polygonPointsPx: placeholder.polygonPointsPx,
+                            }
+                            : printArea;
 
-                                  return {
-                                    ...newBox,
-                                    x: Math.max(minX, Math.min(newBox.x, maxX - newBox.width)),
-                                    y: Math.max(minY, Math.min(newBox.y, maxY - newBox.height)),
-                                    width: Math.min(newBox.width, maxX - Math.max(minX, newBox.x)),
-                                    height: Math.min(newBox.height, maxY - Math.max(minY, newBox.y)),
-                                  };
-                                }
+                          if (el.type === 'image') {
+                            return (
+                              <ImageElement
+                                key={el.id}
+                                element={el}
+                                isSelected={selectedIds.includes(el.id)}
+                                onSelect={() => {
+                                  if (activeTool === 'move') return;
+                                  setSelectedIds([el.id]);
+                                  if (!isMobile) setRightPanelTab('properties');
+                                }}
+                                onUpdate={(updates, saveImmediately = false) => {
+                                  updateElement(el.id, updates, !saveImmediately);
+                                  if (saveImmediately) {
+                                    setTimeout(() => saveToHistory(true), 0);
+                                  }
+                                }}
+                                printArea={elPrintArea}
+                                isEditMode={!previewMode && !el.locked}
+                                previewMode={previewMode}
+                              />
+                            );
+                          }
+                          if (el.type === 'text') {
+                            return (
+                              <TextElement
+                                key={el.id}
+                                element={el}
+                                isSelected={selectedIds.includes(el.id)}
+                                onSelect={() => {
+                                  if (activeTool === 'move') return;
+                                  if (selectedIds.includes(el.id)) {
+                                    handleTextDblClick(el.id);
+                                  } else {
+                                    setSelectedIds([el.id]);
+                                    if (!isMobile) setRightPanelTab('properties');
+                                  }
+                                }}
+                                onDblClick={() => handleTextDblClick(el.id)}
+                                isEditing={editingTextId === el.id}
+                                onUpdate={(updates, saveImmediately = false) => {
+                                  updateElement(el.id, updates, !saveImmediately);
+                                  if (saveImmediately) {
+                                    setTimeout(() => saveToHistory(true), 0);
+                                  }
+                                }}
+                                printArea={elPrintArea}
+                                isEditMode={!previewMode && !el.locked}
+                                previewMode={previewMode}
+                              />
+                            );
+                          }
+                          if (el.type === 'shape') {
+                            return (
+                              <ShapeElement
+                                key={el.id}
+                                element={el}
+                                isSelected={selectedIds.includes(el.id)}
+                                onSelect={() => {
+                                  if (activeTool === 'move') return;
+                                  setSelectedIds([el.id]);
+                                  if (!isMobile) setRightPanelTab('properties');
+                                }}
+                                onUpdate={(updates) => {
+                                  updateElement(el.id, updates, true);
+                                }}
+                                printArea={elPrintArea}
+                                isEditMode={!previewMode && !el.locked}
+                                previewMode={previewMode}
+                              />
+                            );
+                          }
+                          return null;
+                        })}
+
+                      {/* X/Y axis guides and handles for active image (edit mode only) */}
+                      {(!previewMode && selectedIds.length === 1) && (() => {
+                        const sel = elements.find(e => e.id === selectedIds[0]);
+                        if (!sel || sel.type !== 'image' || !sel.width || !sel.height) return null;
+                        const ph = sel.placeholderId
+                          ? placeholders.find(p => p.id === sel.placeholderId)
+                          : undefined;
+                        const area = ph
+                          ? { x: ph.x, y: ph.y, width: ph.width, height: ph.height }
+                          : printArea;
+                        if (!area) return null;
+                        const centerX = (sel.x || 0) + (sel.width || 0) / 2;
+                        const centerY = (sel.y || 0) + (sel.height || 0) / 2;
+
+                        const horizY = Math.max(area.y, Math.min(centerY, area.y + area.height));
+                        const vertX = Math.max(area.x, Math.min(centerX, area.x + area.width));
+
+                        const handleSize = 12;
+                        const halfH = (sel.height || 0) / 2;
+                        const halfW = (sel.width || 0) / 2;
+
+                        const rightHandleX = centerX + halfW - handleSize / 2;
+                        const topHandleY = centerY - halfH - handleSize / 2;
+
+                        return (
+                          <>
+                            {/* Guide lines */}
+                            <Line points={[area.x, horizY, area.x + area.width, horizY]} stroke="#ef4444" strokeWidth={1} dash={[6, 6]} listening={false} />
+                            <Line points={[vertX, area.y, vertX, area.y + area.height]} stroke="#ef4444" strokeWidth={1} dash={[6, 6]} listening={false} />
+
+                            {/* Horizontal resize handle (adjust width symmetrically) */}
+                            <Rect
+                              x={rightHandleX}
+                              y={centerY - handleSize / 2}
+                              width={handleSize}
+                              height={handleSize}
+                              fill="#3b82f6"
+                              stroke="#2563eb"
+                              strokeWidth={1}
+                              cornerRadius={2}
+                              draggable
+                              dragBoundFunc={(pos) => {
+                                // lock Y to center, constrain X inside area
+                                const y = centerY - handleSize / 2;
+                                const minX = area.x - handleSize / 2;
+                                const maxX = area.x + area.width - handleSize / 2;
+                                return { x: Math.max(minX, Math.min(pos.x, maxX)), y };
+                              }}
+                              onDragMove={(e) => {
+                                const handleX = e.target.x() + handleSize / 2;
+                                const newHalfW = Math.abs(handleX - centerX);
+                                let newW = Math.max(10, Math.min(newHalfW * 2, area.width));
+                                // Constrain so image stays within area horizontally
+                                const newX = Math.max(area.x, Math.min(centerX - newW / 2, area.x + area.width - newW));
+                                updateElement(sel.id, { width: newW, x: newX });
+                              }}
+                            />
+
+                            {/* Vertical resize handle (adjust height symmetrically) */}
+                            <Rect
+                              x={centerX - handleSize / 2}
+                              y={topHandleY}
+                              width={handleSize}
+                              height={handleSize}
+                              fill="#3b82f6"
+                              stroke="#2563eb"
+                              strokeWidth={1}
+                              cornerRadius={2}
+                              draggable
+                              dragBoundFunc={(pos) => {
+                                // lock X to center, constrain Y inside area
+                                const x = centerX - handleSize / 2;
+                                const minY = area.y - handleSize / 2;
+                                const maxY = area.y + area.height - handleSize / 2;
+                                return { x, y: Math.max(minY, Math.min(pos.y, maxY)) };
+                              }}
+                              onDragMove={(e) => {
+                                const handleY = e.target.y() + handleSize / 2;
+                                const newHalfH = Math.abs(handleY - centerY);
+                                let newH = Math.max(10, Math.min(newHalfH * 2, area.height));
+                                // Constrain so image stays within area vertically
+                                const newY = Math.max(area.y, Math.min(centerY - newH / 2, area.y + area.height - newH));
+                                updateElement(sel.id, { height: newH, y: newY });
+                              }}
+                            />
+                          </>
+                        );
+                      })()}
+
+                      {/* Transformer for selected element - always visible when selected */}
+                      {selectedIds.length === 1 && !previewMode && (
+                        <Transformer
+                          ref={transformerRef}
+                          rotateEnabled={true}
+                          borderEnabled={true}
+                          borderStroke="#3b82f6"
+                          borderStrokeWidth={2}
+                          anchorFill="#ffffff"
+                          anchorStroke="#3b82f6"
+                          anchorStrokeWidth={2}
+                          anchorSize={isMobile ? 14 : 10}
+                          anchorCornerRadius={isMobile ? 7 : 4}
+                          keepRatio={false}
+                          boundBoxFunc={(oldBox, newBox) => {
+                            // Constrain transformer to print area if element has placeholder
+                            const selectedElement = elements.find(e => e.id === selectedIds[0]);
+                            if (selectedElement && selectedElement.placeholderId) {
+                              const placeholder = placeholders.find(p => p.id === selectedElement.placeholderId);
+                              if (placeholder) {
+                                const minX = placeholder.x;
+                                const minY = placeholder.y;
+                                const maxX = placeholder.x + placeholder.width;
+                                const maxY = placeholder.y + placeholder.height;
+
+                                return {
+                                  ...newBox,
+                                  x: Math.max(minX, Math.min(newBox.x, maxX - newBox.width)),
+                                  y: Math.max(minY, Math.min(newBox.y, maxY - newBox.height)),
+                                  width: Math.min(newBox.width, maxX - Math.max(minX, newBox.x)),
+                                  height: Math.min(newBox.height, maxY - Math.max(minY, newBox.y)),
+                                };
                               }
-                              return newBox;
-                            }}
-                          />
-                        )}
-                      </Layer>
-                      {/* Selection Box Visualizer - edit mode only */}
-                      {!previewMode && selectionBox && selectionBox.active && (
-                        <Layer>
-                          <Rect
-                            x={Math.min(selectionBox.x1, selectionBox.x2)}
-                            y={Math.min(selectionBox.y1, selectionBox.y2)}
-                            width={Math.abs(selectionBox.x2 - selectionBox.x1)}
-                            height={Math.abs(selectionBox.y2 - selectionBox.y1)}
-                            fill="rgba(59, 130, 246, 0.12)"
-                            stroke="#3b82f6"
-                            strokeWidth={1}
-                            listening={false}
-                          />
-                        </Layer>
-                      )}
-
-
-                      {/* Fabric texture overlay — preview mode only */}
-                      {previewMode && printArea && (
-                        <Layer listening={false}>
-                          <Shape
-                            sceneFunc={(ctx, shape) => {
-                              const { x, y, width, height } = printArea;
-                              ctx.save();
-                              ctx.beginPath();
-                              ctx.rect(x, y, width, height);
-                              ctx.clip();
-                              // Subtle crosshatch weave to simulate fabric texture
-                              ctx.globalAlpha = 0.045;
-                              ctx.strokeStyle = '#000000';
-                              ctx.lineWidth = 0.5;
-                              for (let i = x; i < x + width; i += 3) {
-                                ctx.beginPath();
-                                ctx.moveTo(i, y);
-                                ctx.lineTo(i, y + height);
-                                ctx.stroke();
-                              }
-                              for (let j = y; j < y + height; j += 3) {
-                                ctx.beginPath();
-                                ctx.moveTo(x, j);
-                                ctx.lineTo(x + width, j);
-                                ctx.stroke();
-                              }
-                              ctx.restore();
-                              // Required: fill the shape (transparent)
-                              ctx.fillStrokeShape(shape);
-                            }}
-                            fill="transparent"
-                            perfectDrawEnabled={false}
-                          />
-                        </Layer>
-                      )}
-                    </Stage>
-
-                    {/* Text Editing Overlay - Must be outside Stage (HTML elements can't be inside Konva) */}
-                    {editingTextId && (() => {
-                      const el = elements.find(e => e.id === editingTextId);
-                      if (!el || el.type !== 'text') return null;
-
-                      const placeholder = el.placeholderId
-                        ? placeholders.find(p => p.id === el.placeholderId)
-                        : null;
-                      const maxWidth = placeholder ? placeholder.width : undefined;
-
-                      return (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: el.x,
-                            top: el.y - ((el.fontSize || 24) * 0.15),
-                            transform: `rotate(${el.rotation || 0}deg)`,
-                            transformOrigin: 'top left',
-                            zIndex: 1000,
+                            }
+                            return newBox;
                           }}
-                        >
-                          <textarea
-                            value={el.text}
-                            onFocus={(e) => {
-                              if (el.text === 'Enter text' || el.text === 'Text' || el.text === ' ') {
-                                updateElement(el.id, { text: '' });
-                                setTimeout(() => e.target.select(), 0);
-                              }
-                            }}
-                            onBlur={() => setEditingTextId(null)}
-                            autoFocus
-                            style={{
-                              fontSize: `${el.fontSize || 24}px`,
-                              fontFamily: el.fontFamily || 'Arial',
-                              color: el.fill || '#000000',
-                              background: 'transparent',
-                              border: '1px dashed #9ca3af',
-                              padding: 0,
-                              margin: 0,
-                              outline: 'none',
-                              resize: 'none',
-                              overflow: 'hidden',
-                              whiteSpace: 'pre-wrap',
-                              wordBreak: 'break-word',
-                              width: maxWidth
-                                ? `${maxWidth}px`
-                                : `${getTextWidth(el.text || '', el.fontSize || 24, el.fontFamily || 'Arial') + 20}px`,
-                              maxWidth: maxWidth ? `${maxWidth}px` : undefined,
-                              height: `${(el.fontSize || 24) * 1.2}px`,
-                              lineHeight: 1.2,
-                              textAlign: (el.align as any) || 'left',
-                            }}
-                            ref={(ref) => {
-                              if (ref) {
-                                ref.style.height = '0px';
-                                ref.style.height = (ref.scrollHeight) + 'px';
-                                if (document.activeElement !== ref) {
-                                  ref.focus();
-                                }
-                              }
-                            }}
-                            onInput={(e) => {
-                              const target = e.target as HTMLTextAreaElement;
-                              target.style.height = '0px';
-                              target.style.height = (target.scrollHeight) + 'px';
-                            }}
-                            onChange={(e) => {
-                              const newText = e.target.value;
-                              updateElement(el.id, { text: newText });
-                            }}
-                          />
-                        </div>
-                      );
-                    })()}
-
-                    {/* Mobile Hand Tool Toggle */}
-                    {isMobile && !previewMode && (
-                      <div className="absolute left-4 bottom-24 z-20 flex flex-col gap-2">
-                        <Button
-                          variant={activeTool === 'move' ? 'default' : 'secondary'}
-                          size="icon"
-                          onClick={() => setActiveTool(activeTool === 'move' ? 'select' : 'move')}
-                          className={`w-12 h-12 rounded-full shadow-lg ${activeTool === 'move' ? 'bg-primary' : 'bg-background'}`}
-                        >
-                          <Hand className={`w-6 h-6 ${activeTool === 'move' ? 'text-primary-foreground' : 'text-foreground'}`} />
-                        </Button>
-                      </div>
+                        />
+                      )}
+                    </Layer>
+                    {/* Selection Box Visualizer - edit mode only */}
+                    {!previewMode && selectionBox && selectionBox.active && (
+                      <Layer>
+                        <Rect
+                          x={Math.min(selectionBox.x1, selectionBox.x2)}
+                          y={Math.min(selectionBox.y1, selectionBox.y2)}
+                          width={Math.abs(selectionBox.x2 - selectionBox.x1)}
+                          height={Math.abs(selectionBox.y2 - selectionBox.y1)}
+                          fill="rgba(59, 130, 246, 0.12)"
+                          stroke="#3b82f6"
+                          strokeWidth={1}
+                          listening={false}
+                        />
+                      </Layer>
                     )}
 
-                    {/* Mobile Selection Toolbar */}
-                    {isMobile && !previewMode && selectedIds.length > 0 && (
-                      <div style={mobileToolbarStyle}>
-                        {selectedIds.length === 1 && elements.find(e => e.id === selectedIds[0])?.type === 'text' ? (
-                          <div className="bg-background/95 backdrop-blur-sm border shadow-xl rounded-xl p-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                            {/* Font dropdown placeholder style */}
-                            <div className="flex items-center gap-2 border-r pr-2 flex-shrink-0">
-                              <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 font-medium">
-                                {elements.find(e => e.id === selectedIds[0])?.fontFamily || 'Arial'}
-                                <ChevronRight className="w-3 h-3 rotate-90" />
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-2 border-r pr-2 flex-shrink-0">
-                              <Button variant="ghost" size="sm" className="h-9 w-12 px-0">
-                                {Math.round(elements.find(e => e.id === selectedIds[0])?.fontSize || 24)}
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <Button
-                                variant={elements.find(e => e.id === selectedIds[0])?.fontStyle?.includes('bold') ? 'secondary' : 'ghost'}
-                                size="icon"
-                                className="h-9 w-9"
-                                onClick={() => {
-                                  const el = elements.find(e => e.id === selectedIds[0]);
-                                  const current = el?.fontStyle || '';
-                                  updateElement(selectedIds[0], { fontStyle: current.includes('bold') ? current.replace('bold', '').trim() : `${current} bold`.trim() });
-                                }}
-                              >
-                                <Bold className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant={elements.find(e => e.id === selectedIds[0])?.fontStyle?.includes('italic') ? 'secondary' : 'ghost'}
-                                size="icon"
-                                className="h-9 w-9"
-                                onClick={() => {
-                                  const el = elements.find(e => e.id === selectedIds[0]);
-                                  const current = el?.fontStyle || '';
-                                  updateElement(selectedIds[0], { fontStyle: current.includes('italic') ? current.replace('italic', '').trim() : `${current} italic`.trim() });
-                                }}
-                              >
-                                <Italic className="w-4 h-4" />
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <Button
-                                variant={elements.find(e => e.id === selectedIds[0])?.align === 'left' ? 'secondary' : 'ghost'}
-                                size="icon"
-                                className="h-9 w-9"
-                                onClick={() => updateElement(selectedIds[0], { align: 'left' })}
-                              >
-                                <AlignLeft className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant={elements.find(e => e.id === selectedIds[0])?.align === 'center' ? 'secondary' : 'ghost'}
-                                size="icon"
-                                className="h-9 w-9"
-                                onClick={() => updateElement(selectedIds[0], { align: 'center' })}
-                              >
-                                <AlignCenter className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant={elements.find(e => e.id === selectedIds[0])?.align === 'right' ? 'secondary' : 'ghost'}
-                                size="icon"
-                                className="h-9 w-9"
-                                onClick={() => updateElement(selectedIds[0], { align: 'right' })}
-                              >
-                                <AlignRight className="w-4 h-4" />
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0 border-l pl-2">
-                              <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => deleteSelected()}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+
+                    {/* Fabric texture overlay — preview mode only */}
+                    {previewMode && printArea && (
+                      <Layer listening={false}>
+                        <Shape
+                          sceneFunc={(ctx, shape) => {
+                            const { x, y, width, height } = printArea;
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.rect(x, y, width, height);
+                            ctx.clip();
+                            // Subtle crosshatch weave to simulate fabric texture
+                            ctx.globalAlpha = 0.045;
+                            ctx.strokeStyle = '#000000';
+                            ctx.lineWidth = 0.5;
+                            for (let i = x; i < x + width; i += 3) {
+                              ctx.beginPath();
+                              ctx.moveTo(i, y);
+                              ctx.lineTo(i, y + height);
+                              ctx.stroke();
+                            }
+                            for (let j = y; j < y + height; j += 3) {
+                              ctx.beginPath();
+                              ctx.moveTo(x, j);
+                              ctx.lineTo(x + width, j);
+                              ctx.stroke();
+                            }
+                            ctx.restore();
+                            // Required: fill the shape (transparent)
+                            ctx.fillStrokeShape(shape);
+                          }}
+                          fill="transparent"
+                          perfectDrawEnabled={false}
+                        />
+                      </Layer>
+                    )}
+                  </Stage>
+
+                  {/* Text Editing Overlay - Must be outside Stage (HTML elements can't be inside Konva) */}
+                  {editingTextId && (() => {
+                    const el = elements.find(e => e.id === editingTextId);
+                    if (!el || el.type !== 'text') return null;
+
+                    const placeholder = el.placeholderId
+                      ? placeholders.find(p => p.id === el.placeholderId)
+                      : null;
+                    const maxWidth = placeholder ? placeholder.width : undefined;
+
+                    return (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: el.x,
+                          top: el.y - ((el.fontSize || 24) * 0.15),
+                          transform: `rotate(${el.rotation || 0}deg)`,
+                          transformOrigin: 'top left',
+                          zIndex: 1000,
+                        }}
+                      >
+                        <textarea
+                          value={el.text}
+                          onFocus={(e) => {
+                            if (el.text === 'Enter text' || el.text === 'Text' || el.text === ' ') {
+                              updateElement(el.id, { text: '' });
+                              setTimeout(() => e.target.select(), 0);
+                            }
+                          }}
+                          onBlur={() => setEditingTextId(null)}
+                          autoFocus
+                          style={{
+                            fontSize: `${el.fontSize || 24}px`,
+                            fontFamily: el.fontFamily || 'Arial',
+                            color: el.fill || '#000000',
+                            background: 'transparent',
+                            border: '1px dashed #9ca3af',
+                            padding: 0,
+                            margin: 0,
+                            outline: 'none',
+                            resize: 'none',
+                            overflow: 'hidden',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            width: maxWidth
+                              ? `${maxWidth}px`
+                              : `${getTextWidth(el.text || '', el.fontSize || 24, el.fontFamily || 'Arial') + 20}px`,
+                            maxWidth: maxWidth ? `${maxWidth}px` : undefined,
+                            height: `${(el.fontSize || 24) * 1.2}px`,
+                            lineHeight: 1.2,
+                            textAlign: (el.align as any) || 'left',
+                          }}
+                          ref={(ref) => {
+                            if (ref) {
+                              ref.style.height = '0px';
+                              ref.style.height = (ref.scrollHeight) + 'px';
+                              if (document.activeElement !== ref) {
+                                ref.focus();
+                              }
+                            }
+                          }}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = '0px';
+                            target.style.height = (target.scrollHeight) + 'px';
+                          }}
+                          onChange={(e) => {
+                            const newText = e.target.value;
+                            updateElement(el.id, { text: newText });
+                          }}
+                        />
+                      </div>
+                    );
+                  })()}
+
+                  {/* Mobile Hand Tool Toggle */}
+                  {isMobile && !previewMode && (
+                    <div className="absolute left-4 bottom-24 z-20 flex flex-col gap-2">
+                      <Button
+                        variant={activeTool === 'move' ? 'default' : 'secondary'}
+                        size="icon"
+                        onClick={() => setActiveTool(activeTool === 'move' ? 'select' : 'move')}
+                        className={`w-12 h-12 rounded-full shadow-lg ${activeTool === 'move' ? 'bg-primary' : 'bg-background'}`}
+                      >
+                        <Hand className={`w-6 h-6 ${activeTool === 'move' ? 'text-primary-foreground' : 'text-foreground'}`} />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Mobile Selection Toolbar */}
+                  {isMobile && !previewMode && selectedIds.length > 0 && (
+                    <div style={mobileToolbarStyle}>
+                      {selectedIds.length === 1 && elements.find(e => e.id === selectedIds[0])?.type === 'text' ? (
+                        <div className="bg-background/95 backdrop-blur-sm border shadow-xl rounded-xl p-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                          {/* Font dropdown placeholder style */}
+                          <div className="flex items-center gap-2 border-r pr-2 flex-shrink-0">
+                            <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 font-medium">
+                              {elements.find(e => e.id === selectedIds[0])?.fontFamily || 'Arial'}
+                              <ChevronRight className="w-3 h-3 rotate-90" />
+                            </Button>
                           </div>
-                        ) : (
-                          <div className="bg-background/95 backdrop-blur-sm border shadow-xl rounded-xl p-2 flex items-center gap-1 overflow-x-auto no-scrollbar justify-center">
-                            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => {
-                              const el = elements.find(e => e.id === selectedIds[0]);
-                              if (el) updateElement(el.id, { flipX: !el.flipX });
-                            }}>
-                              <RotateCw className="w-4 h-4" />
+                          <div className="flex items-center gap-2 border-r pr-2 flex-shrink-0">
+                            <Button variant="ghost" size="sm" className="h-9 w-12 px-0">
+                              {Math.round(elements.find(e => e.id === selectedIds[0])?.fontSize || 24)}
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={duplicateSelected}>
-                              <Copy className="w-4 h-4" />
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button
+                              variant={elements.find(e => e.id === selectedIds[0])?.fontStyle?.includes('bold') ? 'secondary' : 'ghost'}
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => {
+                                const el = elements.find(e => e.id === selectedIds[0]);
+                                const current = el?.fontStyle || '';
+                                updateElement(selectedIds[0], { fontStyle: current.includes('bold') ? current.replace('bold', '').trim() : `${current} bold`.trim() });
+                              }}
+                            >
+                              <Bold className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive" onClick={deleteSelected}>
+                            <Button
+                              variant={elements.find(e => e.id === selectedIds[0])?.fontStyle?.includes('italic') ? 'secondary' : 'ghost'}
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => {
+                                const el = elements.find(e => e.id === selectedIds[0]);
+                                const current = el?.fontStyle || '';
+                                updateElement(selectedIds[0], { fontStyle: current.includes('italic') ? current.replace('italic', '').trim() : `${current} italic`.trim() });
+                              }}
+                            >
+                              <Italic className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button
+                              variant={elements.find(e => e.id === selectedIds[0])?.align === 'left' ? 'secondary' : 'ghost'}
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => updateElement(selectedIds[0], { align: 'left' })}
+                            >
+                              <AlignLeft className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant={elements.find(e => e.id === selectedIds[0])?.align === 'center' ? 'secondary' : 'ghost'}
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => updateElement(selectedIds[0], { align: 'center' })}
+                            >
+                              <AlignCenter className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant={elements.find(e => e.id === selectedIds[0])?.align === 'right' ? 'secondary' : 'ghost'}
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => updateElement(selectedIds[0], { align: 'right' })}
+                            >
+                              <AlignRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 border-l pl-2">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => deleteSelected()}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      ) : (
+                        <div className="bg-background/95 backdrop-blur-sm border shadow-xl rounded-xl p-2 flex items-center gap-1 overflow-x-auto no-scrollbar justify-center">
+                          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => {
+                            const el = elements.find(e => e.id === selectedIds[0]);
+                            if (el) updateElement(el.id, { flipX: !el.flipX });
+                          }}>
+                            <RotateCw className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-10 w-10" onClick={duplicateSelected}>
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive" onClick={deleteSelected}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+              </div>
 
               {/* View Switcher - Desktop Only */}
               {!isMobile && availableViews.length > 0 && (
