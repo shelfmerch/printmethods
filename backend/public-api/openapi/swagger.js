@@ -466,7 +466,12 @@ Subscribe to real-time events: ${ALL_WEBHOOK_EVENTS.map(e => `\`${e}\``).join(',
     ));
 }
 
+// Spec generation can be slow/hang if options scan too broadly; log boundaries for diagnosis.
+// eslint-disable-next-line no-console
+console.log('Generating Swagger spec...');
 const specs = swaggerJsdoc(options);
+// eslint-disable-next-line no-console
+console.log('Swagger spec generated.');
 
 /**
  * Mount swagger docs on a router.
