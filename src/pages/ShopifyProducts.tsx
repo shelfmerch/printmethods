@@ -124,54 +124,57 @@ const ShopifyProducts: React.FC = () => {
     }
 
     return (
-        <Page
-            backAction={{ content: 'Dashboard', onAction: () => navigate('/dashboard/shopify') }}
-            title="Synced Products"
-            subtitle={decodedShop}
-            primaryAction={
-                <Button icon={RefreshIcon} onClick={fetchProducts} loading={loading}>
-                    Refresh
-                </Button>
-            }
-        >
-            <Layout>
-                <Layout.Section>
-                    {products.length === 0 ? (
-                        <Card>
-                            <EmptyState
-                                heading="No products yet"
-                                action={{ content: 'Add Product', onAction: () => window.open('https://app.shelfmerch.com/designer', '_blank') }}
-                                secondaryAction={{ content: 'Learn more', url: 'https://docs.shelfmerch.com' }}
-                                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                            >
-                                <p>Start by designing your first product and syncing it to your Shopify store.</p>
-                            </EmptyState>
-                        </Card>
-                    ) : (
-                        <Card padding="0">
-                            <IndexTable
-                                resourceName={resourceName}
-                                itemCount={products.length}
-                                selectedItemsCount={
-                                    allResourcesSelected ? 'All' : selectedResources.length
-                                }
-                                onSelectionChange={handleSelectionChange}
-                                headings={[
-                                    { title: 'Product' },
-                                    { title: 'Handle' },
-                                    { title: 'Vendor' },
-                                    { title: 'Status' },
-                                    { title: 'Inventory' }, // Simplified for UI
-                                    { title: 'Action' },
-                                ]}
-                            >
-                                {rowMarkup}
-                            </IndexTable>
-                        </Card>
-                    )}
-                </Layout.Section>
-            </Layout>
-        </Page>
+        <div style={{ backgroundColor: 'var(--p-color-bg-surface-secondary)', minHeight: '100vh' }}>
+            <ShopifyHeader shop={decodedShop} />
+            <Page
+                backAction={{ content: 'Dashboard', onAction: () => navigate('/dashboard/shopify') }}
+                title="Synced Products"
+                subtitle={decodedShop}
+                primaryAction={
+                    <Button icon={RefreshIcon} onClick={fetchProducts} loading={loading}>
+                        Refresh
+                    </Button>
+                }
+            >
+                <Layout>
+                    <Layout.Section>
+                        {products.length === 0 ? (
+                            <Card>
+                                <EmptyState
+                                    heading="No products yet"
+                                    action={{ content: 'Add Product', onAction: () => window.open('https://app.shelfmerch.com/designer', '_blank') }}
+                                    secondaryAction={{ content: 'Learn more', url: 'https://docs.shelfmerch.com' }}
+                                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                                >
+                                    <p>Start by designing your first product and syncing it to your Shopify store.</p>
+                                </EmptyState>
+                            </Card>
+                        ) : (
+                            <Card padding="0">
+                                <IndexTable
+                                    resourceName={resourceName}
+                                    itemCount={products.length}
+                                    selectedItemsCount={
+                                        allResourcesSelected ? 'All' : selectedResources.length
+                                    }
+                                    onSelectionChange={handleSelectionChange}
+                                    headings={[
+                                        { title: 'Product' },
+                                        { title: 'Handle' },
+                                        { title: 'Vendor' },
+                                        { title: 'Status' },
+                                        { title: 'Inventory' }, // Simplified for UI
+                                        { title: 'Action' },
+                                    ]}
+                                >
+                                    {rowMarkup}
+                                </IndexTable>
+                            </Card>
+                        )}
+                    </Layout.Section>
+                </Layout>
+            </Page>
+        </div>
     );
 };
 
