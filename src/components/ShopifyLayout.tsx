@@ -2,7 +2,7 @@ import React from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { AppProvider, Frame } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
-import '@shopify/polaris/build/styles.css';
+import '@shopify/polaris/build/esm/styles.css';
 import { ShopifyHeader } from './ShopifyHeader';
 
 interface ShopifyLayoutProps {

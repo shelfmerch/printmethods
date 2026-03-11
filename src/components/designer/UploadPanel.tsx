@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { BackgroundRemoverBanner } from './BackgroundRemoverBanner';
 
 interface UploadPanelProps {
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -13,6 +14,7 @@ interface UploadPanelProps {
   selectedPlaceholderId: string | null;
   selectedPlaceholderName?: string | null;
   placeholders: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number }>;
+  onBgRemoverClick?: () => void;
 }
 
 export const UploadPanel: React.FC<UploadPanelProps> = ({
@@ -23,6 +25,7 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({
   selectedPlaceholderId,
   selectedPlaceholderName,
   placeholders,
+  onBgRemoverClick,
 }) => {
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -66,6 +69,8 @@ export const UploadPanel: React.FC<UploadPanelProps> = ({
             <p>• Max size: 100MB per file</p>
             <p>• Select multiple files at once</p>
           </div>
+
+          <BackgroundRemoverBanner onClick={() => onBgRemoverClick?.()} />
 
           {imagePreview && imagePreview.length > 0 && (
             <div className="mt-6">
