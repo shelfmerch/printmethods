@@ -869,7 +869,7 @@ const DesignEditor: React.FC = () => {
         if (isMobile) setMobileToolStage('detail');
       }
     },
-    
+
   ];
 
   // Canvas dimensions - fixed size like admin
@@ -3141,7 +3141,18 @@ const DesignEditor: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {isMobile ? (
+          {!isMobile ? (
+            <>
+              <Button variant="outline" size="sm" onClick={handleSave} className="hidden sm:flex">
+                <Save className="w-4 h-4 mr-2" />
+                Save
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => handleExportPreview('png')}>
+                <Download className="w-4 h-4 mr-2" />
+                <span className="hidden xs:inline ml-1">Export</span>
+              </Button>
+            </>
+          ) : (
             <Button
               variant="default"
               size="sm"
@@ -3149,19 +3160,8 @@ const DesignEditor: React.FC = () => {
               disabled={isPublishing}
               className={`rounded-full h-9 px-4 font-semibold text-xs shadow-sm shadow-primary/20 ${!variantValidation.isValid ? 'opacity-50 grayscale' : ''}`}
             >
-              {isPublishing ? '...' : 'Add Produt'}
+              {isPublishing ? '...' : 'Add Product'}
             </Button>
-          ) : (
-            <>
-              <Button variant="outline" size="sm" onClick={handleSave} className="hidden sm:flex">
-                <Save className="w-4 h-4 mr-2" />
-                Save
-              </Button>
-              <Button variant="default" size="sm" onClick={() => handleExportPreview('png')}>
-                <Download className="w-4 h-4 mr-2" />
-                <span className="hidden xs:inline ml-1">Export</span>
-              </Button>
-            </>
           )}
         </div>
       </div>
@@ -4533,9 +4533,8 @@ const DesignEditor: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom Bar (hidden in preview mode) */}
-      {/* Bottom Bar (hidden in preview mode) */}
-      {!previewMode && (
+      {/* Bottom Bar */}
+      {(!previewMode || !isMobile) && (
         <div className={`${isMobile ? 'h-[75px] pb-2' : 'h-[50px]'} border-t flex items-center justify-between px-4 bg-background z-30`}>
           {isMobile ? (
             <div className="w-full flex items-center justify-around relative px-4">
@@ -4603,46 +4602,52 @@ const DesignEditor: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setZoom(prev => Math.max(10, prev - 10))}
-                  className="h-8 w-8"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </Button>
-                <span className="text-sm w-16 text-center tabular-nums">{zoom}%</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setZoom(prev => Math.min(500, prev + 10))}
-                  className="h-8 w-8"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" onClick={fitToScreen} className="h-8 text-xs">Fit</Button>
-                <Button variant="ghost" size="sm" onClick={() => setZoom(100)} className="h-8 text-xs">100%</Button>
-              </div>
+              {!previewMode ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoom(prev => Math.max(10, prev - 10))}
+                      className="h-8 w-8"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm w-16 text-center tabular-nums">{zoom}%</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoom(prev => Math.min(500, prev + 10))}
+                      className="h-8 w-8"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={fitToScreen} className="h-8 text-xs">Fit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setZoom(100)} className="h-8 text-xs">100%</Button>
+                  </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={showGrid ? 'secondary' : 'ghost'}
-                  size="icon"
-                  onClick={() => setShowGrid(!showGrid)}
-                  className="h-8 w-8 shadow-none"
-                >
-                  <Grid className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={showRulers ? 'secondary' : 'ghost'}
-                  size="icon"
-                  onClick={() => setShowRulers(!showRulers)}
-                  className="h-8 w-8 shadow-none"
-                >
-                  <Ruler className="w-4 h-4" />
-                </Button>
-              </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={showGrid ? 'secondary' : 'ghost'}
+                      size="icon"
+                      onClick={() => setShowGrid(!showGrid)}
+                      className="h-8 w-8 shadow-none"
+                    >
+                      <Grid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={showRulers ? 'secondary' : 'ghost'}
+                      size="icon"
+                      onClick={() => setShowRulers(!showRulers)}
+                      className="h-8 w-8 shadow-none"
+                    >
+                      <Ruler className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1" />
+              )}
 
               <div className="flex items-center">
                 <Button
