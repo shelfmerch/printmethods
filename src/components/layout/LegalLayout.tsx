@@ -31,7 +31,7 @@ const LegalLayout: React.FC<LegalLayoutProps> = ({
 
             <main>
                 {/* Dynamic Hero Section */}
-                <section className="relative pt-40 pb-24 overflow-hidden">
+                <section className="relative pt-32 pb-16 overflow-hidden">
                     <div className="container-custom relative z-10">
                         <div className="flex flex-col items-center">
                             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white dark:bg-white/5 border border-primary/20 text-primary text-[10px] uppercase font-bold tracking-[0.2em] mb-8 shadow-sm backdrop-blur-md animate-fade-in">
@@ -39,7 +39,7 @@ const LegalLayout: React.FC<LegalLayoutProps> = ({
                                 <span>Legal & Compliance</span>
                             </div>
 
-                            <h1 className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white tracking-tighter mb-8 animate-fade-up leading-[0.9]">
+                            <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 animate-fade-up leading-[1.1]">
                                 {title.split(' ').map((word, i) => (
                                     <span key={i} className={i === title.split(' ').length - 1 ? "text-primary block md:inline" : "block md:inline"}>
                                         {word}{' '}
@@ -47,11 +47,11 @@ const LegalLayout: React.FC<LegalLayoutProps> = ({
                                 ))}
                             </h1>
 
-                            <p className="text-xl md:text-2xl text-slate-500 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed animate-fade-up animate-delay-100 font-medium">
+                            <p className="text-lg md:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed animate-fade-up animate-delay-100 font-medium">
                                 {subtitle}
                             </p>
 
-                            <div className="mt-12 flex items-center gap-4 text-sm font-bold animate-fade-up animate-delay-200">
+                            <div className="mt-8 flex items-center gap-4 text-sm font-bold animate-fade-up animate-delay-200">
                                 <span className="text-slate-400 uppercase tracking-widest text-[10px]">Updated on</span>
                                 <span className="px-3 py-1 bg-slate-200/50 dark:bg-white/10 rounded-lg text-slate-900 dark:text-white">{lastUpdated}</span>
                             </div>
@@ -63,27 +63,27 @@ const LegalLayout: React.FC<LegalLayoutProps> = ({
                     <div className="w-full">
                         {/* Premium Content Area */}
                         <article>
-                            <div className="bg-white dark:bg-[#0c0c0c] rounded-[4rem] p-12 md:p-20 lg:p-24 border border-slate-200 dark:border-white/5 shadow-[0_32px_128px_-32px_rgba(0,0,0,0.08)] relative overflow-hidden">
+                            <div className="bg-white dark:bg-[#0c0c0c] rounded-[2rem] p-6 md:p-8 lg:p-10 border border-slate-200 dark:border-white/5 shadow-[0_32px_128px_-32px_rgba(0,0,0,0.08)] relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary via-blue-400 to-brand-green opacity-50" />
 
-                                <div className="prose prose-slate prose-xl dark:prose-invert max-w-none 
-                  prose-headings:font-black prose-headings:tracking-tighter 
+                                <div className="prose prose-slate prose-lg dark:prose-invert max-w-none 
+                  prose-headings:font-bold prose-headings:tracking-tight 
                   prose-headings:text-slate-900 dark:prose-headings:text-white
-                  prose-p:text-slate-500 dark:prose-p:text-slate-400 prose-p:leading-relaxed
-                  prose-strong:text-slate-900 dark:prose-strong:text-white prose-strong:font-black
-                  prose-li:text-slate-500 dark:prose-li:text-slate-400
-                  prose-a:text-primary prose-a:font-black prose-a:no-underline hover:prose-a:underline
+                  prose-p:text-slate-600 dark:prose-p:text-slate-400 prose-p:leading-relaxed
+                  prose-strong:text-slate-900 dark:prose-strong:text-white prose-strong:font-bold
+                  prose-li:text-slate-600 dark:prose-li:text-slate-400
+                  prose-a:text-primary prose-a:font-bold prose-a:no-underline hover:prose-a:underline
                   prose-ul:list-none prose-ul:pl-0
                 ">
                                     {children}
                                 </div>
 
                                 {/* Support Footer within content area */}
-                                <div className="mt-32 pt-16 border-t border-slate-100 dark:border-white/5">
-                                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-12 p-12 bg-slate-50 dark:bg-white/[0.02] rounded-[3rem] border border-slate-200/50 dark:border-white/5">
+                                <div className="mt-16 pt-8 border-t border-slate-100 dark:border-white/5">
+                                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 p-8 bg-slate-50 dark:bg-white/[0.02] rounded-[2rem] border border-slate-200/50 dark:border-white/5">
                                         <div className="max-w-2xl">
-                                            <h4 className="text-3xl font-black mb-4 tracking-tight">Need a deeper explanation?</h4>
-                                            <p className="text-slate-500 text-lg m-0 font-medium leading-relaxed">
+                                            <h4 className="text-2xl font-black mb-2 tracking-tight">Need a deeper explanation?</h4>
+                                            <p className="text-slate-500 text-base m-0 font-medium leading-relaxed">
                                                 Our compliance and legal teams are standing by to help you understand our operational standards and your rights as a merchant.
                                             </p>
                                         </div>

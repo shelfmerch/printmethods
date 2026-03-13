@@ -15,7 +15,7 @@ const ContentGuidelinesPage = () => {
               {/* Left Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-muted/30 rounded-lg p-6 mb-6">
-                  <nav className="space-y-3">
+                  <nav className="space-y-1">
                     <Link 
                       to="/support/policies" 
                       className={`block transition-colors ${
@@ -61,13 +61,13 @@ const ContentGuidelinesPage = () => {
               </div>
 
               {/* Main Content */}
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-5">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                   Claims for Reprints, Refunds, and Returns
                   </h2>
                   
-                  <div className="space-y-6 text-foreground leading-relaxed">
+                  <div className="space-y-1 text-foreground leading-relaxed">
                     <p>
                     At Shelf Merch, we are passionate about enabling you to create and print amazing products that showcase your creativity. We are here to empower your designs, foster your imagination, and help drive success for your business!
                     </p> 
@@ -76,10 +76,10 @@ const ContentGuidelinesPage = () => {
                     </p>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Prohibited Content Categories:
                       </h3>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-disc list-inside space-y-1">
                         <li>Illegal Content</li>
                         <li>Hateful Content</li>
                         <li>Intellectual Property Violations</li>
@@ -87,14 +87,14 @@ const ContentGuidelinesPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Illegal Content
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         Shelf Merch will not accept or print any content that is illegal. This includes, but is not limited to:
                         </p>
-                        <ul className="list-disc list-inside space-y-2">
+                        <ul className="list-disc list-inside space-y-1">
                           <li>References to illegal drugs or activities</li>
                           <li>Obscene or explicit content promoting illegal acts</li>
                           <li>Sexual content depicting penetration, child pornography, child abuse, or rape</li>
@@ -106,14 +106,14 @@ const ContentGuidelinesPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Hateful Content
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         At Shelf Merch, we value diversity and inclusivity. We do not accept any content that promotes or incites hatred, harassment, or violence against any individual or group based on protected characteristics, including but not limited to:
                         </p>
-                        <ul className="list-disc list-inside space-y-2">
+                        <ul className="list-disc list-inside space-y-1">
                           <li>Age</li>
                           <li>Caste</li>
                           <li>Disability</li>
@@ -133,17 +133,17 @@ const ContentGuidelinesPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Intellectual Property Rights
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         Shelf Merch supports your creativity and self-expression. However, we expect you to respect the intellectual property rights of others. We do not accept content that infringes on copyrights, trademarks, or rights of privacy and publicity. When you upload content, it should either be your own original design or a design for which you have full usage rights.
                         </p>
                         <p>
                         Ensure that your content does not violate any third-party rights, including:
                         </p>
-                        <ul className="list-disc list-inside space-y-2">
+                        <ul className="list-disc list-inside space-y-1">
                           <li>Copyrights (e.g., artwork, photos, music)</li>
                           <li>Trademarks (e.g., logos, brand names)</li>
                           <li>Rights of privacy and publicity (e.g., images of celebrities without permission)</li>
@@ -153,10 +153,10 @@ const ContentGuidelinesPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Reminder
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         All the content you upload to Shelf Merch remains your intellectual property. However, it is subject to review, and we reserve the right to decline or remove any content at our discretion if it violates our guidelines.
                         </p>

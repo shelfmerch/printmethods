@@ -1,4 +1,4 @@
-import { Instagram, Twitter, Facebook } from "lucide-react";
+import { Instagram, Twitter, Linkedin, Youtube } from "lucide-react";
 import { Link } from "react-router-dom";
 import { buildStorePath } from "@/utils/tenantUtils";
 
@@ -30,7 +30,9 @@ const EnhancedFooter = ({ storeName, description, storeSlug }: EnhancedFooterPro
             </p>
             <div className="flex items-center gap-4 pt-2">
               <a
-                href="#"
+                href="https://www.instagram.com/shelfmerch?igsh=MTBoeno3b3c1NWtwdQ=="
+                target="_blank"
+                rel="noopener noreferrer"
                 className="p-2 rounded-full bg-background hover:bg-primary/10 transition-colors"
                 aria-label="Instagram"
               >
@@ -44,11 +46,22 @@ const EnhancedFooter = ({ storeName, description, storeSlug }: EnhancedFooterPro
                 <Twitter className="w-5 h-5 text-muted-foreground hover:text-primary" />
               </a>
               <a
-                href="#"
+                href="https://www.youtube.com/@shelfmerch"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="p-2 rounded-full bg-background hover:bg-primary/10 transition-colors"
-                aria-label="Facebook"
+                aria-label="Youtube"
               >
-                <Facebook className="w-5 h-5 text-muted-foreground hover:text-primary" />
+                <Youtube className="w-5 h-5 text-muted-foreground hover:text-primary" />
+              </a>
+              <a
+                href="https://www.linkedin.com/company/shelfmerch/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-full bg-background hover:bg-primary/10 transition-colors"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="w-5 h-5 text-muted-foreground hover:text-primary" />
               </a>
             </div>
           </div>

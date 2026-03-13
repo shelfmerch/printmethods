@@ -274,7 +274,7 @@ const StoreProductsPage: React.FC = () => {
               id,
               userId: store.userId,
               name: sp.title || sp.name || catalogProduct?.name || 'Untitled product',
-              description: sp.description || catalogProduct?.description,
+              description: sp.description,
               baseProduct: catalogProductId,
               price: basePrice,
               compareAtPrice:
@@ -1050,7 +1050,7 @@ const StoreProductsPage: React.FC = () => {
                               {product.name}
                             </h3>
                             <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                              {product.description || 'Premium quality product'}
+                              {product.description || 'No description added'}
                             </p>
                           </div>
 

@@ -15,7 +15,7 @@ const PoliciesPage = () => {
               {/* Left Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-muted/30 rounded-lg p-6 mb-6">
-                  <nav className="space-y-3">
+                  <nav className="space-y-1">
                     <Link 
                       to="/support/policies" 
                       className={`block transition-colors ${
@@ -61,13 +61,13 @@ const PoliciesPage = () => {
               </div>
 
               {/* Main Content */}
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-5">
                 {/* Fulfillment Policies */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Fulfillment Policies
                   </h2>
-                  <div className="space-y-4 text-foreground leading-relaxed">
+                  <div className="space-y-2 text-foreground leading-relaxed">
                     <p>
                     Shelf Merch-approved vendors will ship orders according to Digital Store’s fulfillment guidelines. Orders must be marked as "Awaiting Collection" within two business days of order submission. "Awaiting Collection" indicates the order is ready for pick-up and that the tracking number has been provided.
                     </p>
@@ -79,12 +79,12 @@ const PoliciesPage = () => {
 
                 {/* Performance Metrics */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Shelf Merch vendors must meet the following performance metrics set by the Digital Store:
                   </h2>
-                  <div className="space-y-6 text-foreground leading-relaxed">
+                  <div className="space-y-3 text-foreground leading-relaxed">
                     <div>
-                      <h3 className="text-xl font-bold text-foreground mb-2">
+                      <h3 className="text-lg font-bold text-foreground mb-1">
                         Seller Fault Cancellation Rate (SFCR):
                       </h3>
                       <p>
@@ -92,7 +92,7 @@ const PoliciesPage = () => {
                       </p>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-foreground mb-2">
+                      <h3 className="text-lg font-bold text-foreground mb-1">
                         Late Dispatch Rate (LDR):
                       </h3>
                       <p>
@@ -100,7 +100,7 @@ const PoliciesPage = () => {
                       </p>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-foreground mb-2">
+                      <h3 className="text-lg font-bold text-foreground mb-1">
                         Valid Tracking Rate (VTR):
                       </h3>
                       <p>
@@ -108,7 +108,7 @@ const PoliciesPage = () => {
                       </p>
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-foreground mb-2">
+                      <h3 className="text-lg font-bold text-foreground mb-1">
                         Return and Refund Error Rate:
                       </h3>
                       <p>
@@ -120,10 +120,10 @@ const PoliciesPage = () => {
 
                 {/* Customer Service Policies */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Customer Service Policies
                   </h2>
-                  <div className="space-y-4 text-foreground leading-relaxed">
+                  <div className="space-y-2 text-foreground leading-relaxed">
                     <p>
                     All sellers on the Digital Store platform must adhere to the Customer Order Cancellation, Return, and Refund Policy. This policy is periodically updated, so sellers are responsible for staying informed of any changes to ensure compliance.
                     </p> 
@@ -135,10 +135,10 @@ const PoliciesPage = () => {
 
                 {/* Order Cancellation */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Customers may request order cancellations under the following circumstances:
                   </h2>
-                  <div className="space-y-4 text-foreground leading-relaxed">
+                    <div className="space-y-0.5 text-foreground leading-relaxed">
                     <p>
                     • If the shipping method is "Ship by Seller," a cancellation request made within one hour of ordering during the "Pending" period will be automatically processed without a refund requirement.
                     </p>
@@ -159,10 +159,10 @@ const PoliciesPage = () => {
 
                 {/* Refunds and Returns */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Refunds and Returns
                   </h2>
-                  <div className="space-y-4 text-foreground leading-relaxed mb-6">
+                  <div className="space-y-2 text-foreground leading-relaxed mb-3">
                     <p>
                     Customers may request a return and refund only after the order status is marked as "Shipped." They have 30 calendar days from the "Delivered" status update to initiate a return and refund request.
                     </p>
@@ -171,11 +171,11 @@ const PoliciesPage = () => {
                     </p>
                   </div>
 
-                  <div className="mb-6">
-                    <h3 className="text-xl font-bold text-foreground mb-4">
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-foreground mb-2">
                       For any customer refund requests, sellers must comply with the following guidelines:
                     </h3>
-                    <div className="space-y-3 text-foreground leading-relaxed">
+                    <div className="space-y-0.5 text-foreground leading-relaxed">
                       <p>
                       • Customers must provide reasonable supporting materials (e.g., photos or videos of the product) when submitting refund requests.
                       </p>
@@ -199,64 +199,64 @@ const PoliciesPage = () => {
                       </thead>
                       <tbody className="text-foreground">
                         <tr>
-                          <td className="py-3 px-4 border border-black">The customer no longer needs the product</td>
-                          <td className="py-3 px-4 border border-black">Seller will refund</td>
+                          <td className="py-1.5 px-3 border border-black">The customer no longer needs the product</td>
+                          <td className="py-1.5 px-3 border border-black">Seller will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The customer received a product that did not match the product description provided at the time of purchase.</td>
-                          <td className="py-3 px-4 border border-black">Seller will refund. Shelf Merch will refund for a wrong or defective item.</td>
+                          <td className="py-1.5 px-3 border border-black">The customer received a product that did not match the product description provided at the time of purchase.</td>
+                          <td className="py-1.5 px-3 border border-black">Seller will refund. Shelf Merch will refund for a wrong or defective item.</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Product with missing parts or accessories was delivered</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">Product with missing parts or accessories was delivered</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The product's condition upon delivery was defective. This includes poor print quality that does not result from poor-quality image files or incorrect image placement.</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">The product's condition upon delivery was defective. This includes poor print quality that does not result from poor-quality image files or incorrect image placement.</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The wrong product was delivered</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">The wrong product was delivered</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The package was not received within the Estimated Delivery Time, and the customer did not consent to the delay. TikTok will issue an automatic refund to the customer.</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">The package was not received within the Estimated Delivery Time, and the customer did not consent to the delay. TikTok will issue an automatic refund to the customer.</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The shipping box was damaged, but the product is in good condition</td>
-                          <td className="py-3 px-4 border border-black">Seller will refund</td>
+                          <td className="py-1.5 px-3 border border-black">The shipping box was damaged, but the product is in good condition</td>
+                          <td className="py-1.5 px-3 border border-black">Seller will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The product was damaged, but the shipping box is in good condition</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">The product was damaged, but the shipping box is in good condition</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The product doesn't fit properly</td>
-                          <td className="py-3 px-4 border border-black">Seller will refund. Shelf Merch will refund if the wrong size is delivered.</td>
+                          <td className="py-1.5 px-3 border border-black">The product doesn't fit properly</td>
+                          <td className="py-1.5 px-3 border border-black">Seller will refund. Shelf Merch will refund if the wrong size is delivered.</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The product's fabric, material, or style is not as expected</td>
-                          <td className="py-3 px-4 border border-black">Seller will refund. Shelf Merch will refund if the item is defective.</td>
+                          <td className="py-1.5 px-3 border border-black">The product's fabric, material, or style is not as expected</td>
+                          <td className="py-1.5 px-3 border border-black">Seller will refund. Shelf Merch will refund if the item is defective.</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The colour or pattern of the product is not as expected</td>
-                          <td className="py-3 px-4 border border-black">Seller will refund. Shelf Merch will refund if the item is defective.</td>
+                          <td className="py-1.5 px-3 border border-black">The colour or pattern of the product is not as expected</td>
+                          <td className="py-1.5 px-3 border border-black">Seller will refund. Shelf Merch will refund if the item is defective.</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">If a product is out of stock, the seller may notify the customer and cancel the order. However, these cancellations will negatively impact SFCR.</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund if the order is OOS and the customer cancels.</td>
+                          <td className="py-1.5 px-3 border border-black">If a product is out of stock, the seller may notify the customer and cancel the order. However, these cancellations will negatively impact SFCR.</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund if the order is OOS and the customer cancels.</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Lost in Transit Shipments</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">Lost in Transit Shipments</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Invalid tracking numbers</td>
-                          <td className="py-3 px-4 border border-black">Shelf Merch will refund</td>
+                          <td className="py-1.5 px-3 border border-black">Invalid tracking numbers</td>
+                          <td className="py-1.5 px-3 border border-black">Shelf Merch will refund</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">The package wasn't received after the order status was marked as delivered</td>
-                          <td className="py-3 px-4 border border-black">This is at the seller's discretion to refund. Shelf Merch will not refund if the order is marked "delivered."</td>
+                          <td className="py-1.5 px-3 border border-black">The package wasn't received after the order status was marked as delivered</td>
+                          <td className="py-1.5 px-3 border border-black">This is at the seller's discretion to refund. Shelf Merch will not refund if the order is marked "delivered."</td>
                         </tr>
                       </tbody>
                     </table>

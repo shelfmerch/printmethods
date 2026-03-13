@@ -811,11 +811,9 @@ const StoreProductPage = () => {
               {product.name}
             </h1>
 
-            {product.description && (
-              <p className="text-muted-foreground leading-relaxed">
-                {product.description}
-              </p>
-            )}
+            <p className="text-muted-foreground leading-relaxed">
+              {product.description || 'No description added'}
+            </p>
           </div>
 
           {/* Price */}
