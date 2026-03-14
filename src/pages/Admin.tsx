@@ -4585,8 +4585,18 @@ import {
   Info,
   ArrowRightLeft,
   Layers,
-  CreditCard
+  CreditCard,
+  User
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { WalletManagement } from '@/components/admin/WalletManagement';
 import { WithdrawalsManagement } from '@/components/admin/WithdrawalsManagement';
 import { InvoiceManagement } from '@/components/admin/InvoiceManagement';
@@ -5412,15 +5422,30 @@ const Admin = () => {
               </DialogContent>
             </Dialog>
 
-            <div className="flex items-center gap-2 border-l pl-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={logout}>
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full" aria-label="Open user menu">
+                  <Avatar className="h-10 w-10 rounded-full bg-primary text-primary-foreground">
+                    <AvatarFallback className="rounded-full bg-primary text-primary-foreground">
+                      <User className="h-5 w-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user?.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
