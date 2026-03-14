@@ -129,6 +129,21 @@ router.get('/start', async (req, res) => {
       signed: true
     };
 
+    // Share cookie across subdomains when callback host differs from backend (e.g. app.shelfmerch.com vs api.shelfmerch.com)
+    let cookieDomain;
+    if (publicBase) {
+      try {
+        const u = new URL(publicBase);
+        const host = u.hostname;
+        if (host && host !== 'localhost' && !host.endsWith('.localhost')) {
+          const parts = host.split('.');
+          if (parts.length >= 3) cookieDomain = '.' + parts.slice(-2).join('.');
+          else if (parts.length === 2) cookieDomain = '.' + host;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    if (cookieDomain) cookieOptions.domain = cookieDomain;
+
     // Always set state cookie
     res.cookie('shopify_state', nonce, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
 
