@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { storeOrdersApi } from '@/lib/api';
 import { storeProductsApi } from '@/lib/api';
@@ -9,6 +9,237 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, ShoppingBag, Store as StoreIcon, Mail, Clock, Image as ImageIcon, Layers, Eye, Download } from 'lucide-react';
 import { Order } from '@/types';
+
+// ─── Mockup Canvas Preview ────────────────────────────────────────────────────
+// Replicates DesignEditor's 800×600 stage + element rendering in a read-only
+// HTML Canvas. No Konva dependency needed here.
+
+const CANVAS_W = 800;
+const CANVAS_H = 600;
+const CANVAS_PADDING = 40;
+const EFFECTIVE_W = CANVAS_W - CANVAS_PADDING * 2; // 720
+const EFFECTIVE_H = CANVAS_H - CANVAS_PADDING * 2; // 520
+
+/** Pixel-tint a loaded HTMLImageElement using multiply blend. */
+function tintImage(img: HTMLImageElement, hexColor: string): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  if (r > 240 && g > 240 && b > 240) return c;
+  try {
+    const d = ctx.getImageData(0, 0, c.width, c.height);
+    for (let i = 0; i < d.data.length; i += 4) {
+      if (d.data[i + 3] < 10) continue;
+      d.data[i]     = Math.round(d.data[i]     * r / 255);
+      d.data[i + 1] = Math.round(d.data[i + 1] * g / 255);
+      d.data[i + 2] = Math.round(d.data[i + 2] * b / 255);
+    }
+    ctx.putImageData(d, 0, 0);
+  } catch { /* CORS */ }
+  return c;
+}
+
+/** Load an image via fetch→blob to avoid canvas taint, with crossOrigin fallback. */
+function loadImg(url: string): Promise<HTMLImageElement> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const img = new window.Image();
+      img.onload = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
+      img.onerror = () => reject(new Error('blob load failed'));
+      img.src = blobUrl;
+    } catch {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`failed: ${url}`));
+      img.src = url;
+    }
+  });
+}
+
+interface MockupCanvasPreviewProps {
+  mockupImageUrl: string;
+  elements: Array<{
+    type: string;
+    imageUrl?: string;
+    text?: string;
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    rotation?: number;
+    opacity?: number;
+    visible?: boolean;
+    view?: string;
+    fontSize?: number;
+    fontFamily?: string;
+    fill?: string;
+  }>;
+  viewKey: string;
+  primaryColorHex?: string | null;
+}
+
+const MockupCanvasPreview: React.FC<MockupCanvasPreviewProps> = ({
+  mockupImageUrl,
+  elements,
+  colorHex,
+  displayWidth = 300,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let cancelled = false;
+    setError(false);
+
+    const loadImage = (url: string): Promise<HTMLImageElement> =>
+      new Promise((resolve, reject) => {
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error(`Failed to load ${url}`));
+        img.src = url;
+      });
+
+    const render = async () => {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // ── 1. Draw garment mockup ────────────────────────────────────────────
+      let mockup: HTMLImageElement | null = null;
+      try {
+        mockup = await loadImage(mockupImageUrl);
+      } catch {
+        if (cancelled) return;
+        setError(true);
+        return;
+      }
+      if (cancelled) return;
+
+      const ar = mockup.naturalWidth / mockup.naturalHeight;
+      let mw = EFFECTIVE_W;
+      let mh = mw / ar;
+      if (mh > EFFECTIVE_H) { mh = EFFECTIVE_H; mw = mh * ar; }
+      const mx = CANVAS_PADDING + (EFFECTIVE_W - mw) / 2;
+      const my = CANVAS_PADDING + (EFFECTIVE_H - mh) / 2;
+
+      if (colorHex && colorHex !== '#FFFFFF' && colorHex !== '#ffffff') {
+        applyMultiplyTint(ctx, mockup, mx, my, mw, mh, colorHex);
+      } else {
+        ctx.drawImage(mockup, mx, my, mw, mh);
+      }
+
+      // ── 2. Draw design elements ───────────────────────────────────────────
+      const sorted = [...elements].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+
+      for (const el of sorted) {
+        if (cancelled) return;
+        if (!el.visible && el.visible !== undefined) continue;
+
+        ctx.save();
+
+        const elX = el.x ?? 0;
+        const elY = el.y ?? 0;
+        const elW = el.width ?? 100;
+        const elH = el.height ?? 100;
+        const rot = ((el.rotation ?? 0) * Math.PI) / 180;
+        const opacity = el.opacity ?? 1;
+        ctx.globalAlpha = opacity;
+
+        // Translate to element centre for rotation
+        ctx.translate(elX + elW / 2, elY + elH / 2);
+        ctx.rotate(rot);
+
+        if (el.type === 'image' && el.imageUrl) {
+          try {
+            const img = await loadImage(el.imageUrl);
+            if (cancelled) { ctx.restore(); return; }
+            // Flip transforms
+            ctx.scale(el.flipX ? -1 : 1, el.flipY ? -1 : 1);
+            ctx.drawImage(img, -elW / 2, -elH / 2, elW, elH);
+          } catch {
+            // Skip element if image fails
+          }
+        } else if (el.type === 'text' && el.text) {
+          const fontSize = el.fontSize ?? 24;
+          const fontFamily = el.fontFamily ?? 'Arial';
+          const fontStyle = el.fontStyle ?? '';
+          ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`.trim();
+          ctx.fillStyle = el.fill ?? '#000000';
+          ctx.textAlign = (el.align as CanvasTextAlign) ?? 'center';
+          ctx.textBaseline = 'middle';
+          if (el.letterSpacing) {
+            // Manual letter-spacing
+            const chars = el.text.split('');
+            let cx = -elW / 2;
+            for (const ch of chars) {
+              ctx.fillText(ch, cx, 0);
+              cx += ctx.measureText(ch).width + (el.letterSpacing ?? 0);
+            }
+          } else {
+            ctx.fillText(el.text, 0, 0);
+          }
+        } else if (el.type === 'shape') {
+          ctx.fillStyle = el.fillColor ?? el.fill ?? 'transparent';
+          ctx.strokeStyle = el.strokeColor ?? 'transparent';
+          ctx.lineWidth = el.strokeWidth ?? 0;
+          if (el.shapeType === 'circle') {
+            ctx.beginPath();
+            ctx.ellipse(0, 0, elW / 2, elH / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            if (el.strokeWidth) ctx.stroke();
+          } else {
+            ctx.fillRect(-elW / 2, -elH / 2, elW, elH);
+            if (el.strokeWidth) ctx.strokeRect(-elW / 2, -elH / 2, elW, elH);
+          }
+        }
+
+        ctx.restore();
+      }
+    };
+
+    render().catch(console.error);
+    return () => { cancelled = true; };
+  }, [mockupImageUrl, elements, colorHex]);
+
+  const scale = displayWidth / CANVAS_W;
+  const displayHeight = CANVAS_H * scale;
+
+  if (error) {
+    return (
+      <div
+        className="border rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-sm"
+        style={{ width: displayWidth, height: displayHeight }}
+      >
+        Preview unavailable
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: displayWidth, height: displayHeight, overflow: 'hidden', borderRadius: 8, border: '1px solid hsl(var(--border))' }}>
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_W}
+        height={CANVAS_H}
+        style={{ width: displayWidth, height: displayHeight, display: 'block' }}
+      />
+    </div>
+  );
+};
 
 // Helper function to convert color name to hex code
 const getColorHex = (colorName: string): string => {
@@ -58,6 +289,52 @@ const getColorHex = (colorName: string): string => {
   const normalized = colorName.toLowerCase().trim();
   return colorMap[normalized] || '#CCCCCC';
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MockupCanvasPreview
+// Replicates DesignEditor's 800×600 canvas. Draws the tinted garment mockup
+// then composites design elements (images / text) at their stored coordinates.
+// ─────────────────────────────────────────────────────────────────────────────
+interface MockupCanvasPreviewProps {
+  mockupImageUrl: string;
+  elements: any[];
+  colorHex?: string;
+  /** Total display width in CSS pixels (canvas is internally 800×600 and scaled down). */
+  displayWidth?: number;
+}
+
+// const CANVAS_W = 800;
+// const CANVAS_H = 600;
+// const CANVAS_PADDING = 40;
+// const EFFECTIVE_W = CANVAS_W - CANVAS_PADDING * 2; // 720
+// const EFFECTIVE_H = CANVAS_H - CANVAS_PADDING * 2; // 520
+
+/** Pixel-level multiply-blend tint, identical to DesignEditor's tintGarmentImage. */
+function applyMultiplyTint(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  dx: number, dy: number, dw: number, dh: number,
+  hex: string,
+) {
+  ctx.drawImage(img, dx, dy, dw, dh);
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  if (r > 240 && g > 240 && b > 240) return; // white – skip
+  try {
+    const id = ctx.getImageData(dx, dy, dw, dh);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 10) continue;
+      d[i]     = Math.round(d[i]     * r / 255);
+      d[i + 1] = Math.round(d[i + 1] * g / 255);
+      d[i + 2] = Math.round(d[i + 2] * b / 255);
+    }
+    ctx.putImageData(id, dx, dy);
+  } catch {
+    // CORS blocked getImageData – silently skip tinting
+  }
+}
 
 const AdminOrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -434,18 +711,30 @@ const AdminOrderDetail = () => {
 
                     if (!storeProductId) return null;
 
-                    const views = designData?.views || {};
+                    // designData.views is an Array<{key, mockupImageUrl, ...}>
+                    const viewsArray: Array<{ key: string; mockupImageUrl?: string }> =
+                      Array.isArray(designData?.views) ? designData.views : [];
                     const previewsByView = designData?.previewImagesByView || {};
                     const savedPreviewImages = designData?.savedPreviewImages || {};
                     const elements = designData?.elements || [];
 
+                    // Derive all view keys from whatever data is available:
+                    // 1. views with a saved preview screenshot
+                    // 2. views listed in the product design views array
+                    // 3. distinct view names found on elements
+                    const elementViews = [...new Set(
+                      elements.map((el: any) => el?.view).filter(Boolean) as string[]
+                    )];
                     const viewKeys = Array.from(
                       new Set([
-                        // ...Object.keys(views),
-                        // ...Object.keys(previewsByView),
                         ...Object.keys(savedPreviewImages),
+                        ...viewsArray.map(v => v.key),
+                        ...elementViews,
                       ])
                     );
+                    // For quick lookup of a view's mockupImageUrl
+                    const viewsMockupMap: Record<string, string> = {};
+                    viewsArray.forEach(v => { if (v.mockupImageUrl) viewsMockupMap[v.key] = v.mockupImageUrl; });
 
                     return (
                       <div key={idx} className="mb-6 last:mb-0">
@@ -471,21 +760,17 @@ const AdminOrderDetail = () => {
 
                             {viewKeys.map((viewKey: string) => {
                               const viewKeyLower = viewKey.toLowerCase();
-                              const viewData = (views && (views[viewKey] || views[viewKeyLower])) || {};
+                              const mockupUrl = viewsMockupMap[viewKey] || viewsMockupMap[viewKeyLower];
                               const previewUrl =
-                                viewData.savedPreviewImages ||
-                                viewData.savedPreviewImage ||
                                 savedPreviewImages[viewKey] ||
                                 savedPreviewImages[viewKeyLower] ||
                                 previewsByView[viewKey] ||
                                 previewsByView[viewKeyLower];
-                              const viewElements =
-                                viewData.elements ||
-                                elements.filter((el: any) => {
+                              const viewElements = elements.filter((el: any) => {
                                   const elView = (el?.view || 'front').toLowerCase();
                                   return elView === viewKeyLower || (!el?.view && viewKeyLower === 'front');
                                 });
-                              const designUrls = viewData.designUrlsByPlaceholder || {};
+                              const designUrls: Record<string, string> = {};
 
                               return (
                                 <TabsContent key={viewKey} value={viewKey}>
@@ -513,6 +798,16 @@ const AdminOrderDetail = () => {
                                               </a>
                                             </Button>
                                           </div>
+                                        </>
+                                      ) : mockupUrl ? (
+                                        <>
+                                          <MockupCanvasPreview
+                                            mockupImageUrl={mockupUrl}
+                                            elements={elements}
+                                            viewKey={viewKey}
+                                            primaryColorHex={designData?.primaryColorHex || null}
+                                          />
+                                          <p className="text-xs text-muted-foreground mt-1 italic">Live preview (regenerated from design data)</p>
                                         </>
                                       ) : (
                                         <div className="border rounded-lg bg-muted p-8 text-center text-muted-foreground">

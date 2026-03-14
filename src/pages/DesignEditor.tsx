@@ -41,7 +41,7 @@ import { productApi, storeApi, storeProductsApi } from '@/lib/api';
 import TextPanel from '@/components/designer/TextPanel';
 import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
 import { UploadPanel } from '@/components/designer/UploadPanel';
-import { DisplacementSettingsPanel } from '@/components/designer/DisplacementSettingsPanel';
+
 import AIimageGen from '@/components/designer/AIimageGen';
 import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
 import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
@@ -49,11 +49,10 @@ import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
 import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
 
-
 // Types
 interface CanvasElement {
   id: string;
-  type: 'text' | 'image' | 'shape' | 'group';
+  type: 'text' | 'image' | 'shape' | 'group';PReview 
   x: number;
   y: number;
   width?: number;
@@ -217,15 +216,33 @@ const getCachedImage = (url: string): Promise<HTMLImageElement> => {
     return Promise.resolve(cached);
   }
 
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      _imageCache.set(url, img);
-      resolve(img);
-    };
-    img.onerror = () => reject(new Error(`Failed to load: ${url}`));
-    img.src = url;
+  // Load via fetch → object URL so the resulting HTMLImageElement is always
+  // same-origin from the browser's perspective. This prevents ctx.drawImage()
+  // from tainting the canvas (which would silently break stage.toBlob()).
+  return new Promise(async (resolve, reject) => {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const img = new window.Image();
+      img.onload = () => {
+        _imageCache.set(url, img);
+        resolve(img);
+      };
+      img.onerror = () => reject(new Error(`Failed to load blob: ${url}`));
+      img.src = blobUrl;
+    } catch {
+      // Network/CORS fetch failed — fall back to direct crossOrigin load
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        _imageCache.set(url, img);
+        resolve(img);
+      };
+      img.onerror = () => reject(new Error(`Failed to load: ${url}`));
+      img.src = url;
+    }
   });
 };
 
@@ -289,7 +306,7 @@ const DesignEditor: React.FC = () => {
   // Canvas state
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
-  const webglCanvasRef = useRef<HTMLDivElement | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   // Track whether we've restored design state from sessionStorage
   const restoredFromSessionRef = useRef(false);
   const [elements, setElements] = useState<CanvasElement[]>([]);
@@ -491,6 +508,10 @@ const DesignEditor: React.FC = () => {
   const previewModeRef = useRef(false); // Ref to ensure previewMode persists across view changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false); // Track if there are unsaved changes
   const editActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // True while a multi-view mockup capture is in progress — suppresses UI chrome in the canvas
+  const [isCapturingMockup, setIsCapturingMockup] = useState(false);
+  // Ref-gate so concurrent auto-save and manual-save runs never overlap
+  const isSavingMockupsRef = useRef(false);
 
   // Debounced edit-activity tracker to gate Preview tab while edits are in-flight
   const registerEditActivity = useCallback(() => {
@@ -539,7 +560,7 @@ const DesignEditor: React.FC = () => {
     }
   }, [id]);
 
-  // Design URLs by placeholder ID for WebGL preview - stored per view
+  // Design URLs by placeholder ID - stored per view
   const [designUrlsByPlaceholder, setDesignUrlsByPlaceholder] = useState<Record<string, Record<string, string>>>({});
 
   // Design placements by placeholder ID - stores normalized (0-1) positions within print areas
@@ -683,6 +704,8 @@ const DesignEditor: React.FC = () => {
     contrastBoost: 1.5,
   });
   const [savedPreviewImages, setSavedPreviewImages] = useState<Record<string, string>>({});
+  // Composed mockup previews: garment + design, keyed by viewKey
+  const [savedMockupPreviews, setSavedMockupPreviews] = useState<Record<string, string>>({});
 
   // Preview cache with proper keying: viewKey|garmentTintHex|designSig|settingsSig
   const [previewCache, setPreviewCache] = useState<Record<string, string>>({});
@@ -715,18 +738,13 @@ const DesignEditor: React.FC = () => {
   const getPreviewCacheKey = useCallback((viewKey: string): string => {
     const colorKey = primaryColorHex || 'no-color';
     const designSig = getDesignUrlsHash(viewKey);
-    // Include canvas elements in design signature - match WebGL filtering logic exactly
-    // Elements without view property appear on all views, so include them for all views
-    const viewElements = elements.filter(el =>
-      el.view === viewKey || (!el.view) // Match WebGL: el.view === currentView || !el.view
-    );
+    const viewElements = elements.filter(el => el.view === viewKey || !el.view);
     const elementsSig = viewElements.length > 0
       ? viewElements.map(el => `${el.id}-${el.type}-${el.imageUrl?.slice(-10) || ''}`).join('|')
       : 'no-elements';
     const combinedDesignSig = `${designSig}|${elementsSig}`;
-    const settingsSig = `${displacementSettings.scaleX}|${displacementSettings.scaleY}|${displacementSettings.contrastBoost}`;
-    return `${viewKey}|${colorKey}|${combinedDesignSig}|${settingsSig}`;
-  }, [primaryColorHex, getDesignUrlsHash, elements, displacementSettings]);
+    return `${viewKey}|${colorKey}|${combinedDesignSig}`;
+  }, [primaryColorHex, getDesignUrlsHash, elements]);
 
   // Wrapper for displacement settings that marks unsaved changes
   const handleDisplacementSettingsChange = useCallback((settings: DisplacementSettings) => {
@@ -759,23 +777,6 @@ const DesignEditor: React.FC = () => {
     }
   }, [primaryColorHex, product?.design?.views]);
 
-  // Instrumentation + single-renderer assertion
-  useEffect(() => {
-    const container = webglCanvasRef.current;
-    if (!container) return;
-    const allCanvases = container.querySelectorAll('canvas');
-    const visibleCanvases = Array.from(allCanvases).filter(c => {
-      const style = window.getComputedStyle(c.parentElement || c);
-      return style.display !== 'none';
-    });
-    console.log(`[ASSERT] previewMode=${previewMode}, total canvases=${allCanvases.length}, visible=${visibleCanvases.length}`);
-
-    // Count Konva text nodes
-    if (stageRef.current) {
-      const texts = stageRef.current.find('Text');
-      console.log(`[INSTRUMENTATION DesignEditor] Konva Text nodes: ${texts.length}, expected: ${elements.filter(e => e.type === 'text').length}`);
-    }
-  }, [previewMode, elements]);
 
 
   const tools = [
@@ -904,6 +905,12 @@ const DesignEditor: React.FC = () => {
 
     getCachedImage(mockupUrl)
       .then((img) => {
+        // Evict any stale tint-cache entries that were built from a previously
+        // tainted (non-blob) copy of this image so they are re-drawn cleanly.
+        Array.from(_tintCache.keys())
+          .filter(k => k.startsWith(img.src))
+          .forEach(k => _tintCache.delete(k));
+
         setMockupImagesByView(prev => ({ ...prev, [viewKey]: img }));
 
         const aspectRatio = img.width / img.height;
@@ -1123,8 +1130,19 @@ const DesignEditor: React.FC = () => {
     setSelectedSizes([]);
   }, [product?._id]);
 
-  // Track if we're currently saving a preview to avoid duplicate saves
-  const [isSavingPreview, setIsSavingPreview] = useState(false);
+  // Load designData.previews from the storeProduct document whenever storeProductId is resolved
+  useEffect(() => {
+    if (!storeProductId) return;
+    storeProductsApi.getById(storeProductId)
+      .then(resp => {
+        const previews = resp?.data?.designData?.previews;
+        if (previews && typeof previews === 'object') {
+          setSavedMockupPreviews(previews as Record<string, string>);
+        }
+      })
+      .catch(() => {});
+  }, [storeProductId]);
+
 
   // Get current view data
   const currentViewData = useMemo(() => {
@@ -1824,7 +1842,7 @@ const DesignEditor: React.FC = () => {
 
   const fitToScreen = () => {
     // Better fit to screen logic
-    const container = webglCanvasRef.current?.parentElement;
+    const container = canvasContainerRef.current?.parentElement;
     if (container) {
       const padding = 20;
       const availableWidth = container.clientWidth - (padding * 2);
@@ -2270,51 +2288,38 @@ const DesignEditor: React.FC = () => {
 
   const handleExportPreview = async (format: 'png' | 'jpg' = 'png') => {
     try {
-      if (!webglCanvasRef.current) {
+      if (!stageRef.current) {
         toast.error('Preview is not available to export');
         return;
       }
 
-      let canvas = webglCanvasRef.current.querySelector('canvas');
-      if (!canvas) {
-        const divs = webglCanvasRef.current.querySelectorAll('div');
-        for (const div of Array.from(divs)) {
-          canvas = div.querySelector('canvas');
-          if (canvas) break;
-        }
-      }
+      const mime = format === 'png' ? 'image/png' : 'image/jpeg';
 
-      if (!canvas) {
-        toast.error('Could not find preview canvas to export');
+      // Ensure latest frame is rendered
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+
+      const dataUrl = stageRef.current.toDataURL({
+        mimeType: mime,
+        quality: 1,
+        pixelRatio: 2,
+      });
+
+      const blob = await fetch(dataUrl).then(r => r.blob());
+      if (!blob) {
+        toast.error('Failed to generate image');
         return;
       }
 
-      const mime = format === 'png' ? 'image/png' : 'image/jpeg';
-      const quality = 1.0;
-
-      // Ensure the latest frame is rendered before reading pixels
-      await new Promise(requestAnimationFrame);
-      await new Promise(requestAnimationFrame);
-
-      canvas.toBlob(
-        async (blob) => {
-          if (!blob) {
-            toast.error('Failed to generate image');
-            return;
-          }
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `preview.${format}`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-          toast.success(`Preview exported as ${format.toUpperCase()}`);
-        },
-        mime,
-        quality
-      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `preview.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Preview exported as ${format.toUpperCase()}`);
     } catch (err) {
       console.error('Error exporting preview image:', err);
       toast.error('Error exporting preview image');
@@ -2323,81 +2328,69 @@ const DesignEditor: React.FC = () => {
 
 
 
-  // Capture preview image from WebGL canvas
-  // Supports:
-  // - Guest mode: uploads via public guest endpoint and returns S3 URL
-  // - Authenticated mode: uploads to authenticated endpoint and returns S3 URL
   const capturePreviewImage = useCallback(async (viewKey?: string): Promise<string | null> => {
     try {
-      if (!webglCanvasRef.current) {
-        console.warn('WebGL canvas ref not available');
+      if (!stageRef.current) {
+        console.warn('Stage ref not available for capturePreviewImage');
         return null;
       }
 
-      // Wait a bit for canvas to be ready
+      // Give Konva a moment to render any pending changes
       await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
 
-      // Find the canvas element inside the WebGL container
-      // The canvas might be directly in the div or nested
-      let canvas = webglCanvasRef.current.querySelector('canvas');
+      // Force every Konva layer to flush its draw queue synchronously so
+      // the design-elements layer is fully painted before we read pixels.
+      stageRef.current.getLayers().forEach((l: any) => l.draw());
 
-      // If not found, try finding it in child elements
-      if (!canvas) {
-        const divs = webglCanvasRef.current.querySelectorAll('div');
-        for (const div of Array.from(divs)) {
-          canvas = div.querySelector('canvas');
-          if (canvas) break;
-        }
-      }
-
-      if (!canvas) {
-        console.warn('Canvas element not found in WebGL container');
-        return null;
-      }
-
-      // Convert canvas to blob and upload (guest or authenticated)
       return new Promise((resolve) => {
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            console.error('Failed to convert canvas to blob');
-            resolve(null);
-            return;
-          }
-
-          try {
-            const token = localStorage.getItem('token');
-            const formData = new FormData();
-            const fileName = viewKey ? `preview-${viewKey}.png` : 'preview.png';
-            formData.append('image', blob, fileName);
-
-            let url = `${RAW_API_URL}/api/upload/guest-image`;
-            const headers: HeadersInit = {};
-
-            // Authenticated: use protected upload endpoint
-            if (token) {
-              url = `${RAW_API_URL}/api/upload/image`;
-              headers['Authorization'] = `Bearer ${token}`;
+        stageRef.current!.toBlob(
+          async (blob) => {
+            if (!blob) {
+              console.error('Failed to convert stage to blob');
+              resolve(null);
+              return;
             }
 
-            const response = await fetch(url, {
-              method: 'POST',
-              headers,
-              body: formData,
-            });
+            try {
+              const token = localStorage.getItem('token');
+              const formData = new FormData();
+              const fileName = viewKey ? `preview-${viewKey}.png` : 'preview.png';
+              formData.append('image', blob, fileName);
 
-            const data = await response.json();
-            if (data.success && data.url) {
-              console.log(`Preview image uploaded successfully for ${viewKey || 'current'} view:`, data.url);
-              resolve(data.url);
-            } else {
-              console.error('Failed to upload preview image:', data.message || 'Unknown error');
+              let url = `${RAW_API_URL}/api/upload/guest-image`;
+              const headers: HeadersInit = {};
+
+              if (token) {
+                url = `${RAW_API_URL}/api/upload/image`;
+                headers['Authorization'] = `Bearer ${token}`;
+              }
+
+              const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: formData,
+              });
+
+              const data = await response.json();
+              if (data.success && data.url) {
+                console.log(`Preview image uploaded successfully for ${viewKey || 'current'} view:`, data.url);
+                resolve(data.url);
+              } else {
+                console.error('Failed to upload preview image:', data.message || 'Unknown error');
+                resolve(null);
+              }
+            } catch (error) {
+              console.error('Error uploading preview image:', error);
               resolve(null);
             }
-          } catch (error) {
-            console.error('Error uploading preview image:', error);
-            resolve(null);
+          },
+          {
+            mimeType: 'image/png',
+            pixelRatio: 2,
           }
-        }, 'image/png', 1.0);
+        );
       });
     } catch (error) {
       console.error('Error capturing preview image:', error);
@@ -2425,8 +2418,7 @@ const DesignEditor: React.FC = () => {
       // Switch to this view
       setCurrentView(viewKey as any);
 
-      // Wait for view to switch and WebGL to render
-      // Longer wait to ensure mockup loads and WebGL renders
+      // Wait for React + Konva to finish rendering the new view
       await new Promise(resolve => setTimeout(resolve, 800));
 
       // Additional frame wait to ensure canvas is fully rendered
@@ -2453,164 +2445,205 @@ const DesignEditor: React.FC = () => {
   // Auto-save preview when entering Preview mode ONLY if design IMAGE changes (not color)
   useEffect(() => {
     if (!previewMode) return;
-    if (isSavingPreview) return; // Avoid duplicate saves
 
     const cacheKey = getPreviewCacheKey(currentView);
     const isDirtyForDesign = dirtyViewsForDesign.has(currentView);
 
-    // Only auto-save preview when the design IMAGE changes
-    // Do NOT save just because color changed - design must change
-    if (!isDirtyForDesign) {
-      // No design image changes - don't auto-save
-      return;
-    }
+    if (!isDirtyForDesign) return;
 
-    // Clear dirty flag since we're about to save
+    // Clear dirty flag before the async work to prevent re-entry
     setDirtyViewsForDesign(prev => {
       const next = new Set(prev);
       next.delete(currentView);
       return next;
     });
 
-    // Auto-save preview to AWS and backend when design image changes
-    const autoSavePreview = async () => {
-      console.log(`Design image change detected for ${currentView} view, auto-saving preview...`);
-
-      // Wait for WebGL to render
-      await new Promise(resolve => setTimeout(resolve, 500));
+    const run = async () => {
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);
 
-      setIsSavingPreview(true);
-      try {
-        const previewUrl = await capturePreviewImage(currentView);
-        if (previewUrl) {
-          console.log(`Auto-saved preview for ${currentView}:`, previewUrl);
+      const previewUrl = await capturePreviewImage(currentView);
+      if (!previewUrl) return;
 
-          // Update local cache
-          setPreviewCache(prev => ({
-            ...prev,
-            [cacheKey]: previewUrl
-          }));
-          setSavedPreviewImages(prev => ({
-            ...prev,
-            [currentView]: previewUrl
-          }));
+      setPreviewCache(prev => ({ ...prev, [cacheKey]: previewUrl }));
+      setSavedPreviewImages(prev => ({ ...prev, [currentView]: previewUrl }));
 
-          // Save to backend if we have a storeProductId
-          if (storeProductId) {
-            try {
-              // Use new saveMockup API with 'flat' type to separate from model mockups
-              await storeProductsApi.saveMockup(storeProductId, {
-                mockupType: 'flat',
-                viewKey: currentView,
-                imageUrl: previewUrl,
-              });
-              console.log(`Flat mockup saved to backend for ${currentView}`);
-            } catch (err) {
-              console.error('Failed to save flat mockup to backend:', err);
-            }
-          }
+      if (storeProductId) {
+        try {
+          await storeProductsApi.saveMockup(storeProductId, {
+            mockupType: 'flat',
+            viewKey: currentView,
+            imageUrl: previewUrl,
+          });
+        } catch (err) {
+          console.error('Failed to save flat mockup to backend:', err);
         }
-      } catch (err) {
-        console.error('Error auto-saving preview:', err);
-      } finally {
-        setIsSavingPreview(false);
       }
     };
 
-    autoSavePreview();
-  }, [previewMode, currentView, getPreviewCacheKey, dirtyViewsForDesign, capturePreviewImage, isSavingPreview, storeProductId, elements, designUrlsByPlaceholder]);
+    run();
+  }, [previewMode, currentView, getPreviewCacheKey, dirtyViewsForDesign, capturePreviewImage, storeProductId, elements, designUrlsByPlaceholder]);
 
   // Auto-save flat mockups when design images are added (even in Edit mode)
-  // This triggers when elements change and there are image elements with dirty views
   useEffect(() => {
-    if (previewMode) return; // Skip if already in preview mode (handled by other effect)
-    if (isSavingPreview) return;
-    // Don't require storeProductId for local preview updates/toast
+    if (previewMode) return;
     if (dirtyViewsForDesign.size === 0) return;
 
-    // Check if there are any image elements in the current view
     const hasImageElements = elements.some(el =>
-      el.type === 'image' &&
-      (el.view === currentView || !el.view)
+      el.type === 'image' && (el.view === currentView || !el.view)
     );
-
     if (!hasImageElements) return;
 
-    // Debounce: wait 1.5s after last change before saving
-    const timeoutId = setTimeout(async () => {
-      if (isSavingPreview) return;
+    const run = async () => {
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
 
-      console.log(`Auto-saving flat mockup for ${currentView} after design upload...`);
-      setIsSavingPreview(true);
+      const previewUrl = await capturePreviewImage(currentView);
+      if (!previewUrl) return;
 
-      try {
-        // Wait for canvas to render
-        await new Promise(resolve => setTimeout(resolve, 500));
+      setSavedPreviewImages(prev => ({ ...prev, [currentView]: previewUrl }));
+
+      if (storeProductId) {
+        try {
+          await storeProductsApi.saveMockup(storeProductId, {
+            mockupType: 'flat',
+            viewKey: currentView,
+            imageUrl: previewUrl,
+          });
+        } catch (err) {
+          console.error('Error saving flat mockup after upload:', err);
+        }
+      }
+
+      setDirtyViewsForDesign(prev => {
+        const next = new Set(prev);
+        next.delete(currentView);
+        return next;
+      });
+    };
+
+    run();
+  }, [elements, currentView, storeProductId, dirtyViewsForDesign, previewMode, capturePreviewImage]);
+
+  // ── Auto-save composed mockups for all dirty views ────────────────────────
+  useEffect(() => {
+    if (dirtyViewsForDesign.size === 0) return;
+    if (!storeProductId) return;
+    if (!product?.design?.views?.length) return;
+
+    const views = product.design.views;
+    const captureViewKeys = [...dirtyViewsForDesign];
+
+    const run = async () => {
+      if (isSavingMockupsRef.current || !stageRef.current) return;
+      isSavingMockupsRef.current = true;
+
+      const originalView = currentView;
+
+      setSelectedIds([]);
+      setIsCapturingMockup(true);
+
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+
+      const mockupUrlsByView: Record<string, string> = {};
+      const token = localStorage.getItem('token');
+
+      for (const viewKey of captureViewKeys) {
+        if (!views.find(v => v.key === viewKey)) continue;
+
+        setCurrentView(viewKey as any);
+
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
 
-        // Use captured preview from WebGL (same as Export)
-        const previewUrl = await capturePreviewImage(currentView);
-        if (previewUrl) {
-          setSavedPreviewImages(prev => ({
-            ...prev,
-            [currentView]: previewUrl
-          }));
+        try {
+          stageRef.current!.getLayers().forEach((l: any) => l.draw());
 
-          // Save flat mockup to backend if storeProductId is available
-          if (storeProductId) {
-            await storeProductsApi.saveMockup(storeProductId, {
-              mockupType: 'flat',
-              viewKey: currentView,
-              imageUrl: previewUrl,
-            });
-            console.log(`Flat mockup saved to backend for ${currentView} after design upload`);
-          } else {
-            console.log(`Flat mockup captured locally for ${currentView} (no storeProductId yet)`);
+          const blob: Blob | null = await new Promise(resolve => {
+            stageRef.current!.toBlob(
+              (b: Blob | null) => resolve(b),
+              { mimeType: 'image/png', pixelRatio: 2 }
+            );
+          });
+          if (!blob) continue;
+
+          const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+          const formData = new FormData();
+          formData.append('image', blob, `mockup-${viewKey}.png`);
+
+          const resp = await fetch(`${RAW_API_URL}/api/upload/image`, {
+            method: 'POST',
+            headers,
+            body: formData,
+            credentials: 'include',
+          });
+          const json = await resp.json().catch(() => ({}));
+          if (resp.ok && json?.success && json?.url) {
+            mockupUrlsByView[viewKey] = json.url as string;
           }
+        } catch (e) {
+          console.error(`[autoSaveMockups] Error capturing "${viewKey}":`, e);
+        }
+      }
 
-          // Show toast with image
-          // Show toast with image and link
-          // toast.custom((t) => (
-          //   <div className="flex items-center gap-3 bg-background border border-border rounded-lg shadow-lg p-3 w-full max-w-sm pointer-events-auto">
-          //     <div className="h-12 w-12 rounded overflow-hidden flex-shrink-0 bg-muted border border-border">
-          //       <img src={previewUrl} alt="Saved mockup" className="h-full w-full object-cover" />
-          //     </div>
-          {/* <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">Mockup Auto-Saved</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground truncate capitalize flex-1">{currentView} view updated</p>
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    View <ArrowRight className="w-3 h-3" />
-                  </a>
-                </div>
-              </div> */}
-          //   </div>
-          // ), { duration: 3000 });
+      setCurrentView(originalView as any);
+      setIsCapturingMockup(false);
 
-          // Clear dirty flag for this view
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+
+      if (Object.keys(mockupUrlsByView).length > 0) {
+        const allPreviews = { ...savedMockupPreviews, ...mockupUrlsByView };
+        setSavedMockupPreviews(allPreviews);
+
+        try {
+          await storeProductsApi.update(storeProductId, {
+            designData: {
+              elements,
+              designUrlsByPlaceholder,
+              placementsByView,
+              views,
+              savedPreviewImages,
+              previews: allPreviews,
+              displacementSettings,
+              selectedColors,
+              selectedSizes,
+              selectedSizesByColor,
+              primaryColorHex,
+            },
+          });
+
           setDirtyViewsForDesign(prev => {
             const next = new Set(prev);
-            next.delete(currentView);
+            Object.keys(mockupUrlsByView).forEach(k => next.delete(k));
             return next;
           });
+        } catch (e) {
+          console.error('[autoSaveMockups] Failed to update store product:', e);
         }
-      } catch (err) {
-        console.error('Error auto-saving flat mockup after upload:', err);
-      } finally {
-        setIsSavingPreview(false);
       }
-    }, 1500);
 
-    return () => clearTimeout(timeoutId);
-  }, [elements, currentView, storeProductId, dirtyViewsForDesign, previewMode, isSavingPreview, capturePreviewImage]);
+      isSavingMockupsRef.current = false;
+    };
+
+    run();
+  }, [
+    dirtyViewsForDesign,
+    storeProductId,
+    product?.design?.views,
+    currentView,
+    elements,
+    designUrlsByPlaceholder,
+    placementsByView,
+    savedPreviewImages,
+    displacementSettings,
+    selectedColors,
+    selectedSizes,
+    selectedSizesByColor,
+    primaryColorHex,
+  ]);
 
   // Publish current product + design to the merchant's store
   const handlePublishToStore = useCallback(async () => {
@@ -2913,119 +2946,227 @@ const DesignEditor: React.FC = () => {
   }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings, storeProductId]);
 
   const handleSave = async () => {
+    if (!stageRef.current || !id) {
+      toast.error('Canvas is not ready to save');
+      return;
+    }
+
+    // Helper: upload a blob to S3 and return the URL
+    const uploadBlob = async (blob: Blob, filename: string): Promise<string | null> => {
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      const formData = new FormData();
+      formData.append('image', blob, filename);
+      try {
+        const resp = await fetch(`${RAW_API_URL}/api/upload/image`, {
+          method: 'POST',
+          headers,
+          body: formData,
+          credentials: 'include',
+        });
+        const json = await resp.json().catch(() => ({}));
+        return (resp.ok && json?.success && json?.url) ? json.url as string : null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Helper: capture the current Konva stage as a blob (no UI artifacts).
+    // Forces a synchronous layer flush first so the design-elements layer
+    // is fully painted regardless of react-konva's batchDraw timing.
+    const captureStageBlob = (): Promise<Blob | null> => {
+      stageRef.current!.getLayers().forEach((l: any) => l.draw());
+      return new Promise((resolve) => {
+        stageRef.current!.toBlob(
+          (blob) => resolve(blob),
+          { mimeType: 'image/png', pixelRatio: 2 }
+        );
+      });
+    };
+
     try {
-      if (!webglCanvasRef.current || !id) {
-        toast.error('Preview is not available to save');
+      // ── 1. Save the current-view preview (existing behaviour) ──────────────
+
+      // Two rAFs so Konva has committed the latest render to the canvas
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+
+      const currentViewBlob = await captureStageBlob();
+      if (!currentViewBlob) {
+        toast.error('Failed to generate preview image');
         return;
       }
 
-      let canvas = webglCanvasRef.current.querySelector('canvas');
-      if (!canvas) {
-        const divs = webglCanvasRef.current.querySelectorAll('div');
-        for (const div of Array.from(divs)) {
-          canvas = div.querySelector('canvas');
-          if (canvas) break;
+      const uploadedUrl = await uploadBlob(currentViewBlob, `preview-${currentView}.png`);
+      if (!uploadedUrl) {
+        toast.error('Failed to upload preview image');
+        return;
+      }
+
+      const nextPreviewImages = { ...savedPreviewImages, [currentView]: uploadedUrl } as Record<string, string>;
+      setSavedPreviewImages(nextPreviewImages);
+
+      const token = localStorage.getItem('token');
+      const saveResp = await fetch(`${RAW_API_URL}/api/auth/me/previews/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ previews: { [currentView]: uploadedUrl } }),
+      });
+      const saveJson = await saveResp.json().catch(() => ({}));
+      if (saveResp.ok && saveJson?.success) {
+        toast.custom((_t) => (
+          <div className="flex items-center gap-3 bg-background border border-border rounded-lg shadow-lg p-3 w-full max-w-sm pointer-events-auto">
+            <div className="h-12 w-12 rounded overflow-hidden flex-shrink-0 bg-muted border border-border">
+              <img src={uploadedUrl} alt="Saved preview" className="h-full w-full object-cover" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Preview Saved</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground truncate capitalize flex-1">{currentView} view updated</p>
+                <a
+                  href={uploadedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  View <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          </div>
+        ), { duration: 3000 });
+
+        setHasUnsavedChanges(false);
+
+        const cacheKey = getPreviewCacheKey(currentView);
+        setPreviewCache(prev => ({ ...prev, [cacheKey]: uploadedUrl }));
+        setSavedPreviewImages(nextPreviewImages);
+      } else {
+        toast.error('Uploaded image, but failed to save to user previews');
+      }
+
+      // ── 1b. Immediately persist current-view preview to designData.previews ──
+      const nextMockupPreviews = { ...savedMockupPreviews, [currentView]: uploadedUrl } as Record<string, string>;
+      setSavedMockupPreviews(nextMockupPreviews);
+
+      if (storeProductId) {
+        try {
+          await storeProductsApi.update(storeProductId, {
+            designData: {
+              elements,
+              designUrlsByPlaceholder,
+              placementsByView,
+              views: product?.design?.views || [],
+              savedPreviewImages: nextPreviewImages,
+              previews: nextMockupPreviews,
+              displacementSettings,
+              selectedColors,
+              selectedSizes,
+              selectedSizesByColor,
+              primaryColorHex,
+            },
+          });
+          console.log(`[handleSave] Saved preview to designData.previews for "${currentView}":`, uploadedUrl);
+        } catch (e) {
+          console.warn('[handleSave] Failed to persist designData.previews:', e);
         }
       }
 
-      if (!canvas) {
-        toast.error('Could not find preview canvas to save');
-        return;
+      // ── 2. Capture composed mockup for every view → designData.views ──────
+      if (!storeProductId || !product?.design?.views?.length) return;
+
+      // Prevent concurrent mockup capture (e.g. auto-save firing at the same time)
+      if (isSavingMockupsRef.current) return;
+      isSavingMockupsRef.current = true;
+
+      const views = product.design.views;
+      const originalView = currentView;
+
+      // Suppress UI chrome (grid, rulers, placeholder outlines, transformer, selection box)
+      // without changing previewMode so no other effects are triggered
+      setSelectedIds([]);
+      setIsCapturingMockup(true);
+
+      // Let React flush those state changes before the loop
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+
+      const mockupUrlsByView: Record<string, string> = {};
+
+      for (const view of views) {
+        const viewKey = view.key;
+
+        // Switch to this view so garment + design elements update
+        setCurrentView(viewKey as any);
+
+        // Wait for React to commit → react-konva to update nodes → Konva to
+        // run its batchDraw.  600 ms covers slow S3 garment fetches; the three
+        // rAFs give batchDraw at least two full frames to fire before our
+        // explicit layer.draw() flush inside captureStageBlob.
+        await new Promise(resolve => setTimeout(resolve, 600));
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+
+        try {
+          const blob = await captureStageBlob();
+          if (!blob) {
+            console.error(`[handleSave] captureStageBlob returned null for view "${viewKey}"`);
+            continue;
+          }
+          const url = await uploadBlob(blob, `mockup-${viewKey}.png`);
+          if (url) {
+            mockupUrlsByView[viewKey] = url;
+            console.log(`[handleSave] Composed mockup uploaded for "${viewKey}":`, url);
+          } else {
+            console.error(`[handleSave] Upload failed for view "${viewKey}"`);
+          }
+        } catch (e) {
+          console.error(`[handleSave] Error capturing view "${viewKey}":`, e);
+        }
       }
 
+      // Restore original view and UI state
+      setCurrentView(originalView as any);
+      setIsCapturingMockup(false);
+
+      // Wait for the view restore to settle
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);
 
-      await new Promise<void>((resolve, reject) => {
-        canvas!.toBlob(async (blob) => {
-          if (!blob) {
-            toast.error('Failed to generate image');
-            reject(new Error('blob null'));
-            return;
-          }
+      // ── 3. Persist all-view previews to designData.previews ──────────────────
+      if (Object.keys(mockupUrlsByView).length > 0) {
+        const allPreviews = { ...savedMockupPreviews, ...mockupUrlsByView };
+        setSavedMockupPreviews(allPreviews);
 
-          try {
-            const formData = new FormData();
-            formData.append('image', blob, `preview-${currentView}.png`);
+        try {
+          await storeProductsApi.update(storeProductId, {
+            designData: {
+              elements,
+              designUrlsByPlaceholder,
+              placementsByView,
+              views: views,
+              savedPreviewImages,
+              previews: allPreviews,
+              displacementSettings,
+              selectedColors,
+              selectedSizes,
+              selectedSizesByColor,
+              primaryColorHex,
+            },
+          });
+          console.log('[handleSave] designData.previews saved:', allPreviews);
+        } catch (e) {
+          console.error('[handleSave] Failed to save designData.previews:', e);
+        }
+      }
 
-            const token = localStorage.getItem('token');
-            const headers: HeadersInit = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const uploadResp = await fetch(`${RAW_API_URL}/api/upload/image`, {
-              method: 'POST',
-              headers,
-              body: formData,
-              credentials: 'include',
-            });
-            const uploadJson = await uploadResp.json().catch(() => ({}));
-            const uploadedUrl = uploadJson?.url as string | undefined;
-            if (uploadResp.ok && uploadJson?.success && uploadedUrl) {
-              const nextPreviewImages = { ...savedPreviewImages, [currentView]: uploadedUrl } as Record<string, string>;
-              setSavedPreviewImages(nextPreviewImages);
-
-              const saveResp = await fetch(`${RAW_API_URL}/api/auth/me/previews/${id}`, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                credentials: 'include',
-                body: JSON.stringify({ previews: { [currentView]: uploadedUrl } }),
-              });
-              const saveJson = await saveResp.json().catch(() => ({}));
-              if (saveResp.ok && saveJson?.success) {
-                toast.custom((t) => (
-                  <div className="flex items-center gap-3 bg-background border border-border rounded-lg shadow-lg p-3 w-full max-w-sm pointer-events-auto">
-                    <div className="h-12 w-12 rounded overflow-hidden flex-shrink-0 bg-muted border border-border">
-                      <img src={uploadedUrl} alt="Saved preview" className="h-full w-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">Preview Saved</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs text-muted-foreground truncate capitalize flex-1">{currentView} view updated</p>
-                        <a
-                          href={uploadedUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          View <ArrowRight className="w-3 h-3" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                ), { duration: 3000 });
-                setHasUnsavedChanges(false); // Reset unsaved changes flag after successful save
-
-                // Cache the preview with proper key
-                const cacheKey = getPreviewCacheKey(currentView);
-                setPreviewCache(prev => ({
-                  ...prev,
-                  [cacheKey]: uploadedUrl
-                }));
-
-                // Also update savedPreviewImages for backward compatibility
-                const nextPreviewImages = { ...savedPreviewImages, [currentView]: uploadedUrl } as Record<string, string>;
-                setSavedPreviewImages(nextPreviewImages);
-
-                resolve();
-              } else {
-                toast.error('Uploaded image, but failed to save to user previews');
-                resolve();
-              }
-            } else {
-              toast.error('Failed to upload preview image');
-              resolve();
-            }
-          } catch (e) {
-            console.error('Error saving preview image:', e);
-            toast.error('Error saving preview image');
-            resolve();
-          }
-        }, 'image/png', 1.0);
-      });
+      isSavingMockupsRef.current = false;
     } catch (e) {
       console.error('Save error:', e);
       toast.error('Failed to save');
@@ -3057,7 +3198,7 @@ const DesignEditor: React.FC = () => {
     setSelectedIds([]);
   };
 
-  const isPreviewButtonDisabled = isPreviewTemporarilyDisabled || isSavingPreview;
+  const isPreviewButtonDisabled = isPreviewTemporarilyDisabled;
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden selection:bg-primary/20 no-scrollbar">
@@ -3169,22 +3310,32 @@ const DesignEditor: React.FC = () => {
       {/* Mobile Views Selector Hub (Top) */}
       {isMobile && !previewMode && availableViews.length > 0 && (
         <div className="flex-shrink-0 border-b bg-background flex justify-center z-10 w-full overflow-hidden">
-          <div className="flex items-center gap-6 p-2 overflow-x-auto no-scrollbar px-6 h-11 justify-center min-w-full">
-            {availableViews.map((viewKey) => (
-              <button
-                key={viewKey}
-                onClick={() => handleViewSwitch(viewKey)}
-                className={`text-[13px] font-bold transition-all relative pb-2 whitespace-nowrap ${currentView === viewKey
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-                  }`}
-              >
-                {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
-                {currentView === viewKey && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-                )}
-              </button>
-            ))}
+          <div className="flex items-center gap-4 p-2 overflow-x-auto no-scrollbar px-4 justify-center min-w-full">
+            {availableViews.map((viewKey) => {
+              const thumb = savedMockupPreviews[viewKey];
+              const isActive = currentView === viewKey;
+              return (
+                <button
+                  key={viewKey}
+                  onClick={() => handleViewSwitch(viewKey)}
+                  className={`flex flex-col items-center gap-0.5 transition-all relative whitespace-nowrap ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  {thumb ? (
+                    <div className={`w-8 h-8 rounded overflow-hidden border ${isActive ? 'border-primary' : 'border-border'}`}>
+                      <img src={thumb} alt={viewKey} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className={`w-8 h-8 rounded flex items-center justify-center text-[9px] font-bold ${isActive ? 'bg-primary/10' : 'bg-muted'}`}>
+                      {viewKey.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-[11px] font-bold leading-none">
+                    {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
+                  </span>
+                  {isActive && <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -3482,7 +3633,7 @@ const DesignEditor: React.FC = () => {
           </div>
         )}
 
-        {/* Main Canvas Area - Always WebGL with Konva Overlay */}
+        {/* Main Canvas Area */}
         <div
           className="flex-1 min-h-0 flex flex-col items-center bg-muted/30 relative overflow-hidden touch-none"
           onTouchStart={handleTouchStart}
@@ -3499,7 +3650,7 @@ const DesignEditor: React.FC = () => {
           ) : currentViewData ? (
             <div className="relative w-full h-full flex items-center justify-center">
               <div
-                ref={webglCanvasRef}
+                ref={canvasContainerRef}
                 className="relative bg-white shadow-lg overflow-hidden flex-shrink-0"
                 style={{
                   width: `${canvasWidth}px`,
@@ -3508,7 +3659,7 @@ const DesignEditor: React.FC = () => {
                   transformOrigin: 'center',
                 }}
               >
-                {/* Single Konva canvas used for both Edit and Preview */}
+                {/* Konva canvas — edit and preview share the same stage */}
                 <div
                   className="absolute inset-0 pointer-events-auto"
                 >
@@ -3701,7 +3852,7 @@ const DesignEditor: React.FC = () => {
 
                     <Layer listening={false}>
                       {/* Grid */}
-                      {showGrid && (
+                      {!isCapturingMockup && showGrid && (
                         <>
                           {Array.from({ length: Math.ceil(stageSize.width / 20) }).map((_, i) => (
                             <Line
@@ -3723,7 +3874,7 @@ const DesignEditor: React.FC = () => {
                       )}
 
                       {/* Rulers */}
-                      {showRulers && (
+                      {!isCapturingMockup && showRulers && (
                         <>
                           {/* Ruler backgrounds */}
                           <Rect x={0} y={0} width={stageSize.width} height={24} fill="#f8fafc" stroke="#e5e7eb" strokeWidth={1} listening={false} />
@@ -3761,7 +3912,7 @@ const DesignEditor: React.FC = () => {
 
                     {/* Placeholder Outlines Layer — only in edit mode */}
                     <Layer>
-                      {!previewMode && !placeholdersLoading && (() => {
+                      {!previewMode && !isCapturingMockup && !placeholdersLoading && (() => {
                         // Show only one visible placeholder at a time in the editor:
                         // - If a placeholder is selected, render just that one
                         // - Otherwise, render the first placeholder for the current view
@@ -4020,7 +4171,7 @@ const DesignEditor: React.FC = () => {
                       })()}
 
                       {/* Transformer for selected element - always visible when selected */}
-                      {selectedIds.length === 1 && !previewMode && (
+                      {selectedIds.length === 1 && !previewMode && !isCapturingMockup && (
                         <Transformer
                           ref={transformerRef}
                           rotateEnabled={true}
@@ -4059,7 +4210,7 @@ const DesignEditor: React.FC = () => {
                       )}
                     </Layer>
                     {/* Selection Box Visualizer - edit mode only */}
-                    {!previewMode && selectionBox && selectionBox.active && (
+                    {!previewMode && !isCapturingMockup && selectionBox && selectionBox.active && (
                       <Layer>
                         <Rect
                           x={Math.min(selectionBox.x1, selectionBox.x2)}
@@ -4299,50 +4450,41 @@ const DesignEditor: React.FC = () => {
 
               {/* View Switcher - Desktop Only */}
               {!isMobile && availableViews.length > 0 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background rounded-lg p-1 border shadow-lg z-10 transition-all hover:shadow-xl">
-                  {availableViews.map((viewKey) => (
-                    <Button
-                      key={viewKey}
-                      variant={currentView === viewKey ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => handleViewSwitch(viewKey)}
-                      className="px-4"
-                    >
-                      {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
-                    </Button>
-                  ))}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background rounded-lg p-1.5 border shadow-lg z-10 transition-all hover:shadow-xl">
+                  {availableViews.map((viewKey) => {
+                    const thumb = savedMockupPreviews[viewKey];
+                    const isActive = currentView === viewKey;
+                    return (
+                      <button
+                        key={viewKey}
+                        onClick={() => handleViewSwitch(viewKey)}
+                        className={`flex flex-col items-center gap-1 rounded-md px-2 py-1 transition-all focus:outline-none ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {thumb ? (
+                          <div className={`w-10 h-10 rounded overflow-hidden border ${isActive ? 'border-primary-foreground/30' : 'border-border'}`}>
+                            <img src={thumb} alt={viewKey} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={`w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold ${isActive ? 'bg-primary-foreground/10' : 'bg-muted'}`}>
+                            {viewKey.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-[11px] font-medium capitalize leading-none">
+                          {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           ) : (
-            /* Design Area - Centered with background and shadow */
-            <div
-              className="flex-1 relative bg-[#f1f1f1] overflow-hidden flex items-center justify-center p-4"
-              onClick={() => {
-                if (isMobile) {
-                  setSelectedIds([]);
-                  setSelectedPlaceholderId(null);
-                  setShowRightPanel(false);
-                  setIsMobileMenuOpen(false);
-                }
-              }}
-            >
-              <div
-                ref={webglCanvasRef}
-                onClick={(e) => e.stopPropagation()}
-                className="relative shadow-2xl transition-all duration-300 bg-white"
-                style={{
-                  borderRadius: '2px', // Very subtle rounding
-                  overflow: 'hidden'
-                }}
-              >
-                {/* Fallback canvas content if WebGL is not rendering yet */}
-                {!previewMode && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white">
-                    {/* This space will be occupied by the WebGL canvas */}
-                  </div>
-                )}
-              </div>
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              No view data available
             </div>
           )}
         </div>
@@ -4355,6 +4497,7 @@ const DesignEditor: React.FC = () => {
                 <TabsTrigger value="product" className="flex-1">Product</TabsTrigger>
                 <TabsTrigger value="properties" className="flex-1">Properties</TabsTrigger>
                 <TabsTrigger value="layers" className="flex-1">Layers</TabsTrigger>
+                <TabsTrigger value="previews" className="flex-1">Previews</TabsTrigger>
               </TabsList>
 
               <TabsContent value="product" className="flex-1 overflow-y-auto p-4 min-h-0">
@@ -4438,6 +4581,57 @@ const DesignEditor: React.FC = () => {
                     setTimeout(() => saveToHistory(true), 0); // Immediate save for reorder
                   }}
                 />
+              </TabsContent>
+
+              <TabsContent value="previews" className="flex-1 overflow-y-auto p-4 min-h-0">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">Mockup Previews</p>
+                    <span className="text-xs text-muted-foreground">Saved on Save</span>
+                  </div>
+                  {availableViews.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No views available</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {availableViews.map(viewKey => {
+                        const previewUrl = savedMockupPreviews[viewKey];
+                        const isCurrentView = currentView === viewKey;
+                        return (
+                          <button
+                            key={viewKey}
+                            onClick={() => handleViewSwitch(viewKey)}
+                            className={`group relative flex flex-col rounded-lg overflow-hidden border transition-all ${
+                              isCurrentView ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                              {previewUrl ? (
+                                <img
+                                  src={previewUrl}
+                                  alt={`${viewKey} mockup`}
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                  <div className="text-2xl font-bold opacity-30">{viewKey.slice(0, 2).toUpperCase()}</div>
+                                  <span className="text-[10px]">No preview yet</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className={`py-1.5 px-2 text-center text-xs font-medium capitalize ${isCurrentView ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground group-hover:text-foreground'}`}>
+                              {viewKey}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {availableViews.length > 0 && Object.keys(savedMockupPreviews).length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center pt-2">
+                      Click Save to generate mockup previews for all views.
+                    </p>
+                  )}
+                </div>
               </TabsContent>
             </Tabs>
           </div>
@@ -4526,6 +4720,50 @@ const DesignEditor: React.FC = () => {
                     PX_PER_INCH={PX_PER_INCH}
                     canvasPadding={canvasPadding}
                   />
+                )}
+
+                {rightPanelTab === 'previews' && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold">Mockup Previews</p>
+                    {availableViews.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">No views available</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {availableViews.map(viewKey => {
+                          const previewUrl = savedMockupPreviews[viewKey];
+                          const isCurrentView = currentView === viewKey;
+                          return (
+                            <button
+                              key={viewKey}
+                              onClick={() => { handleViewSwitch(viewKey); setShowRightPanel(false); }}
+                              className={`group relative flex flex-col rounded-lg overflow-hidden border transition-all ${
+                                isCurrentView ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                                {previewUrl ? (
+                                  <img src={previewUrl} alt={`${viewKey} mockup`} className="w-full h-full object-contain" />
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                    <div className="text-2xl font-bold opacity-30">{viewKey.slice(0, 2).toUpperCase()}</div>
+                                    <span className="text-[10px]">No preview yet</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className={`py-1.5 px-2 text-center text-xs font-medium capitalize ${isCurrentView ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground'}`}>
+                                {viewKey}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {availableViews.length > 0 && Object.keys(savedMockupPreviews).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center pt-2">
+                        Click Save to generate mockup previews.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </DrawerContent>
@@ -5111,8 +5349,6 @@ const TextElement: React.FC<{
     onTap: isEditMode ? onSelect : undefined,
     onDblClick: isEditMode ? onDblClick : undefined,
     onDragEnd: isEditMode ? handleDragEnd : undefined,
-    // GHOSTING FIX: Pixi is now hidden in edit mode, so Konva text should be fully visible
-
     onTransformEnd: isEditMode ? handleTransformEnd : undefined,
     dragBoundFunc: isEditMode ? dragBoundFunc : undefined,
     shadowBlur: element.shadowBlur || 0,
