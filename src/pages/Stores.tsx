@@ -542,6 +542,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/contexts/StoreContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { getStoreUrl } from "@/utils/storeUrl";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -579,72 +581,54 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function Stores() {
   const { user, logout, isAdmin } = useAuth();
-  const { refreshStores } = useStore();
+  const { stores, loading, refreshStores } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as any; // Product data from listing editor
 
-  const [stores, setStores] = useState<StoreType[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Local state for product counts since they might be fetched individually
+  const [storeProductCounts, setStoreProductCounts] = useState<Record<string, number>>({});
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState<StoreType | null>(null);
   const [isDeletingStore, setIsDeletingStore] = useState(false);
 
-  const fetchStores = async () => {
-    try {
-      setLoading(true);
-      const response = await storeApi.listMyStores();
-      if (response.success) setStores(response.data || []);
-    } catch (err: any) {
-      console.error("Error fetching stores:", err);
-      toast.error("Failed to load stores");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Suggested by user
+  const [createStoreDialogOpen, setCreateStoreDialogOpen] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreDescription, setNewStoreDescription] = useState("");
+  const [isCreatingStore, setIsCreatingStore] = useState(false);
 
   useEffect(() => {
-    fetchStores();
+    refreshStores();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const fetchProductCounts = async () => {
-      // Only fetch for stores that don't have a productsCount yet
-      const storesToFetch = stores.filter(s => s.productsCount === undefined);
+      // Find stores that need product counts
+      const storesToFetch = stores.filter(s => storeProductCounts[s.id] === undefined && s.productsCount === undefined);
       if (storesToFetch.length === 0) return;
-
-      const updatedStores = [...stores];
-      let changed = false;
 
       for (const store of storesToFetch) {
         try {
           const response = await storeProductsApi.list({ storeId: store.id });
           if (response.success) {
-            const index = updatedStores.findIndex(s => s.id === store.id);
-            if (index !== -1) {
-              updatedStores[index] = { 
-                ...updatedStores[index], 
-                productsCount: response.data?.length || 0 
-              };
-              changed = true;
-            }
+            setStoreProductCounts(prev => ({
+              ...prev,
+              [store.id]: response.data?.length || 0
+            }));
           }
         } catch (err) {
           console.error(`Error fetching products for store ${store.id}:`, err);
         }
-      }
-
-      if (changed) {
-        setStores(updatedStores);
       }
     };
 
     if (stores.length > 0) {
       fetchProductCounts();
     }
-  }, [stores]);
+  }, [stores, storeProductCounts]);
 
   const handleDeleteStore = async () => {
     if (!storeToDelete) return;
@@ -655,7 +639,6 @@ export default function Stores() {
 
       toast.success("Store deleted successfully");
       await refreshStores();
-      setStores((prev) => prev.filter((s) => s.id !== storeToDelete.id));
       setDeleteDialogOpen(false);
       setStoreToDelete(null);
     } catch (error: any) {
@@ -663,6 +646,42 @@ export default function Stores() {
       toast.error(error.message || "Error deleting store");
     } finally {
       setIsDeletingStore(false);
+    }
+  };
+
+  const handleConnectChannel = (channel: string) => {
+    toast.info(`Integration with ${channel} is coming soon!`);
+  };
+
+  const handleCreateStore = async () => {
+    if (!newStoreName.trim()) {
+      toast.error("Please enter a store name");
+      return;
+    }
+
+    setIsCreatingStore(true);
+    try {
+      const createResp = await storeApi.create({
+        name: newStoreName.trim(),
+        description: newStoreDescription.trim() || "My ShelfMerch Store",
+      });
+
+      if (!createResp.success || !createResp.data) {
+        throw new Error(createResp.message || "Failed to create store");
+      }
+
+      toast.success("Store created successfully!");
+      await refreshStores();
+
+      // Reset form and close dialog
+      setNewStoreName("");
+      setNewStoreDescription("");
+      setCreateStoreDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error creating store:", error);
+      toast.error(error.message || "Failed to create store");
+    } finally {
+      setIsCreatingStore(false);
     }
   };
 
@@ -736,7 +755,7 @@ export default function Stores() {
                     <div className="flex-1 flex justify-center">
                       <div className="flex flex-col items-center px-8 border-x border-muted/50 h-10 justify-center">
                         <span className="text-2xl font-bold text-[#343A40] leading-none">
-                          {store.productsCount ?? (store.productIds?.length || 0)}
+                          {store.productsCount ?? storeProductCounts[store.id] ?? (store.productIds?.length || 0)}
                         </span>
                         <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-1">
                           Products
@@ -838,6 +857,238 @@ export default function Stores() {
                   <>
                     <Trash2 className="h-4 w-4" />
                     Delete
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-12 mt-12">
+        <div className="space-y-6">
+
+          <div className="grid gap-6">
+            <Card className="p-8 bg-muted/30 border-none shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-2xl font-bold flex items-center gap-2">
+                    ShelfMerch{" "}
+                    <span className="font-normal text-muted-foreground">
+                      Pop-Up
+                    </span>
+                  </h3>
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/50 text-xs font-normal border"
+                  >
+                    Beta version
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground max-w-2xl">
+                  Start selling right away. No need to create a website, just
+                  send out a unique link to your friends, family, or followers.
+                  <a href="#" className="underline ml-1">
+                    Learn more
+                  </a>
+                </p>
+              </div>
+
+              <Button
+                size="lg"
+                className="shrink-0 bg-[#343A40] text-white hover:bg-[#212529]"
+                onClick={() => setCreateStoreDialogOpen(true)}
+              >
+                Launch Pop-Up store
+              </Button>
+            </Card>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="p-6 bg-orange-50/50 border-orange-100 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-[#F1641E]">
+                      Etsy <span className="text-foreground">Etsy</span>
+                    </h3>
+                    <Badge className="bg-muted text-muted-foreground hover:bg-muted font-normal">
+                      Easy
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Etsy provides a fast and easy way to get started selling
+                    and reach over 96 million active buyers worldwide.
+                  </p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600">✔</span> Easy to set up
+                      and start selling
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600">✔</span> Large audience
+                      and traffic
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600">✔</span> Low listing fees
+                    </li>
+                  </ul>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    className="bg-[#222] text-white hover:bg-black"
+                    onClick={() => handleConnectChannel("Etsy")}
+                  >
+                    Connect to Etsy
+                  </Button>
+                  <Button variant="outline" className="border-[#222] text-[#222]">
+                    Sign up
+                  </Button>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-green-50/50 border-green-100 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-[#95BF47]">Shopify</h3>
+                    <Badge className="bg-muted text-muted-foreground hover:bg-muted font-normal">
+                      Medium
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Shopify is perfect for established sellers wanting to
+                    expand their brand and business with easy setup and store
+                    creation tools.
+                  </p>
+                  <ul className="space-y-2">
+                    <li className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600">✔</span> 3-day free trial
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600">✔</span> SEO & marketing tools
+                    </li>
+                    <li className="flex items-center gap-2 text-sm">
+                      <span className="text-green-600">✔</span> Customizable storefronts
+                    </li>
+                  </ul>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    className="bg-[#008060] text-white hover:bg-[#004C3F]"
+                    onClick={() => handleConnectChannel("Shopify")}
+                  >
+                    Connect to Shopify
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-[#008060] text-[#008060]"
+                  >
+                    Sign up
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* Developer API Section */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-semibold flex items-center gap-2">
+            API Integration
+          </h2>
+          <p className="text-muted-foreground">
+            Integrate ShelfMerch with your own custom storefront or platform using our API.
+          </p>
+
+          <Card className="p-8 bg-slate-50 border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-slate-800">Custom API Integration</h3>
+                <Badge variant="secondary" className="bg-slate-200 text-slate-700 font-normal hover:bg-slate-200 hover:text-slate-800">
+                  Advanced
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground max-w-2xl">
+                Build your own custom integration. Programmatically create listings, sync products, manage orders, and automate your entire workflow with our comprehensive developer API.
+              </p>
+            </div>
+
+            <div className="flex shrink-0">
+              <Button
+                size="lg"
+                className="bg-slate-900 text-white hover:bg-slate-800 gap-2"
+                onClick={() => window.open('https://api.shelfmerch.com/docs', '_blank')}
+              >
+                <ExternalLink className="w-4 h-4" />
+                View API Docs
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* Create Store Dialog */}
+        <Dialog open={createStoreDialogOpen} onOpenChange={setCreateStoreDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Create New Store</DialogTitle>
+              <DialogDescription>
+                Create a new store to start selling your products. You can create as many stores as you need.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="storeName">Store Name *</Label>
+                <Input
+                  id="storeName"
+                  value={newStoreName}
+                  onChange={(e) => setNewStoreName(e.target.value)}
+                  placeholder="My Awesome Store"
+                  disabled={isCreatingStore}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This will be the display name of your store
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="storeDescription">Description</Label>
+                <Input
+                  id="storeDescription"
+                  value={newStoreDescription}
+                  onChange={(e) => setNewStoreDescription(e.target.value)}
+                  placeholder="A brief description of your store (optional)"
+                  disabled={isCreatingStore}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setCreateStoreDialogOpen(false);
+                  setNewStoreName("");
+                  setNewStoreDescription("");
+                }}
+                disabled={isCreatingStore}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                className="flex-1 gap-2"
+                onClick={handleCreateStore}
+                disabled={isCreatingStore || !newStoreName.trim()}
+              >
+                {isCreatingStore ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Create Store
                   </>
                 )}
               </Button>

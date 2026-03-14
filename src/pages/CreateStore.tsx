@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStore } from '@/contexts/StoreContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ const CreateStore = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { refreshStores } = useStore();
 
   const handleCreateStore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,8 @@ const CreateStore = () => {
         `Store created! Your store is live at ${backendStore.subdomain}.shelfmerch.com`,
         { duration: 5000 }
       );
+
+      await refreshStores();
 
       navigate('/stores');
     } catch (error: any) {

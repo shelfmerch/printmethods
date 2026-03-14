@@ -37,6 +37,7 @@ import {
   Heart, Star as StarIcon, ArrowRight, Search, Filter, SortAsc, FolderOpen, ArrowLeft, ArrowUp, ArrowDown, Pen, Camera, Layout, Hand, Eraser
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStore } from '@/contexts/StoreContext';
 import { productApi, storeApi, storeProductsApi } from '@/lib/api';
 import TextPanel from '@/components/designer/TextPanel';
 import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
@@ -52,7 +53,7 @@ import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
 // Types
 interface CanvasElement {
   id: string;
-  type: 'text' | 'image' | 'shape' | 'group';PReview 
+  type: 'text' | 'image' | 'shape' | 'group';
   x: number;
   y: number;
   width?: number;
@@ -302,6 +303,7 @@ const DesignEditor: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { refreshStores, selectStoreById } = useStore();
 
   // Canvas state
   const stageRef = useRef<any>(null);
@@ -2699,10 +2701,15 @@ const DesignEditor: React.FC = () => {
         if (!hasStore) {
           try {
             const defaultData = generateDefaultStoreData();
-            await storeApi.create({
+             const createResp = await storeApi.create({
               name: defaultData.name,
               description: 'My first store'
             });
+            if (createResp.success && createResp.data) {
+              await refreshStores();
+              const newStoreId = createResp.data.id || createResp.data._id;
+              if (newStoreId) selectStoreById(newStoreId);
+            }
             // toast.success('Default store created automatically.');
           } catch (err) {
             console.error('Failed to create default store:', err);
