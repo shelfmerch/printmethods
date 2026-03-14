@@ -9,7 +9,7 @@ interface StoreContextType {
   selectedStore: Store | null;
   setSelectedStore: (store: Store | null) => void;
   selectStoreById: (storeId: string) => void;
-  refreshStores: () => Promise<void>;
+  refreshStores: () => Promise<Store[]>;
   loading: boolean;
   error: string | null;
 }
@@ -43,7 +43,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
       setSelectedStore(null);
       selectedStoreIdRef.current = null;
       setLoading(false);
-      return;
+      return [];
     }
 
     try {
@@ -99,8 +99,10 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
             localStorage.removeItem('selectedStoreId');
           }
         }
+        return loadedStores;
       } else {
         setError('Failed to load stores');
+        return [];
       }
     } catch (err: any) {
       console.error('Error loading stores:', err);
@@ -108,6 +110,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
       setStores([]);
       setSelectedStore(null);
       selectedStoreIdRef.current = null;
+      return [];
     } finally {
       setLoading(false);
     }

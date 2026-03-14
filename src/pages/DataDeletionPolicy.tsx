@@ -8,12 +8,12 @@ const DataDeletionPolicy = () => {
             subtitle="Complete transparency on our data scrubbing protocols and your right to be forgotten."
             lastUpdated="March 09, 2026"
         >
-            <section id="introduction" className="scroll-mt-32 mb-12">
+            <section id="introduction" className="scroll-mt-32 mb-20">
                 <div className="flex items-center gap-6 mb-8 group">
                     <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
                         <ShieldCheck className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-black m-0 tracking-tighter">Introduction</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Introduction</h2>
                 </div>
                 <div className="bg-slate-50 dark:bg-white/[0.03] p-8 rounded-[2rem] border border-slate-200 dark:border-white/5">
                     <p className="text-lg leading-relaxed m-0 text-slate-700 dark:text-slate-300 font-medium">
@@ -24,23 +24,23 @@ const DataDeletionPolicy = () => {
                 </div>
             </section>
 
-            <section id="how-to-request" className="scroll-mt-32 mb-12">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                        <Mail className="w-6 h-6" />
+            <section id="how-to-request" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+                        <Mail className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Request Deletion</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Request Deletion</h2>
                 </div>
-                <p className="mb-8 text-slate-500 dark:text-slate-400">To initiate a manual data scrubbing request, please reach out to our privacy team:</p>
+                <p className="mb-10 text-slate-500 dark:text-slate-400">To initiate a manual data scrubbing request, please reach out to our privacy team:</p>
 
-                <div className="relative group overflow-hidden p-6 rounded-3xl bg-primary text-white shadow-xl">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full pointer-events-none" />
-                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="relative group overflow-hidden p-8 rounded-[2.5rem] bg-primary text-white shadow-2xl shadow-primary/20">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-1000" />
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
                         <div>
-                            <p className="text-white/60 uppercase tracking-[0.3em] text-[10px] font-black mb-1">Direct Channel</p>
-                            <a href="mailto:shelfmerch@gmail.com" className="text-2xl md:text-2xl font-bold hover:underline tracking-tight">shelfmerch@gmail.com</a>
+                            <p className="text-white/60 uppercase tracking-[0.3em] text-[10px] font-black mb-2">Direct Channel</p>
+                            <a href="mailto:shelfmerch@gmail.com" className="text-3xl md:text-4xl font-black hover:underline tracking-tighter">shelfmerch@gmail.com</a>
                         </div>
-                        <ArrowRight className="w-8 h-8 text-white/20 hidden md:block" />
+                        <ArrowRight className="w-12 h-12 text-white/20 hidden md:block" />
                     </div>
                 </div>
 
@@ -55,14 +55,14 @@ const DataDeletionPolicy = () => {
                 </div>
             </section>
 
-            <section id="data-collected" className="scroll-mt-32 mb-12">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-blue-500/10 text-blue-500">
-                        <Database className="w-6 h-6" />
+            <section id="data-collected" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform duration-500">
+                        <Database className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Data Inventory</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Data Inventory</h2>
                 </div>
-                <p className="mb-6 text-slate-500 dark:text-slate-400 text-sm">The following categories of data are eligible for permanent removal from our active clusters:</p>
+                <p className="mb-8 text-slate-500 dark:text-slate-400">The following categories of data are eligible for permanent removal from our active clusters:</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {[
                         { title: 'Shopify Store Info', desc: 'Metadata, synchronization settings, and store identifiers.' },
@@ -78,28 +78,28 @@ const DataDeletionPolicy = () => {
                 </div>
             </section>
 
-            <section id="after-deletion" className="scroll-mt-32 mb-12">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-green-500/10 text-green-500">
-                        <History className="w-6 h-6" />
+            <section id="after-deletion" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-green-500/10 text-green-500 group-hover:scale-110 transition-transform duration-500">
+                        <History className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Post-Deletion</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Post-Deletion</h2>
                 </div>
-                <div className="p-8 rounded-3xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10">
-                    <p className="text-lg font-bold leading-relaxed m-0 text-slate-600 dark:text-slate-400 italic">
+                <div className="p-10 rounded-[3rem] bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/10">
+                    <p className="text-xl font-bold leading-relaxed m-0 text-slate-700 dark:text-slate-300 italic">
                         "Once purged, your identifiers are detached from our backend. Any remaining system shards are fully anonymized, making reverse-association with your store mathematically impossible."
                     </p>
                 </div>
             </section>
 
-            <section id="uninstall-removal" className="scroll-mt-32 mb-12">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-purple-500/10 text-purple-500">
-                        <RotateCw className="w-6 h-6" />
+            <section id="uninstall-removal" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform duration-500">
+                        <RotateCw className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Uninstall Removal</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Uninstall Removal</h2>
                 </div>
-                <div className="p-8 rounded-3xl bg-slate-900 text-white overflow-hidden relative shadow-xl">
+                <div className="p-10 rounded-[3rem] bg-slate-900 text-white overflow-hidden relative shadow-2xl">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 blur-[80px] rounded-full pointer-events-none" />
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse" />
@@ -112,12 +112,12 @@ const DataDeletionPolicy = () => {
                 </div>
             </section>
 
-            <section id="timeframe" className="scroll-mt-32 mb-12">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-500">
-                        <Trash2 className="w-6 h-6" />
+            <section id="timeframe" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-indigo-500/10 text-indigo-500 group-hover:scale-110 transition-transform duration-500">
+                        <Trash2 className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Timeframe</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Timeframe</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                     <div>
@@ -134,12 +134,12 @@ const DataDeletionPolicy = () => {
                 </div>
             </section>
 
-            <section id="exceptions" className="scroll-mt-32 mb-12">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-red-500/10 text-red-500">
-                        <ShieldAlert className="w-6 h-6" />
+            <section id="exceptions" className="scroll-mt-32 mb-20">
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform duration-500">
+                        <ShieldAlert className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Legal Exceptions</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Legal Exceptions</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <div className="p-8 rounded-[2rem] bg-red-500/5 border border-red-500/10">
@@ -158,21 +158,21 @@ const DataDeletionPolicy = () => {
             </section>
 
             <section id="contact" className="scroll-mt-32">
-                <div className="flex items-center gap-4 mb-6 group">
-                    <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                        <Mail className="w-6 h-6" />
+                <div className="flex items-center gap-6 mb-8 group">
+                    <div className="p-4 rounded-[1.5rem] bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-500">
+                        <Mail className="w-8 h-8" />
                     </div>
-                    <h2 className="text-2xl md:text-3xl font-bold m-0 tracking-tight">Support</h2>
+                    <h2 className="text-4xl md:text-5xl font-black m-0 tracking-tighter">Support</h2>
                 </div>
-                <div className="group relative overflow-hidden p-1 p-px bg-gradient-to-br from-primary via-blue-400 to-green-400 rounded-3xl">
-                    <div className="bg-white dark:bg-[#0c0c0c] p-8 rounded-[1.45rem] relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="group relative overflow-hidden p-1 p-px bg-gradient-to-br from-primary via-blue-400 to-green-400 rounded-[2.5rem]">
+                    <div className="bg-white dark:bg-[#0c0c0c] p-10 rounded-[2.4rem] relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
                         <div>
-                            <p className="text-lg font-bold mb-1 tracking-tight">Privacy Officer</p>
-                            <p className="text-slate-500 m-0 text-sm font-medium">ShelfMerch Compliance Team</p>
+                            <p className="text-xl font-bold mb-2 tracking-tight">Privacy Officer</p>
+                            <p className="text-slate-500 m-0 font-medium">ShelfMerch Compliance Team</p>
                         </div>
                         <a
                             href="mailto:shelfmerch@gmail.com"
-                            className="px-6 py-4 bg-primary text-white rounded-xl font-bold text-base hover:bg-blue-600 transition-all shadow-lg shadow-primary/20 active:scale-95"
+                            className="px-8 py-5 bg-primary text-white rounded-2xl font-black text-lg hover:bg-blue-600 transition-all shadow-xl shadow-primary/20 active:scale-95"
                         >
                             Contact Team
                         </a>
