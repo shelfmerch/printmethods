@@ -375,6 +375,7 @@ const StoreProductPage = () => {
               colors: colors.length ? colors : ['Default'],
               sizes: sizes.length ? sizes : ['One Size'],
             },
+            previewImagesUrl: sp.previewImagesUrl,
             createdAt: sp.createdAt || new Date().toISOString(),
             updatedAt: sp.updatedAt || new Date().toISOString(),
           };
@@ -527,6 +528,11 @@ const StoreProductPage = () => {
       setActiveImage(galleryImages[activeImageIndex]);
     }
   }, [activeImageIndex, galleryImages]);
+
+  // Reset active image index when color changes
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [selectedColor]);
 
   const nextImage = useCallback(() => {
     if (!galleryImages.length) return;
