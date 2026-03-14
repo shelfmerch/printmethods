@@ -115,7 +115,13 @@ const VerifyPhone: React.FC = () => {
                 </div>
 
                 {step === 'PHONE' ? (
-                    <div className="space-y-6">
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!isLoading) handleSendOtp();
+                        }}
+                        className="space-y-6"
+                    >
                         <div>
                             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                                 Phone Number
@@ -131,15 +137,21 @@ const VerifyPhone: React.FC = () => {
                             />
                         </div>
                         <button
-                            onClick={handleSendOtp}
+                            type="submit"
                             disabled={isLoading}
                             className="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:opacity-90 disabled:bg-gray-200 disabled:cursor-not-allowed transition-all shadow-md active:scale-[0.98]"
                         >
                             {isLoading ? 'Sending...' : 'Send OTP'}
                         </button>
-                    </div>
+                    </form>
                 ) : (
-                    <div className="space-y-6">
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!isLoading) handleVerifyOtp();
+                        }}
+                        className="space-y-6"
+                    >
                         <p className="text-sm text-gray-500 text-center">
                             Enter the 6-digit code sent to <span className="text-black font-medium">{phone}</span>
                         </p>
@@ -159,20 +171,21 @@ const VerifyPhone: React.FC = () => {
                             ))}
                         </div>
                         <button
-                            onClick={handleVerifyOtp}
+                            type="submit"
                             disabled={isLoading}
                             className="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:opacity-90 disabled:bg-gray-200 disabled:cursor-not-allowed transition-all shadow-md active:scale-[0.98]"
                         >
                             {isLoading ? 'Verifying...' : 'Verify Phone'}
                         </button>
                         <button
+                            type="button"
                             onClick={() => setStep('PHONE')}
                             disabled={isLoading}
                             className="w-full text-gray-500 text-sm hover:text-black transition-colors"
                         >
                             Change Phone
                         </button>
-                    </div>
+                    </form>
                 )}
 
                 {!isMandatory && (

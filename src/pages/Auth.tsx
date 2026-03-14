@@ -1037,7 +1037,13 @@ const Auth = () => {
             <div className="space-y-6">
               {/* Step 1: Identifier Entry */}
               {step === 'IDENTIFIER' && (
-                <>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!isLoading) handleIdentifierSubmit();
+                  }}
+                  className="space-y-6"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="identifier" className="text-sm font-semibold text-gray-600 ml-1">Email or mobile phone number</Label>
                     <Input
@@ -1049,8 +1055,8 @@ const Auth = () => {
                     />
                   </div>
                   <Button
+                    type="submit"
                     className="w-full h-12 bg-[#39b38e] hover:bg-[#32a17f] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#39b38e]/20 transition-all active:scale-[0.98]"
-                    onClick={handleIdentifierSubmit}
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Continue'}
@@ -1069,10 +1075,10 @@ const Auth = () => {
                       </div>
 
                       <Button
+                        type="button"
                         variant="outline"
                         className="w-full h-12 border-gray-200 rounded-xl hover:bg-gray-50 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                         onClick={() => {
-                          // returnTo is already saved in sessionStorage on mount
                           const googleAuthUrl = `${RAW_API_URL}/api/auth/google`;
                           console.log('📡 Redirecting to Google Auth:', googleAuthUrl);
                           window.location.href = googleAuthUrl;
@@ -1084,16 +1090,22 @@ const Auth = () => {
                       </Button>
                     </>
                   )}
-                </>
+                </form>
               )}
 
               {/* Step 2: Password Entry (Existing User) */}
               {step === 'PASSWORD' && (
-                <div className="animate-in fade-in slide-in-from-top-2 space-y-6">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!isLoading) handlePrimaryVerify();
+                  }}
+                  className="animate-in fade-in slide-in-from-top-2 space-y-6"
+                >
                   <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
                       <Label htmlFor="login-password" title={identifier} className="text-sm font-semibold text-gray-600 truncate max-w-[150px]">Password</Label>
-                      <button onClick={() => setStep('IDENTIFIER')} className="text-xs font-bold text-[#39b38e] hover:underline">Change</button>
+                      <button type="button" onClick={() => setStep('IDENTIFIER')} className="text-xs font-bold text-[#39b38e] hover:underline">Change</button>
                     </div>
                     <PasswordInput
                       id="login-password"
@@ -1104,25 +1116,34 @@ const Auth = () => {
                     />
                   </div>
                   <Button
+                    type="submit"
                     className="w-full h-12 bg-[#39b38e] hover:bg-[#32a17f] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#39b38e]/20 transition-all active:scale-[0.98]"
-                    onClick={handlePrimaryVerify}
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Sign-In'}
                   </Button>
-                </div>
+                </form>
               )}
 
               {/* Step 3: Verification */}
               {(step === 'VERIFY_PRIMARY' || step === 'VERIFY_SECONDARY') && (
-                <div className="animate-in fade-in slide-in-from-top-2 space-y-6">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!isLoading) {
+                      if (step === 'VERIFY_PRIMARY') handlePrimaryVerify();
+                      else handleSecondaryVerify();
+                    }
+                  }}
+                  className="animate-in fade-in slide-in-from-top-2 space-y-6"
+                >
                   <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
                       <Label htmlFor="otp-0" title={step === 'VERIFY_PRIMARY' ? identifier : secondaryIdentifier} className="text-sm font-semibold text-gray-600 truncate max-w-[150px]">
                         Verification Code
                       </Label>
                       {step === 'VERIFY_PRIMARY' && (
-                        <button onClick={() => setStep('IDENTIFIER')} className="text-xs font-bold text-[#39b38e] hover:underline">Change</button>
+                        <button type="button" onClick={() => setStep('IDENTIFIER')} className="text-xs font-bold text-[#39b38e] hover:underline">Change</button>
                       )}
                     </div>
                     <div className="flex gap-3 justify-between">
@@ -1140,8 +1161,8 @@ const Auth = () => {
                     </div>
                   </div>
                   <Button
+                    type="submit"
                     className="w-full h-12 bg-[#39b38e] hover:bg-[#32a17f] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#39b38e]/20 transition-all active:scale-[0.98]"
-                    onClick={step === 'VERIFY_PRIMARY' ? handlePrimaryVerify : handleSecondaryVerify}
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Verify'}
@@ -1173,12 +1194,18 @@ const Auth = () => {
                       </p>
                     )}
                   </div>
-                </div>
+                </form>
               )}
 
               {/* Step 4: Secondary Identifier (Signup) */}
               {step === 'SECONDARY_ID' && (
-                <div className="animate-in fade-in slide-in-from-top-2 space-y-6">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!isLoading) handleSecondaryIdentifierSubmit();
+                  }}
+                  className="animate-in fade-in slide-in-from-top-2 space-y-6"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="secondary-identifier" className="text-sm font-semibold text-gray-600 ml-1">
                       {entryType === 'email' ? 'Phone Number' : 'Email Address'}
@@ -1192,18 +1219,24 @@ const Auth = () => {
                     />
                   </div>
                   <Button
+                    type="submit"
                     className="w-full h-12 bg-[#39b38e] hover:bg-[#32a17f] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#39b38e]/20 transition-all active:scale-[0.98]"
-                    onClick={handleSecondaryIdentifierSubmit}
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Continue'}
                   </Button>
-                </div>
+                </form>
               )}
 
               {/* Step 5: Name Entry (Signup) */}
               {step === 'NAME' && (
-                <div className="animate-in fade-in slide-in-from-top-2 space-y-6">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!isLoading) handleSignupComplete();
+                  }}
+                  className="animate-in fade-in slide-in-from-top-2 space-y-6"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-semibold text-gray-600 ml-1">Your name</Label>
                     <Input
@@ -1215,13 +1248,13 @@ const Auth = () => {
                     />
                   </div>
                   <Button
+                    type="submit"
                     className="w-full h-12 bg-[#39b38e] hover:bg-[#32a17f] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#39b38e]/20 transition-all active:scale-[0.98]"
-                    onClick={handleSignupComplete}
                     disabled={isLoading}
                   >
                     {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Complete Setup'}
                   </Button>
-                </div>
+                </form>
               )}
             </div>
 
