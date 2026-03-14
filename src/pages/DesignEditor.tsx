@@ -42,6 +42,10 @@ import { productApi, storeApi, storeProductsApi } from '@/lib/api';
 import TextPanel from '@/components/designer/TextPanel';
 import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
 import { UploadPanel } from '@/components/designer/UploadPanel';
+// import { DpiWarningPanel } from '@/components/designer/DpiWarningPanel';
+import { DpiIndicator } from '@/components/designer/DpiIndicator';
+import { calculateEffectiveDpi } from '@/types/editor';
+import { useDpiCalculation } from '@/hooks/useDpiCalculation';
 
 import AIimageGen from '@/components/designer/AIimageGen';
 import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
@@ -93,6 +97,9 @@ interface CanvasElement {
   lockAspectRatio?: boolean;
   skewX?: number; // Warping/distortion -180 to 180
   skewY?: number; // Warping/distortion -180 to 180
+  // Original image pixel dimensions (for accurate DPI calculation)
+  naturalWidth?: number;
+  naturalHeight?: number;
   // Filters
   brightness?: number; // -100 to 100
   contrast?: number; // -100 to 100
@@ -352,6 +359,14 @@ const DesignEditor: React.FC = () => {
   const [storeProductId, setStoreProductId] = useState<string | null>(null);
 
   const [bgRemovingId, setBgRemovingId] = useState<string | null>(null);
+
+  // DPI validation: elementId → effectiveDPI for all images below 300 DPI
+  const [lowDpiImages, setLowDpiImages] = useState<Record<string, number>>({});
+  // Live DPI result for the currently selected image
+  const [selectedDpiResult, setSelectedDpiResult] = useState<any | null>(null);
+
+  // Hook for accurate DPI calculations
+  const { calculateDpi } = useDpiCalculation();
 
   const handleBgRemoverAction = () => {
     const selectedElement = elements.find(el => selectedIds.includes(el.id));
@@ -1256,6 +1271,78 @@ const DesignEditor: React.FC = () => {
     return converted;
   }, [fetchedPlaceholders, currentViewData, PX_PER_INCH, inchesToPixels, canvasPadding]);
 
+  // --- DYNAMIC DPI RECALCULATION ---
+  // Runs whenever image elements change size/position, or placeholder sizes change.
+  // Uses the accurate useDpiCalculation hook with physical placeholder dimensions.
+  useEffect(() => {
+    const imageElements = elements.filter(
+      el => el.type === 'image' && el.naturalWidth && el.naturalHeight && el.width && el.height
+    );
+
+    if (imageElements.length === 0 || placeholders.length === 0) {
+      setLowDpiImages({});
+      return;
+    }
+
+    // We need placeholder physical dimensions. PX_PER_INCH converts px <-> inches.
+    const primaryPlaceholder = placeholders[0];
+    if (!primaryPlaceholder || PX_PER_INCH <= 0) return;
+
+    const widthInches = primaryPlaceholder.width / PX_PER_INCH;
+    const heightInches = primaryPlaceholder.height / PX_PER_INCH;
+
+    const placeholderConfig = {
+      widthPx: primaryPlaceholder.width,
+      heightPx: primaryPlaceholder.height,
+      widthInches,
+      heightInches,
+    };
+
+    const newLowDpiMap: Record<string, number> = {};
+    let currentSelectedResult = null;
+
+    imageElements.forEach(el => {
+      if (!el.naturalWidth || !el.naturalHeight || !el.width || !el.height) return;
+
+      const result = calculateDpi(
+        el.naturalWidth,
+        el.naturalHeight,
+        el.width,
+        el.height,
+        placeholderConfig
+      );
+
+      if (result.effectiveDPI < 300) {
+        newLowDpiMap[el.id] = result.effectiveDPI;
+      }
+
+      // If this is the selected element, save its result for the floating indicator
+      if (selectedIds.length === 1 && selectedIds[0] === el.id) {
+        currentSelectedResult = result;
+      }
+    });
+
+    setLowDpiImages(newLowDpiMap);
+    setSelectedDpiResult(currentSelectedResult);
+  }, [elements, placeholders, PX_PER_INCH, calculateDpi, selectedIds, previewMode]);
+
+  // Automatically recover naturalWidth/Height for elements missing them (reloaded from DB)
+  useEffect(() => {
+    elements.forEach(el => {
+      if (el.type === 'image' && el.imageUrl && (!el.naturalWidth || !el.naturalHeight)) {
+        const img = new window.Image();
+        img.onload = () => {
+          setElements(prev => prev.map(e => e.id === el.id ? { 
+            ...e, 
+            naturalWidth: img.naturalWidth, 
+            naturalHeight: img.naturalHeight 
+          } : e));
+        };
+        img.src = el.imageUrl;
+      }
+    });
+  }, [elements]);
+
   // Primary print area (first placeholder or default)
   const printArea = useMemo(() => {
     if (placeholders.length > 0) {
@@ -1887,6 +1974,8 @@ const DesignEditor: React.FC = () => {
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      const naturalWidth = img.naturalWidth || img.width;
+      const naturalHeight = img.naturalHeight || img.height;
       // Use selected placeholder if available, otherwise use first placeholder or printArea
       let targetPlaceholder = null;
 
@@ -1963,7 +2052,9 @@ const DesignEditor: React.FC = () => {
         height: finalHeight,
         rotation,
         placeholderId: targetPlaceholder?.id || undefined,
-        view: currentView // Store which view this image belongs to
+        view: currentView, // Store which view this image belongs to
+        naturalWidth,  // Store for accurate DPI calculation on resize
+        naturalHeight,
       });
 
       // Compute and store normalized placement if adding to a placeholder
@@ -2081,7 +2172,9 @@ const DesignEditor: React.FC = () => {
         // Always add to preview library - user must click to add to canvas
         setUploadedImagePreview(prev => [...prev, { url: imageUrl, name: file.name }]);
 
-        // Immediately add to canvas
+        // Add to preview library then canvas.
+        // The reactive DPI useEffect will automatically classify DPI once the element
+        // is added to state with its naturalWidth/naturalHeight.
         addImageToCanvas(imageUrl, file.name);
 
         successCount++;
@@ -2788,6 +2881,13 @@ const DesignEditor: React.FC = () => {
       // --- VARIANT VALIDATION ---
       if (!variantValidation.isValid) {
         toast.error(variantValidation.message);
+        return;
+      }
+
+      // --- DPI VALIDATION ---
+      if (Object.keys(lowDpiImages).length > 0) {
+        const lowestDpi = Math.min(...Object.values(lowDpiImages));
+        toast.error(`Cannot add product: image resolution is too low (${lowestDpi} DPI). Please upload an image with at least 300 DPI.`);
         return;
       }
 
@@ -3656,6 +3756,9 @@ const DesignEditor: React.FC = () => {
             </div>
           ) : currentViewData ? (
             <div className="relative w-full h-full flex items-center justify-center">
+              {/* DPI Warning Banner — shown when any uploaded image is below 300 DPI */}
+              {/* <DpiWarningPanel lowDpiImages={lowDpiImages} /> */}
+
               <div
                 ref={canvasContainerRef}
                 className="relative bg-white shadow-lg overflow-hidden flex-shrink-0"
@@ -3666,6 +3769,30 @@ const DesignEditor: React.FC = () => {
                   transformOrigin: 'center',
                 }}
               >
+                {/* Dynamic Floating DPI Indicator for Selected Image */}
+                {(() => {
+                  if (selectedDpiResult && selectedIds.length === 1 && !previewMode) {
+                    const selectedEl = elements.find(el => el.id === selectedIds[0]);
+                    if (selectedEl && selectedEl.type === 'image') {
+                      // Anchor to the center-top of the image element in Stage coordinates.
+                      // Offset is handled by the DpiIndicator component's internal transform.
+                      const x = selectedEl.x + (selectedEl.width || 0) / 2;
+                      const y = selectedEl.y;
+
+                      return (
+                        <DpiIndicator
+                          dpi={selectedDpiResult.effectiveDPI}
+                          quality={selectedDpiResult.qualityStatus}
+                          isStretched={selectedDpiResult.isStretched}
+                          x={x}
+                          y={y}
+                        />
+                      );
+                    }
+                  }
+                  return null;
+                })()}
+
                 {/* Konva canvas — edit and preview share the same stage */}
                 <div
                   className="absolute inset-0 pointer-events-auto"
@@ -4504,7 +4631,6 @@ const DesignEditor: React.FC = () => {
                 <TabsTrigger value="product" className="flex-1">Product</TabsTrigger>
                 <TabsTrigger value="properties" className="flex-1">Properties</TabsTrigger>
                 <TabsTrigger value="layers" className="flex-1">Layers</TabsTrigger>
-                <TabsTrigger value="previews" className="flex-1">Previews</TabsTrigger>
               </TabsList>
 
               <TabsContent value="product" className="flex-1 overflow-y-auto p-4 min-h-0">
@@ -4587,58 +4713,9 @@ const DesignEditor: React.FC = () => {
                     setHasUnsavedChanges(true); // Mark as having unsaved changes
                     setTimeout(() => saveToHistory(true), 0); // Immediate save for reorder
                   }}
+                  PX_PER_INCH={PX_PER_INCH}
+                  canvasPadding={canvasPadding}
                 />
-              </TabsContent>
-
-              <TabsContent value="previews" className="flex-1 overflow-y-auto p-4 min-h-0">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">Mockup Previews</p>
-                    <span className="text-xs text-muted-foreground">Saved on Save</span>
-                  </div>
-                  {availableViews.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">No views available</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      {availableViews.map(viewKey => {
-                        const previewUrl = savedMockupPreviews[viewKey];
-                        const isCurrentView = currentView === viewKey;
-                        return (
-                          <button
-                            key={viewKey}
-                            onClick={() => handleViewSwitch(viewKey)}
-                            className={`group relative flex flex-col rounded-lg overflow-hidden border transition-all ${
-                              isCurrentView ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                            }`}
-                          >
-                            <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                              {previewUrl ? (
-                                <img
-                                  src={previewUrl}
-                                  alt={`${viewKey} mockup`}
-                                  className="w-full h-full object-contain"
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                                  <div className="text-2xl font-bold opacity-30">{viewKey.slice(0, 2).toUpperCase()}</div>
-                                  <span className="text-[10px]">No preview yet</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className={`py-1.5 px-2 text-center text-xs font-medium capitalize ${isCurrentView ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground group-hover:text-foreground'}`}>
-                              {viewKey}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {availableViews.length > 0 && Object.keys(savedMockupPreviews).length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center pt-2">
-                      Click Save to generate mockup previews for all views.
-                    </p>
-                  )}
-                </div>
               </TabsContent>
             </Tabs>
           </div>
@@ -4717,6 +4794,8 @@ const DesignEditor: React.FC = () => {
                       setHasUnsavedChanges(true);
                       setTimeout(() => saveToHistory(true), 0);
                     }}
+                    PX_PER_INCH={PX_PER_INCH}
+                    canvasPadding={canvasPadding}
                     // Props for Mobile Properties Integration
                     isMobile={true}
                     displacementSettings={displacementSettings}
@@ -4724,8 +4803,6 @@ const DesignEditor: React.FC = () => {
                     onDesignUpload={(placeholderId, designUrl) => {
                       setDesignUrlForView(currentView, placeholderId, designUrl);
                     }}
-                    PX_PER_INCH={PX_PER_INCH}
-                    canvasPadding={canvasPadding}
                   />
                 )}
 
@@ -4897,9 +4974,9 @@ const DesignEditor: React.FC = () => {
               <div className="flex items-center">
                 <Button
                   variant="default"
-                  className={`px-8 h-9 text-xs font-semibold ${!variantValidation.isValid ? 'opacity-50 grayscale' : ''}`}
+                  className={`px-8 h-9 text-xs font-semibold ${(!variantValidation.isValid || Object.keys(lowDpiImages).length > 0) ? 'opacity-50 grayscale' : ''}`}
                   onClick={handlePublishToStore}
-                  disabled={isPublishing}
+                  disabled={isPublishing || Object.keys(lowDpiImages).length > 0}
                 >
                   {isPublishing ? 'Publishing...' : 'Add Product'}
                 </Button>
@@ -5107,7 +5184,23 @@ const ImageElement: React.FC<{
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
     onTap: isEditMode ? onSelect : undefined,
+    onDragMove: isEditMode ? (e: any) => {
+      onUpdate({
+        x: e.target.x(),
+        y: e.target.y()
+      }, false); // Don't save to history while moving
+    } : undefined,
     onDragEnd: isEditMode ? handleDragEnd : undefined,
+    onTransform: isEditMode ? (e: any) => {
+      const node = e.target;
+      onUpdate({
+        x: node.x(),
+        y: node.y(),
+        width: node.width() * node.scaleX(),
+        height: node.height() * node.scaleY(),
+        rotation: node.rotation()
+      }, false); // Don't save to history while transforming
+    } : undefined,
     onTransformEnd: isEditMode ? handleTransformEnd : undefined,
     dragBoundFunc: isEditMode ? dragBoundFunc : undefined,
     // Enhanced shadow properties with realistic opacity
@@ -5764,6 +5857,50 @@ const PropertiesPanel: React.FC<{
   canvasPadding,
   hideElementRow = false,
 }) => {
+    const { calculateDpi } = useDpiCalculation();
+
+    const getDpiInfo = (el: CanvasElement) => {
+      if (el.type !== 'image' || !el.naturalWidth || !el.naturalHeight) {
+        if (el.type === 'text') return <span className="text-green-600 font-bold">High resolution</span>;
+        return <span>{el.width ? `${(el.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(el.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}</span>;
+      }
+
+      // Find the placeholder it belongs to
+      const placeholder = placeholders.find(p => p.id === (el.placeholderId || (placeholders.length > 0 ? placeholders[0].id : null)));
+      if (!placeholder) return <span>{el.width ? `${(el.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(el.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}</span>;
+
+      const result = calculateDpi(
+        el.naturalWidth,
+        el.naturalHeight,
+        el.width || 0,
+        el.height || 0,
+        {
+          widthPx: placeholder.width,
+          heightPx: placeholder.height,
+          widthInches: placeholder.original.widthIn,
+          heightInches: placeholder.original.heightIn,
+        }
+      );
+
+      const colors = {
+        excellent: 'text-green-600',
+        acceptable: 'text-amber-600',
+        low: 'text-red-600'
+      };
+
+      const labels = {
+        excellent: 'HIGH RESOLUTION',
+        acceptable: 'MEDIUM RESOLUTION',
+        low: 'LOW RESOLUTION'
+      };
+
+      return (
+        <span className={`${colors[result.qualityStatus]} font-bold`}>
+          {labels[result.qualityStatus]} ({result.effectiveDPI} DPI)
+        </span>
+      );
+    };
+
     const [designTransforms, setDesignTransforms] = useState<Record<string, { x: number; y: number; scale: number }>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -6256,7 +6393,7 @@ const PropertiesPanel: React.FC<{
                             {element.type === 'image' ? (element.name || 'Image') : (element.name || element.shapeType || 'Shape')}
                           </p>
                           <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-tight">
-                            {element.width ? `${(element.width / (PX_PER_INCH || 96)).toFixed(2)}" × ${(element.height / (PX_PER_INCH || 96)).toFixed(2)}"` : 'Asset'}
+                            {getDpiInfo(element)}
                           </p>
                         </div>
                       </div>
@@ -6749,6 +6886,50 @@ const LayersPanel: React.FC<{
   PX_PER_INCH = 96,
   canvasPadding = 0,
 }) => {
+    const { calculateDpi } = useDpiCalculation();
+
+    const getDpiInfo = (el: CanvasElement) => {
+      if (el.type !== 'image' || !el.naturalWidth || !el.naturalHeight) {
+        if (el.type === 'text') return <span className="text-green-600 font-bold">High resolution</span>;
+        return <span>{el.width ? `${(el.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(el.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}</span>;
+      }
+
+      // Find the placeholder it belongs to
+      const placeholder = placeholders.find(p => p.id === (el.placeholderId || (placeholders.length > 0 ? placeholders[0].id : null)));
+      if (!placeholder) return <span>{el.width ? `${(el.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(el.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}</span>;
+
+      const result = calculateDpi(
+        el.naturalWidth,
+        el.naturalHeight,
+        el.width || 0,
+        el.height || 0,
+        {
+          widthPx: placeholder.width,
+          heightPx: placeholder.height,
+          widthInches: placeholder.original.widthIn,
+          heightInches: placeholder.original.heightIn,
+        }
+      );
+
+      const colors = {
+        excellent: 'text-green-600',
+        acceptable: 'text-amber-600',
+        low: 'text-red-600'
+      };
+
+      const labels = {
+        excellent: 'HIGH RESOLUTION',
+        acceptable: 'MEDIUM RESOLUTION',
+        low: 'LOW RESOLUTION'
+      };
+
+      return (
+        <span className={`${colors[result.qualityStatus]} font-bold`}>
+          {labels[result.qualityStatus]} ({result.effectiveDPI} DPI)
+        </span>
+      );
+    };
+
     const elementsByPlaceholder = useMemo(() => {
       const grouped: Record<string, CanvasElement[]> = {};
       elements.forEach(el => {
@@ -6915,9 +7096,7 @@ const LayersPanel: React.FC<{
                                         : (firstElement.name || (firstElement.type === 'image' ? 'Image' : firstElement.shapeType || 'Shape'))}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                                      {firstElement.width
-                                        ? `${(firstElement.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(firstElement.height / (PX_PER_INCH || 96)).toFixed(1)}"`
-                                        : 'Asset'}
+                                      {getDpiInfo(firstElement)}
                                     </p>
                                   </div>
                                   {/* Delete button */}
@@ -6989,7 +7168,7 @@ const LayersPanel: React.FC<{
                                             {element.type === 'text' ? (element.text || 'Text') : (element.name || (element.type === 'image' ? 'Image' : element.shapeType || 'Shape'))}
                                           </p>
                                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                                            {element.width ? `${(element.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(element.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}
+                                            {getDpiInfo(element)}
                                           </p>
                                         </div>
                                       </div>
