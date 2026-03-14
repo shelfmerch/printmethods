@@ -4,6 +4,7 @@
 
 const WHITELISTED_DOMAINS = [
   'localhost:8080',
+  'localhost:8081',
   'localhost:8085',
   'localhost:3000',
   'localhost:5000',

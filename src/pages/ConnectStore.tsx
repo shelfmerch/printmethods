@@ -35,6 +35,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { API_BASE_URL, RAW_API_URL } from "@/config";
+
+const SHOPIFY_DOMAIN_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
+
+function normalizeShopifyDomain(raw: string): string {
+    let s = raw.trim();
+    if (s.toLowerCase().startsWith("https://")) s = s.slice(8);
+    if (s.toLowerCase().startsWith("http://")) s = s.slice(7);
+    s = s.replace(/\/+$/, "");
+    return s;
+}
 
 const ChannelButton = ({
     name,
@@ -80,6 +91,10 @@ export default function ConnectStore() {
     const [newStoreName, setNewStoreName] = useState("");
     const [newStoreDescription, setNewStoreDescription] = useState("");
     const [isCreatingStore, setIsCreatingStore] = useState(false);
+
+    const [shopifyModalOpen, setShopifyModalOpen] = useState(false);
+    const [shopifyStoreDomain, setShopifyStoreDomain] = useState("");
+    const [shopifyDomainError, setShopifyDomainError] = useState<string | null>(null);
 
     const handleLaunchPopupStore = async () => {
         setIsCreatingInternal(true);
@@ -162,6 +177,34 @@ export default function ConnectStore() {
         toast.info(`Integration with ${channel} is coming soon!`);
     };
 
+    const openShopifyModal = () => {
+        setShopifyStoreDomain("");
+        setShopifyDomainError(null);
+        setShopifyModalOpen(true);
+    };
+
+    const closeShopifyModal = () => {
+        setShopifyModalOpen(false);
+        setShopifyStoreDomain("");
+        setShopifyDomainError(null);
+    };
+
+    const handleShopifyInstall = () => {
+        setShopifyDomainError(null);
+        const normalized = normalizeShopifyDomain(shopifyStoreDomain);
+        if (!SHOPIFY_DOMAIN_REGEX.test(normalized)) {
+            setShopifyDomainError(
+                "Please enter a valid Shopify store domain (example: mystore.myshopify.com)"
+            );
+            return;
+        }
+        const backendOrigin = RAW_API_URL && RAW_API_URL.startsWith("http") ? RAW_API_URL : null;
+        const shopifyStartUrl = backendOrigin
+            ? `${backendOrigin}/api/shopify/start?shop=${encodeURIComponent(normalized)}`
+            : `${API_BASE_URL}/shopify/start?shop=${encodeURIComponent(normalized)}`;
+        window.location.href = shopifyStartUrl;
+    };
+
     const handleCreateStore = async () => {
         if (!newStoreName.trim()) {
             toast.error("Please enter a store name");
@@ -215,7 +258,7 @@ export default function ConnectStore() {
                     </p>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        <div onClick={() => handleConnectChannel("Shopify")}>
+                        <div onClick={openShopifyModal}>
                             <ChannelButton
                                 name="Shopify"
                                 icon={<ShoppingBag className="text-[#95BF47] fill-current" />}
@@ -361,7 +404,7 @@ export default function ConnectStore() {
                                 <div className="flex gap-3">
                                     <Button
                                         className="bg-[#008060] text-white hover:bg-[#004C3F]"
-                                        onClick={() => handleConnectChannel("Shopify")}
+                                        onClick={openShopifyModal}
                                     >
                                         Connect to Shopify
                                     </Button>
@@ -479,6 +522,58 @@ export default function ConnectStore() {
                                         Create Store
                                     </>
                                 )}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Connect Shopify Modal */}
+                <Dialog
+                    open={shopifyModalOpen}
+                    onOpenChange={(open) => {
+                        setShopifyModalOpen(open);
+                        if (!open) {
+                            setShopifyStoreDomain("");
+                            setShopifyDomainError(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Connect your Shopify store</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="shopifyDomain">Store domain</Label>
+                                <Input
+                                    id="shopifyDomain"
+                                    value={shopifyStoreDomain}
+                                    onChange={(e) => {
+                                        setShopifyStoreDomain(e.target.value);
+                                        setShopifyDomainError(null);
+                                    }}
+                                    placeholder="your-store.myshopify.com"
+                                />
+                                {shopifyDomainError && (
+                                    <p className="text-sm text-destructive">{shopifyDomainError}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4 border-t">
+                            <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={closeShopifyModal}
+                            >
+                                Close
+                            </Button>
+                            <Button
+                                className="flex-1 bg-[#008060] text-white hover:bg-[#004C3F]"
+                                onClick={handleShopifyInstall}
+                            >
+                                Install App
                             </Button>
                         </div>
                     </DialogContent>
