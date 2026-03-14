@@ -14,7 +14,7 @@ const CurrentProductionShippingTimesPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
               {/* Left Sidebar */}
               <div className="lg:col-span-1">
-                <div className="bg-muted/30 rounded-lg p-6 mb-6">
+                <div className="bg-muted/30 rounded-lg p-4 mb-4">
                   <nav className="space-y-3">
                     <Link 
                       to="/support/policies" 
@@ -61,13 +61,13 @@ const CurrentProductionShippingTimesPage = () => {
               </div>
 
               {/* Main Content */}
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-5">
                 {/* Production Timeframes Section */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Production Timeframes
                   </h2>
-                  <div className="space-y-4 text-foreground leading-relaxed mb-6">
+                  <div className="space-y-2 text-foreground leading-relaxed mb-3">
                     <p>
                     95% of our orders are delivered within the estimated timeframes. The production times listed below apply to stocked apparel items. In some cases, items may be temporarily unavailable at the manufacturer, which could result in extended production times.
                     </p>
@@ -77,136 +77,136 @@ const CurrentProductionShippingTimesPage = () => {
                   </div>
 
                   {/* Production Timeframes Table */}
-                  <div className="overflow-x-auto mb-8">
+                  <div className="overflow-x-auto mb-4">
                     <table className="w-full border-collapse border border-black">
                       <thead>
                         <tr>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">Product Category</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">0-2 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">3-4 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">5-6 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">7-9 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">10+ Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">Contact us if your order is in production longer than __ business days</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">Product Category</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">0-2 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">3-4 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">5-6 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">7-9 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">10+ Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">Contact us if your order is in production longer than __ business days</th>
                         </tr>
                       </thead>
                       <tbody className="text-foreground">
                         <tr>
-                          <td className="py-3 px-4 border border-black">Accessories - General</td>
-                          <td className="py-3 px-4 border border-black">95%</td>
-                          <td className="py-3 px-4 border border-black">4%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Accessories - General</td>
+                          <td className="py-1.5 px-3 border border-black">95%</td>
+                          <td className="py-1.5 px-3 border border-black">4%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Accessories - Totes and Bags</td>
-                          <td className="py-3 px-4 border border-black">78%</td>
-                          <td className="py-3 px-4 border border-black">22%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Accessories - Totes and Bags</td>
+                          <td className="py-1.5 px-3 border border-black">78%</td>
+                          <td className="py-1.5 px-3 border border-black">22%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Apparel - All Over Print</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">7%</td>
-                          <td className="py-3 px-4 border border-black">93%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Apparel - All Over Print</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">7%</td>
+                          <td className="py-1.5 px-3 border border-black">93%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Apparel - DTF</td>
-                          <td className="py-3 px-4 border border-black">97%</td>
-                          <td className="py-3 px-4 border border-black">3%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Apparel - DTF</td>
+                          <td className="py-1.5 px-3 border border-black">97%</td>
+                          <td className="py-1.5 px-3 border border-black">3%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Drinkware - Mugs</td>
-                          <td className="py-3 px-4 border border-black">94%</td>
-                          <td className="py-3 px-4 border border-black">6%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Drinkware - Mugs</td>
+                          <td className="py-1.5 px-3 border border-black">94%</td>
+                          <td className="py-1.5 px-3 border border-black">6%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Drinkware - Other</td>
-                          <td className="py-3 px-4 border border-black">90%</td>
-                          <td className="py-3 px-4 border border-black">10%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Drinkware - Other</td>
+                          <td className="py-1.5 px-3 border border-black">90%</td>
+                          <td className="py-1.5 px-3 border border-black">10%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Embroidery</td>
-                          <td className="py-3 px-4 border border-black">58%</td>
-                          <td className="py-3 px-4 border border-black">30%</td>
-                          <td className="py-3 px-4 border border-black">9%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">2%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Embroidery</td>
+                          <td className="py-1.5 px-3 border border-black">58%</td>
+                          <td className="py-1.5 px-3 border border-black">30%</td>
+                          <td className="py-1.5 px-3 border border-black">9%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">2%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Home Decor - General</td>
-                          <td className="py-3 px-4 border border-black">86%</td>
-                          <td className="py-3 px-4 border border-black">14%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Home Decor - General</td>
+                          <td className="py-1.5 px-3 border border-black">86%</td>
+                          <td className="py-1.5 px-3 border border-black">14%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Home Office Decor</td>
-                          <td className="py-3 px-4 border border-black">70%</td>
-                          <td className="py-3 px-4 border border-black">8%</td>
-                          <td className="py-3 px-4 border border-black">6%</td>
-                          <td className="py-3 px-4 border border-black">13%</td>
-                          <td className="py-3 px-4 border border-black">3%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Home Office Decor</td>
+                          <td className="py-1.5 px-3 border border-black">70%</td>
+                          <td className="py-1.5 px-3 border border-black">8%</td>
+                          <td className="py-1.5 px-3 border border-black">6%</td>
+                          <td className="py-1.5 px-3 border border-black">13%</td>
+                          <td className="py-1.5 px-3 border border-black">3%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Kids & Baby</td>
-                          <td className="py-3 px-4 border border-black">50%</td>
-                          <td className="py-3 px-4 border border-black">47%</td>
-                          <td className="py-3 px-4 border border-black">2%</td>
-                          <td className="py-3 px-4 border border-black">1%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Kids & Baby</td>
+                          <td className="py-1.5 px-3 border border-black">50%</td>
+                          <td className="py-1.5 px-3 border border-black">47%</td>
+                          <td className="py-1.5 px-3 border border-black">2%</td>
+                          <td className="py-1.5 px-3 border border-black">1%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Prints</td>
-                          <td className="py-3 px-4 border border-black">94%</td>
-                          <td className="py-3 px-4 border border-black">6%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Prints</td>
+                          <td className="py-1.5 px-3 border border-black">94%</td>
+                          <td className="py-1.5 px-3 border border-black">6%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Stationery</td>
-                          <td className="py-3 px-4 border border-black">85%</td>
-                          <td className="py-3 px-4 border border-black">14%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Stationery</td>
+                          <td className="py-1.5 px-3 border border-black">85%</td>
+                          <td className="py-1.5 px-3 border border-black">14%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Wall Art & Canvas Products</td>
-                          <td className="py-3 px-4 border border-black">41%</td>
-                          <td className="py-3 px-4 border border-black">42%</td>
-                          <td className="py-3 px-4 border border-black">17%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Wall Art & Canvas Products</td>
+                          <td className="py-1.5 px-3 border border-black">41%</td>
+                          <td className="py-1.5 px-3 border border-black">42%</td>
+                          <td className="py-1.5 px-3 border border-black">17%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                       </tbody>
                     </table>
@@ -215,14 +215,14 @@ const CurrentProductionShippingTimesPage = () => {
 
                 {/* Shipping Timeframes Section */}
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Shipping Timeframes
                   </h2>
-                  <div className="space-y-4 text-foreground leading-relaxed mb-6">
+                  <div className="space-y-1 text-foreground leading-relaxed mb-3">
                     <p>
                       We work closely with our shipping providers to ensure timely delivery. However, shipping times can vary based on several factors:
                     </p>
-                    <ul className="list-disc list-inside space-y-2">
+                    <ul className="list-disc list-inside space-y-1">
                       <li>Extended shipping times during peak holiday seasons</li>
                       <li>Delays in international orders due to customs processing</li>
                     </ul>
@@ -236,68 +236,68 @@ const CurrentProductionShippingTimesPage = () => {
                     <table className="w-full border-collapse border border-black">
                       <thead>
                         <tr>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">Product Category</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">0-2 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">3-4 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">5-6 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">7-9 Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">10+ Business Days spent in Production</th>
-                          <th className="text-left py-3 px-4 font-bold text-foreground border border-black">Contact us if your order is in production longer than __ business days</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">Product Category</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">0-2 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">3-4 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">5-6 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">7-9 Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">10+ Business Days spent in Production</th>
+                          <th className="text-left py-1.5 px-3 font-bold text-foreground border border-black">Contact us if your order is in production longer than __ business days</th>
                         </tr>
                       </thead>
                       <tbody className="text-foreground">
                         <tr>
-                          <td className="py-3 px-4 border border-black">Accessories - General</td>
-                          <td className="py-3 px-4 border border-black">95%</td>
-                          <td className="py-3 px-4 border border-black">4%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Accessories - General</td>
+                          <td className="py-1.5 px-3 border border-black">95%</td>
+                          <td className="py-1.5 px-3 border border-black">4%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Accessories - Totes and Bags</td>
-                          <td className="py-3 px-4 border border-black">78%</td>
-                          <td className="py-3 px-4 border border-black">22%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Accessories - Totes and Bags</td>
+                          <td className="py-1.5 px-3 border border-black">78%</td>
+                          <td className="py-1.5 px-3 border border-black">22%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Apparel - All Over Print</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">7%</td>
-                          <td className="py-3 px-4 border border-black">93%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Apparel - All Over Print</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">7%</td>
+                          <td className="py-1.5 px-3 border border-black">93%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Apparel - DTF</td>
-                          <td className="py-3 px-4 border border-black">97%</td>
-                          <td className="py-3 px-4 border border-black">3%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Apparel - DTF</td>
+                          <td className="py-1.5 px-3 border border-black">97%</td>
+                          <td className="py-1.5 px-3 border border-black">3%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Drinkware - Mugs</td>
-                          <td className="py-3 px-4 border border-black">94%</td>
-                          <td className="py-3 px-4 border border-black">6%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">12</td>
+                          <td className="py-1.5 px-3 border border-black">Drinkware - Mugs</td>
+                          <td className="py-1.5 px-3 border border-black">94%</td>
+                          <td className="py-1.5 px-3 border border-black">6%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">12</td>
                         </tr>
                         <tr>
-                          <td className="py-3 px-4 border border-black">Drinkware - Other</td>
-                          <td className="py-3 px-4 border border-black">90%</td>
-                          <td className="py-3 px-4 border border-black">10%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
-                          <td className="py-3 px-4 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">Drinkware - Other</td>
+                          <td className="py-1.5 px-3 border border-black">90%</td>
+                          <td className="py-1.5 px-3 border border-black">10%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
+                          <td className="py-1.5 px-3 border border-black">0%</td>
                           <td className="py-3 px-4 border border-black">12</td>
                         </tr>
                         <tr>

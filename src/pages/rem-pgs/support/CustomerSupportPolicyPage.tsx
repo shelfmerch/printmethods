@@ -15,7 +15,7 @@ const CustomerSupportPolicyPage = () => {
               {/* Left Sidebar */}
               <div className="lg:col-span-1">
                 <div className="bg-muted/30 rounded-lg p-6 mb-6">
-                  <nav className="space-y-3">
+                  <nav className="space-y-1">
                     <Link 
                       to="/support/policies" 
                       className={`block transition-colors ${
@@ -61,22 +61,22 @@ const CustomerSupportPolicyPage = () => {
               </div>
 
               {/* Main Content */}
-              <div className="lg:col-span-3 space-y-8">
+              <div className="lg:col-span-3 space-y-5">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-3">
                     Claims for Reprints, Refunds, and Returns
                   </h2>
                   
-                  <div className="space-y-6 text-foreground leading-relaxed">
+                  <div className="space-y-3 text-foreground leading-relaxed">
                     <p>
                       All claims for reprints, refunds, and returns must be submitted within 4 weeks of receiving an order or its expected delivery date.
                     </p>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Order Cancellations and Address Changes
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         Orders cannot be canceled or have their address changed once they have entered the production phase. Due to the customized nature of our products, vendors typically begin production within 24 hours of order submission. At this stage, we cannot guarantee that the manufacturer will process any changes or cancellations. 
                         </p>
@@ -90,10 +90,10 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Reprint & Refund Policy
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         We strive to deliver perfect orders every time. However, if an issue arises, we can offer reprints or refunds based on the situation. Photo evidence is required when submitting a reprint or refund request. Depending on the issue, the cost will be covered by either Shelf Merch or you, the seller. Upgraded shipping costs are not covered and must be borne by the seller.
                         </p>
@@ -101,10 +101,10 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Scenarios Where Shelf Merch Covers Reprint/Refund Costs
                       </h3>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-disc list-inside space-y-1">
                         <li>Manufacturing issues with the product.</li>
                         <li>Damage during shipping or broken items upon delivery.</li>
                         <li>Incorrect product received by the customer.</li>
@@ -114,10 +114,10 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Scenarios Where Shelf Merch Does Not Cover Reprint/Refund Costs
                       </h3>
-                      <ul className="list-disc list-inside space-y-2">
+                      <ul className="list-disc list-inside space-y-1">
                         <li> Dissatisfaction with the product that meets manufacturing standards.</li>
                         <li>Errors in product creation, such as incorrect image placement or design uploads.</li>
                         <li> Incorrect size selection by the customer.</li>
@@ -129,10 +129,10 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Lost in Transit
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         An order is considered lost in transit if it fails to arrive at the provided shipping address within the maximum specified shipping timeframe. If a customer reports a missing package and the shipping duration has exceeded standard timeframes, Shelf Merch may honor refund requests. Please note that shipping updates may vary, especially with standard shipping methods.
                         </p> 
@@ -140,14 +140,14 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Returns Policy
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-1">
                         <p>
                         Shelf Merch does not accept returns. However, the following options are available:
                         </p>
-                        <ul className="list-disc list-inside space-y-2">
+                        <ul className="list-disc list-inside space-y-1">
                           <li>Some vendors may accept returns if the return address is the vendor’s location.</li>
                           <li>Sellers can choose to accept returns to their own address and decide how to handle returned items.</li>
                           <li>Refunds are not issued for returned orders. Instead, Shelf Merch may offer a reshipment or reprint based on the vendor’s policies.</li>
@@ -156,7 +156,7 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Exchange Policy
                       </h3>
                       <p>
@@ -165,7 +165,7 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Apparel Substitution Policy
                       </h3>
                       <p>
@@ -174,7 +174,7 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Bulk Discount Policy
                       </h3>
                       <p>
@@ -183,7 +183,7 @@ const CustomerSupportPolicyPage = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-bold text-foreground mb-4">
+                      <h3 className="text-lg font-bold text-foreground mb-2">
                         Custom Packaging Policy
                       </h3>
                       <p>

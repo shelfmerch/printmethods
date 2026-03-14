@@ -171,19 +171,25 @@ const Footer = () => {
             {/* Right - Social Media Icons */}
             <div className="flex items-center gap-3">
               <a
-                href="#"
+                href="https://www.youtube.com/@shelfmerch"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-background border border-muted-foreground flex items-center justify-center hover:border-primary transition-colors"
               >
                 <Play className="h-4 w-4 text-foreground" fill="currentColor" />
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/shelfmerch?igsh=MTBoeno3b3c1NWtwdQ=="
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-background border border-muted-foreground flex items-center justify-center hover:border-primary transition-colors"
               >
                 <Instagram className="h-4 w-4 text-foreground" />
               </a>
               <a
-                href="#"
+                href="https://www.linkedin.com/company/shelfmerch/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-background border border-muted-foreground flex items-center justify-center hover:border-primary transition-colors"
               >
                 <Linkedin className="h-4 w-4 text-foreground" />

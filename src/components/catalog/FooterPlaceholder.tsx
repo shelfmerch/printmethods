@@ -155,35 +155,41 @@ const Footer = () => {
         <div className="border-t border-muted pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
             {/* Left - Copyright */}
-            <p>© 2024 Chitlu Innovations Pvt Ltd. All rights reserved</p>
+            <p> 2024 Chitlu Innovations Pvt Ltd. All rights reserved</p>
 
             {/* Center - Legal Links */}
             <div className="flex items-center gap-2">
-              <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+              <Link to="/terms-of-conditions" className="hover:text-primary transition-colors">Terms of Service</Link>
               <span className="text-muted-foreground">|</span>
-              <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+              <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
               <span className="text-muted-foreground">|</span>
-              {/* <a href="#" className="hover:text-primary transition-colors">Cookie Policy</a>
-              <span className="text-muted-foreground">|</span> */}
+              <Link to="/data-deletion-policy" className="hover:text-primary transition-colors">Data Deletion Policy</Link>
+              <span className="text-muted-foreground">|</span>
               <a href="/support/customer-support-policy" className="hover:text-primary transition-colors">Return & Refunds</a>
             </div>
 
             {/* Right - Social Media Icons */}
             <div className="flex items-center gap-3">
               <a
-                href="#"
+                href="https://www.youtube.com/@shelfmerch"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-background border border-muted-foreground flex items-center justify-center hover:border-primary transition-colors"
               >
                 <Play className="h-4 w-4 text-foreground" fill="currentColor" />
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/shelfmerch?igsh=MTBoeno3b3c1NWtwdQ=="
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-background border border-muted-foreground flex items-center justify-center hover:border-primary transition-colors"
               >
                 <Instagram className="h-4 w-4 text-foreground" />
               </a>
               <a
-                href="#"
+                href="https://www.linkedin.com/company/shelfmerch/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-background border border-muted-foreground flex items-center justify-center hover:border-primary transition-colors"
               >
                 <Linkedin className="h-4 w-4 text-foreground" />
