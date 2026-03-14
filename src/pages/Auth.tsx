@@ -658,7 +658,7 @@ const consumeReturnTo = (): string => {
     }
   }
 
-  return getSafeRedirect(stored, '/dashboard');
+  return getSafeRedirect(stored, '/connect-store');
 };
 
 const Auth = () => {
