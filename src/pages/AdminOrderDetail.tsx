@@ -47,12 +47,34 @@ const MockupCanvasPreview: React.FC<MockupCanvasPreviewProps> = ({
     setError(false);
 
     const loadImage = (url: string): Promise<HTMLImageElement> =>
-      new Promise((resolve, reject) => {
-        const img = new window.Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load ${url}`));
-        img.src = url;
+      new Promise(async (resolve, reject) => {
+        // Cache-busting: add a timestamp query parameter to bypass the browser's 
+        // disk cache. If the image was loaded previously by a normal <img> tag,
+        // it was cached WITHOUT the Access-Control-Allow-Origin header. 
+        // When we fetch it here with CORS, the browser uses the cached (non-CORS) 
+        // response, causing a CORS error. The timestamp forces a fresh request 
+        // where S3 actually sees our Origin header and responds with CORS headers.
+        const bustUrl = url.includes('amazonaws.com') 
+          ? `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`
+          : url;
+
+        try {
+          const resp = await fetch(bustUrl, { mode: 'cors' });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const img = new window.Image();
+          img.onload = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
+          img.onerror = () => reject(new Error(`Blob load failed for ${url}`));
+          img.src = blobUrl;
+        } catch {
+          // Fallback if fetch fails
+          const img = new window.Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error(`Failed to load ${url}`));
+          img.src = bustUrl;
+        }
       });
 
     const render = async () => {
