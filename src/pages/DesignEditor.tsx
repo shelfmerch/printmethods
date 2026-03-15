@@ -2885,11 +2885,14 @@ const DesignEditor: React.FC = () => {
       }
 
       // --- DPI VALIDATION ---
-      // if (Object.keys(lowDpiImages).length > 0) {
-      //   const lowestDpi = Math.min(...Object.values(lowDpiImages));
-      //   toast.error(`Cannot add product: image resolution is too low (${lowestDpi} DPI). Please upload an image with at least 300 DPI.`);
-      //   return;
-      // }
+      // Removed DPI validation as requested to allow images below 300 DPI.
+      /*
+      if (Object.keys(lowDpiImages).length > 0) {
+        const lowestDpi = Math.min(...Object.values(lowDpiImages));
+        toast.error(`Cannot add product: image resolution is too low (${lowestDpi} DPI). Please upload an image with at least 300 DPI.`);
+        return;
+      }
+      */
 
       // --- CREATE DRAFT IN DATABASE ---
       // Create a draft store product with the entire elements array
@@ -4974,9 +4977,9 @@ const DesignEditor: React.FC = () => {
               <div className="flex items-center">
                 <Button
                   variant="default"
-                  className={`px-8 h-9 text-xs font-semibold ${(!variantValidation.isValid || Object.keys(lowDpiImages).length > 0) ? 'opacity-50 grayscale' : ''}`}
+                  className={`px-8 h-9 text-xs font-semibold ${(!variantValidation.isValid) ? 'opacity-50 grayscale' : ''}`}
                   onClick={handlePublishToStore}
-                  disabled={isPublishing || Object.keys(lowDpiImages).length > 0}
+                  disabled={isPublishing}
                 >
                   {isPublishing ? 'Publishing...' : 'Add Product'}
                 </Button>
