@@ -451,6 +451,9 @@ const handleShopifyWebhook = async (req, res) => {
           {
             $set: {
               shop: shopDomain,
+              // Fix: persist the permanent myshopify domain on every webhook write
+              // so we can reliably re-link orders to merchants later.
+              myshopifyDomain: shopDomain,
               shopifyOrderId,
               topic,
               createdAtShopify,
