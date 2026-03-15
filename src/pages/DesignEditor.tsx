@@ -3773,7 +3773,7 @@ const DesignEditor: React.FC = () => {
                 }}
               >
                 {/* Dynamic Floating DPI Indicator for Selected Image */}
-                {(() => {
+                {/* {(() => {
                   if (selectedDpiResult && selectedIds.length === 1 && !previewMode) {
                     const selectedEl = elements.find(el => el.id === selectedIds[0]);
                     if (selectedEl && selectedEl.type === 'image') {
@@ -3794,7 +3794,7 @@ const DesignEditor: React.FC = () => {
                     }
                   }
                   return null;
-                })()}
+                })()} */}
 
                 {/* Konva canvas — edit and preview share the same stage */}
                 <div
@@ -4060,7 +4060,7 @@ const DesignEditor: React.FC = () => {
 
                         return visiblePlaceholders.map((ph) => {
                           const isSelected = selectedPlaceholderId === ph.id;
-                          const baseColor = ph.original.color || '#f472b6';
+                          const baseColor = ph.original.color || 'rgba(247, 181, 215, 1)';
 
                           const hexToRgba = (hex: string, alpha: number) => {
                             if (!hex.startsWith('#') || hex.length !== 7) return `rgba(251, 207, 232, ${alpha})`;
