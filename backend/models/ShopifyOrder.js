@@ -6,6 +6,12 @@ const shopifyOrderSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  // Fix: store the canonical myshopify domain alongside merchantId
+  // so we can always resolve the owning merchant even if linkage changes.
+  myshopifyDomain: {
+    type: String,
+    index: true,
+  },
   merchantId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -43,6 +49,9 @@ const shopifyOrderSchema = new mongoose.Schema({
 
 // Unique per shop + Shopify order id
 shopifyOrderSchema.index({ shop: 1, shopifyOrderId: 1 }, { unique: true });
+// Fix: also index by myshopifyDomain so admin queries and backfills can
+// efficiently look up orders by permanent store identifier.
+shopifyOrderSchema.index({ myshopifyDomain: 1 });
 shopifyOrderSchema.index({ createdAtShopify: -1 });
 shopifyOrderSchema.index({ 'raw.email': 1 });
 

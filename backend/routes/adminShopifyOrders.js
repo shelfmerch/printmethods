@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ShopifyOrder = require('../models/ShopifyOrder');
+const ShopifyStore = require('../models/ShopifyStore');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -87,12 +88,43 @@ router.get('/', protect, authorize('superadmin'), async (req, res) => {
       .limit(limit)
       .lean();
 
+    // Fix: some historical orders lost merchantId when merchants were recreated.
+    // We now always store the permanent myshopifyDomain (or shop) on orders and
+    // fall back to resolving the merchant through ShopifyStore when needed.
+
+    // 1) Collect unique shops present in this page of orders.
+    const shops = Array.from(
+      new Set(
+        docs
+          .map((doc) => (doc.myshopifyDomain || doc.shop || '').toLowerCase())
+          .filter(Boolean)
+      )
+    );
+
+    // 2) Load ShopifyStore records to get merchantId by shop domain.
+    const stores = shops.length
+      ? await ShopifyStore.find({ shop: { $in: shops } })
+          .select('shop merchantId')
+          .lean()
+      : [];
+
+    const merchantIdByShop = new Map(
+      stores
+        .filter((s) => s.merchantId)
+        .map((s) => [String(s.shop).toLowerCase(), String(s.merchantId)])
+    );
+
+    // 3) Collect all merchantIds needed: direct on order or via store fallback.
     const merchantIds = Array.from(
       new Set(
         docs
-          .map((doc) => doc.merchantId)
+          .map((doc) => {
+            const direct = doc.merchantId ? String(doc.merchantId) : null;
+            if (direct) return direct;
+            const key = (doc.myshopifyDomain || doc.shop || '').toLowerCase();
+            return merchantIdByShop.get(key) || null;
+          })
           .filter((id) => !!id)
-          .map((id) => String(id))
       )
     );
 
@@ -147,13 +179,24 @@ router.get('/', protect, authorize('superadmin'), async (req, res) => {
         raw.fulfillment_status ||
         null;
 
+      const shopDomain = (doc.myshopifyDomain || doc.shop || '').toLowerCase() || null;
+      const fallbackMerchantId = shopDomain
+        ? merchantIdByShop.get(shopDomain) || null
+        : null;
+
+      const effectiveMerchantId = doc.merchantId || fallbackMerchantId || null;
+
       const merchantName =
-        merchantNameById.get(String(doc.merchantId || '')) || null;
+        effectiveMerchantId
+          ? merchantNameById.get(String(effectiveMerchantId)) || null
+          : null;
 
       return {
         _id: doc._id,
         shop: doc.shop,
-        merchantId: doc.merchantId,
+        // Fix: include the effective merchantId (direct or resolved via shop)
+        // so old orders still show the correct merchant on the dashboard.
+        merchantId: effectiveMerchantId,
         merchantName,
         shopifyOrderId: doc.shopifyOrderId,
         createdAtShopify: doc.createdAtShopify || doc.createdAt,

@@ -170,6 +170,9 @@ const syncOrdersForShop = async (shop, merchantId = null) => {
         $set: {
           merchantId: effectiveMerchantId,
           shop: shopClean,
+          // Fix: persist canonical myshopify domain for sync-created orders too
+          // so they participate in the same merchant backfill logic as webhooks.
+          myshopifyDomain: shopClean,
           shopifyOrderId: String(order.id),
           orderName: order.name,
           orderNumber: order.order_number,
