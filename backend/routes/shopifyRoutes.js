@@ -456,8 +456,8 @@ const handleShopifyWebhook = async (req, res) => {
               createdAtShopify,
               updatedAtShopify,
               raw: payload,
+              merchantId: store.merchantId || null,
             },
-            $setOnInsert: { merchantId: store.merchantId || null },
           },
           { upsert: true, new: true }
         );
