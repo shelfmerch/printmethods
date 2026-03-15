@@ -2885,11 +2885,11 @@ const DesignEditor: React.FC = () => {
       }
 
       // --- DPI VALIDATION ---
-      if (Object.keys(lowDpiImages).length > 0) {
-        const lowestDpi = Math.min(...Object.values(lowDpiImages));
-        toast.error(`Cannot add product: image resolution is too low (${lowestDpi} DPI). Please upload an image with at least 300 DPI.`);
-        return;
-      }
+      // if (Object.keys(lowDpiImages).length > 0) {
+      //   const lowestDpi = Math.min(...Object.values(lowDpiImages));
+      //   toast.error(`Cannot add product: image resolution is too low (${lowestDpi} DPI). Please upload an image with at least 300 DPI.`);
+      //   return;
+      // }
 
       // --- CREATE DRAFT IN DATABASE ---
       // Create a draft store product with the entire elements array
