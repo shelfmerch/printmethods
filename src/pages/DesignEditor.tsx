@@ -354,8 +354,6 @@ const DesignEditor: React.FC = () => {
   const [rightPanelTab, setRightPanelTab] = useState<string>('product');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileToolStage, setMobileToolStage] = useState<'none' | 'menu' | 'detail'>('none');
-  const [fetchedPlaceholders, setFetchedPlaceholders] = useState<Placeholder[]>([]);
-  const [placeholdersLoading, setPlaceholdersLoading] = useState<boolean>(true);
   const [storeProductId, setStoreProductId] = useState<string | null>(null);
 
   const [bgRemovingId, setBgRemovingId] = useState<string | null>(null);
@@ -1090,41 +1088,6 @@ const DesignEditor: React.FC = () => {
     }
   }, [id, product]);
 
-  // Fetch placeholders from new collection
-  useEffect(() => {
-    const fetchPlaceholders = async () => {
-      setPlaceholdersLoading(true);
-      if (!product?._id || !currentView) return;
-      try {
-        const response = await fetch(`${API_BASE_URL}/placeholders?productId=${product._id}&view=${currentView}`);
-        const data = await response.json();
-        if (data.success && data.data) {
-          const mappedPlaceholders = data.data.map((ph: any) => ({
-            id: ph.placeholderId,
-            name: ph.placeholderName,
-            color: ph.placeholderColor,
-            xIn: ph.xIn,
-            yIn: ph.yIn,
-            widthIn: ph.widthIn,
-            heightIn: ph.heightIn,
-            rotationDeg: ph.rotationDeg,
-            scale: ph.scale,
-            lockSize: ph.lockSize,
-            shapeType: ph.shapeType,
-            polygonPoints: ph.polygonPoints,
-            renderPolygonPoints: ph.renderPolygonPoints,
-            shapeRefinement: ph.shapeRefinement
-          }));
-          setFetchedPlaceholders(mappedPlaceholders);
-        }
-      } catch (err) {
-        console.error('Error fetching placeholders:', err);
-      } finally {
-        setPlaceholdersLoading(false);
-      }
-    };
-    fetchPlaceholders();
-  }, [product?._id, currentView]);
 
   // Load mockup when view changes
   useEffect(() => {
@@ -1215,9 +1178,7 @@ const DesignEditor: React.FC = () => {
   // This means anchoring to the padded canvas, not re-normalizing to the mockup
   // image bounds or `normalizedPosition`, which can be inconsistent for older data.
   const placeholders = useMemo(() => {
-    const sourcePlaceholders = fetchedPlaceholders.length > 0
-      ? fetchedPlaceholders
-      : (currentViewData?.placeholders || []); // Fallback for backward compat if DB empty
+    const sourcePlaceholders = currentViewData?.placeholders || []; // Strictly use design.views data
 
     if (!sourcePlaceholders || sourcePlaceholders.length === 0) {
       console.log('No placeholders found for current view');
@@ -1269,7 +1230,7 @@ const DesignEditor: React.FC = () => {
     });
 
     return converted;
-  }, [fetchedPlaceholders, currentViewData, PX_PER_INCH, inchesToPixels, canvasPadding]);
+  }, [currentViewData, PX_PER_INCH, inchesToPixels, canvasPadding]);
 
   // --- DYNAMIC DPI RECALCULATION ---
   // Runs whenever image elements change size/position, or placeholder sizes change.
@@ -3394,14 +3355,14 @@ const DesignEditor: React.FC = () => {
         <div className="flex items-center gap-2">
           {!isMobile ? (
             <>
-              <Button variant="outline" size="sm" onClick={handleSave} className="hidden sm:flex">
+              {/* <Button variant="outline" size="sm" onClick={handleSave} className="hidden sm:flex">
                 <Save className="w-4 h-4 mr-2" />
                 Save
               </Button>
               <Button variant="ghost" size="sm" onClick={() => handleExportPreview('png')}>
                 <Download className="w-4 h-4 mr-2" />
                 <span className="hidden xs:inline ml-1">Export</span>
-              </Button>
+              </Button> */}
             </>
           ) : (
             <Button
@@ -3419,33 +3380,26 @@ const DesignEditor: React.FC = () => {
 
       {/* Mobile Views Selector Hub (Top) */}
       {isMobile && !previewMode && availableViews.length > 0 && (
-        <div className="flex-shrink-0 border-b bg-background flex justify-center z-10 w-full overflow-hidden">
-          <div className="flex items-center gap-4 p-2 overflow-x-auto no-scrollbar px-4 justify-center min-w-full">
-            {availableViews.map((viewKey) => {
-              const thumb = savedMockupPreviews[viewKey];
-              const isActive = currentView === viewKey;
-              return (
-                <button
-                  key={viewKey}
-                  onClick={() => handleViewSwitch(viewKey)}
-                  className={`flex flex-col items-center gap-0.5 transition-all relative whitespace-nowrap ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  {thumb ? (
-                    <div className={`w-8 h-8 rounded overflow-hidden border ${isActive ? 'border-primary' : 'border-border'}`}>
-                      <img src={thumb} alt={viewKey} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className={`w-8 h-8 rounded flex items-center justify-center text-[9px] font-bold ${isActive ? 'bg-primary/10' : 'bg-muted'}`}>
-                      {viewKey.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <span className="text-[11px] font-bold leading-none">
+        <div className="flex-shrink-0 border-b bg-white flex justify-center z-10 w-full overflow-hidden shadow-sm">
+          <div className="flex items-center gap-2 p-2 overflow-x-auto no-scrollbar px-4 justify-start sm:justify-center min-w-full py-3">
+            <div className="flex gap-2 bg-slate-100/50 p-1 rounded-xl">
+              {availableViews.map((viewKey) => {
+                const isActive = currentView === viewKey;
+                return (
+                  <button
+                    key={viewKey}
+                    onClick={() => handleViewSwitch(viewKey)}
+                    className={`px-5 py-1.5 transition-all duration-200 font-bold text-[12px] whitespace-nowrap rounded-lg ${
+                      isActive
+                        ? 'bg-[#22c55e] text-white shadow-sm'
+                        : 'text-slate-600 hover:text-[#22c55e]'
+                    }`}
+                  >
                     {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
-                  </span>
-                  {isActive && <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full" />}
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -4049,14 +4003,9 @@ const DesignEditor: React.FC = () => {
 
                     {/* Placeholder Outlines Layer — only in edit mode */}
                     <Layer>
-                      {!previewMode && !isCapturingMockup && !placeholdersLoading && (() => {
-                        // Show only one visible placeholder at a time in the editor:
-                        // - If a placeholder is selected, render just that one
-                        // - Otherwise, render the first placeholder for the current view
-                        const visiblePlaceholders =
-                          selectedPlaceholderId
-                            ? placeholders.filter((p) => p.id === selectedPlaceholderId)
-                            : placeholders.slice(0, 1);
+                      {!previewMode && !isCapturingMockup && (() => {
+                        // Render all placeholders defined for this view
+                        const visiblePlaceholders = placeholders;
 
                         return visiblePlaceholders.map((ph) => {
                           const isSelected = selectedPlaceholderId === ph.id;
@@ -4585,34 +4534,21 @@ const DesignEditor: React.FC = () => {
                 </div>
               </div>
 
-              {/* View Switcher - Desktop Only */}
               {!isMobile && availableViews.length > 0 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-background rounded-lg p-1.5 border shadow-lg z-10 transition-all hover:shadow-xl">
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1 bg-white rounded-2xl p-2 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-10 transition-all overflow-hidden items-center">
                   {availableViews.map((viewKey) => {
-                    const thumb = savedMockupPreviews[viewKey];
                     const isActive = currentView === viewKey;
                     return (
                       <button
                         key={viewKey}
                         onClick={() => handleViewSwitch(viewKey)}
-                        className={`flex flex-col items-center gap-1 rounded-md px-2 py-1 transition-all focus:outline-none ${
+                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px] ${
                           isActive
-                            ? 'bg-primary text-primary-foreground shadow'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                            ? 'bg-[#22c55e] text-white rounded-xl shadow-[0_4px_12px_rgba(34,197,94,0.3)]'
+                            : 'text-[#334155] hover:text-[#22c55e] bg-transparent'
                         }`}
                       >
-                        {thumb ? (
-                          <div className={`w-10 h-10 rounded overflow-hidden border ${isActive ? 'border-primary-foreground/30' : 'border-border'}`}>
-                            <img src={thumb} alt={viewKey} className="w-full h-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className={`w-10 h-10 rounded flex items-center justify-center text-[10px] font-bold ${isActive ? 'bg-primary-foreground/10' : 'bg-muted'}`}>
-                            {viewKey.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <span className="text-[11px] font-medium capitalize leading-none">
-                          {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
-                        </span>
+                        {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
                       </button>
                     );
                   })}
@@ -6949,10 +6885,90 @@ const LayersPanel: React.FC<{
         ? elements.filter(e => !e.placeholderId) // On mobile, only show unassigned elements in the main list
         : elements;
 
+    const renderElementRow = (element: CanvasElement) => {
+      const isSelected = selectedIds.includes(element.id);
+      return (
+        <div
+          key={element.id}
+          className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-primary/10 border-primary/20 border-2 shadow-sm' : 'bg-muted/30 border border-transparent shadow-none hover:bg-muted/50'}`}
+          onClick={() => onSelectElement(element.id)}
+        >
+          <div className="w-16 h-16 rounded-lg border bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+            {element.type === 'image' && element.imageUrl ? (
+              <img
+                src={element.imageUrl}
+                alt="Thumbnail"
+                className="w-full h-full object-contain"
+                style={{ imageRendering: 'auto' }}
+              />
+            ) : element.type === 'text' ? (
+              <div className="flex flex-col items-center justify-center w-full h-full bg-white">
+                <span className="text-sm font-bold text-primary leading-none">T</span>
+                <div className="w-full h-[2px] bg-primary/20 mt-1" />
+              </div>
+            ) : (
+              <Square className="w-6 h-6 text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold truncate">
+              {element.type === 'text' ? (element.text || 'Text') : (element.name || (element.type === 'image' ? 'Image' : element.shapeType || 'Shape'))}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+              {getDpiInfo(element)}
+            </p>
+          </div>
+          {isMobile && (
+            <button
+              className="flex-shrink-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-95 ml-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(element.id);
+              }}
+              aria-label="Delete element"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      );
+    };
+
     return (
       <div className="space-y-4">
         {/* Placeholders Section */}
-        {placeholders.length > 0 && (
+        {placeholders.length === 1 && (
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold uppercase text-muted-foreground">Layers</Label>
+            <div className="space-y-2">
+              {elementsByPlaceholder[placeholders[0].id]
+                ?.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+                .map((element) => renderElementRow(element))}
+
+              {(!elementsByPlaceholder[placeholders[0].id] || elementsByPlaceholder[placeholders[0].id].length === 0) && (
+                <div className="pt-2">
+                  <PropertiesPanel
+                    selectedPlaceholderId={placeholders[0].id}
+                    placeholders={placeholders}
+                    designUrlsByPlaceholder={designUrlsByPlaceholder}
+                    onDesignUpload={onDesignUpload || (() => { })}
+                    onDesignRemove={onDesignRemove}
+                    displacementSettings={displacementSettings || { scaleX: 10, scaleY: 10, contrastBoost: 1.5 }}
+                    onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
+                    selectedElementIds={[]}
+                    elements={elements}
+                    onElementUpdate={() => { }}
+                    onElementDelete={() => { }}
+                    PX_PER_INCH={PX_PER_INCH}
+                    canvasPadding={canvasPadding}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {placeholders.length > 1 && (
           <div className="space-y-2">
             <Label className="text-sm font-semibold uppercase text-muted-foreground">Placeholders</Label>
             <div className="space-y-2">
@@ -7068,53 +7084,7 @@ const LayersPanel: React.FC<{
                             // Show a single element row (first/top element) + inline properties
                             return (
                               <div className="space-y-3">
-                                {/* Single element row with delete button */}
-                                <div
-                                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${selectedIds.includes(firstElement.id) ? 'bg-primary/10 border-primary/20 border-2 shadow-sm' : 'bg-muted/30 border border-transparent hover:bg-muted/50'}`}
-                                  onClick={() => onSelectElement(firstElement.id)}
-                                >
-                                  {/* Thumbnail */}
-                                  <div className="w-16 h-16 rounded-lg border bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-                                    {firstElement.type === 'image' && firstElement.imageUrl ? (
-                                      <img
-                                        src={firstElement.imageUrl}
-                                        alt="Thumbnail"
-                                        className="w-full h-full object-contain"
-                                        style={{ imageRendering: 'auto' }}
-                                      />
-                                    ) : firstElement.type === 'text' ? (
-                                      <div className="flex flex-col items-center justify-center w-full h-full bg-white">
-                                        <span className="text-sm font-bold text-primary leading-none">T</span>
-                                        <div className="w-full h-[2px] bg-primary/20 mt-1" />
-                                      </div>
-                                    ) : (
-                                      <Square className="w-6 h-6 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                  {/* Name + dimensions */}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold truncate">
-                                      {firstElement.type === 'text'
-                                        ? (firstElement.text || 'Text')
-                                        : (firstElement.name || (firstElement.type === 'image' ? 'Image' : firstElement.shapeType || 'Shape'))}
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                                      {getDpiInfo(firstElement)}
-                                    </p>
-                                  </div>
-                                  {/* Delete button */}
-                                  <button
-                                    className="flex-shrink-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-95"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onDelete(firstElement.id);
-                                    }}
-                                    aria-label="Delete element"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-
+                                {renderElementRow(firstElement)}
                                 {/* Inline properties always visible on mobile */}
                                 <div className="px-1 pt-1 pb-2 bg-muted/10 rounded-b-xl">
                                   <PropertiesPanel
@@ -7137,47 +7107,10 @@ const LayersPanel: React.FC<{
                               </div>
                             );
                           })() : (
-                            // Desktop: keep existing multi-element list
                             <>
                               {elementsByPlaceholder[placeholder.id]
                                 ?.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-                                .map((element) => {
-                                  const isElementSelected = selectedIds.includes(element.id);
-                                  return (
-                                    <div key={element.id} className="space-y-2">
-                                      <div
-                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isElementSelected ? 'bg-primary/10 border-primary/20 border-2 shadow-sm' : 'bg-muted/30 border border-transparent shadow-none hover:bg-muted/50'}`}
-                                        onClick={() => onSelectElement(element.id)}
-                                      >
-                                        <div className="w-16 h-16 rounded-lg border bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-                                          {element.type === 'image' && element.imageUrl ? (
-                                            <img
-                                              src={element.imageUrl}
-                                              alt="Thumbnail"
-                                              className="w-full h-full object-contain"
-                                              style={{ imageRendering: 'auto' }}
-                                            />
-                                          ) : element.type === 'text' ? (
-                                            <div className="flex flex-col items-center justify-center w-full h-full bg-white">
-                                              <span className="text-sm font-bold text-primary leading-none">T</span>
-                                              <div className="w-full h-[2px] bg-primary/20 mt-1" />
-                                            </div>
-                                          ) : (
-                                            <Square className="w-6 h-6 text-muted-foreground" />
-                                          )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-xs font-bold truncate">
-                                            {element.type === 'text' ? (element.text || 'Text') : (element.name || (element.type === 'image' ? 'Image' : element.shapeType || 'Shape'))}
-                                          </p>
-                                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-                                            {getDpiInfo(element)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                                .map((element) => renderElementRow(element))}
 
                               {/* Design Upload for Placeholder Section on Desktop when no elements */}
                               {!elementsByPlaceholder[placeholder.id]?.length && (
