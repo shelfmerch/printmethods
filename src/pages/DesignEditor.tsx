@@ -1103,6 +1103,16 @@ const DesignEditor: React.FC = () => {
     }
   }, [currentView, product?.design?.views, loadMockupForView, mockupImagesByView, imageSizesByView, canvasWidth, canvasHeight]);
 
+  // Auto-select first placeholder when view changes
+  useEffect(() => {
+    if (product?.design?.views) {
+      const view = product.design.views.find(v => v.key === currentView);
+      if (view?.placeholders?.[0]) {
+        setSelectedPlaceholderId(view.placeholders[0].id);
+      }
+    }
+  }, [currentView, product]);
+
   // Reset selections when product changes (but not if we just restored from session)
   useEffect(() => {
     if (restoredFromSessionRef.current) return;
@@ -1120,7 +1130,7 @@ const DesignEditor: React.FC = () => {
           setSavedMockupPreviews(previews as Record<string, string>);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [storeProductId]);
 
 
@@ -1293,10 +1303,10 @@ const DesignEditor: React.FC = () => {
       if (el.type === 'image' && el.imageUrl && (!el.naturalWidth || !el.naturalHeight)) {
         const img = new window.Image();
         img.onload = () => {
-          setElements(prev => prev.map(e => e.id === el.id ? { 
-            ...e, 
-            naturalWidth: img.naturalWidth, 
-            naturalHeight: img.naturalHeight 
+          setElements(prev => prev.map(e => e.id === el.id ? {
+            ...e,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight
           } : e));
         };
         img.src = el.imageUrl;
@@ -2755,7 +2765,7 @@ const DesignEditor: React.FC = () => {
         if (!hasStore) {
           try {
             const defaultData = generateDefaultStoreData();
-             const createResp = await storeApi.create({
+            const createResp = await storeApi.create({
               name: defaultData.name,
               description: 'My first store'
             });
@@ -3389,11 +3399,10 @@ const DesignEditor: React.FC = () => {
                   <button
                     key={viewKey}
                     onClick={() => handleViewSwitch(viewKey)}
-                    className={`px-5 py-1.5 transition-all duration-200 font-bold text-[12px] whitespace-nowrap rounded-lg ${
-                      isActive
+                    className={`px-5 py-1.5 transition-all duration-200 font-bold text-[12px] whitespace-nowrap rounded-lg ${isActive
                         ? 'bg-[#22c55e] text-white shadow-sm'
                         : 'text-slate-600 hover:text-[#22c55e]'
-                    }`}
+                      }`}
                   >
                     {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
                   </button>
@@ -4542,11 +4551,10 @@ const DesignEditor: React.FC = () => {
                       <button
                         key={viewKey}
                         onClick={() => handleViewSwitch(viewKey)}
-                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px] ${
-                          isActive
+                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px] ${isActive
                             ? 'bg-[#22c55e] text-white rounded-xl shadow-[0_4px_12px_rgba(34,197,94,0.3)]'
                             : 'text-[#334155] hover:text-[#22c55e] bg-transparent'
-                        }`}
+                          }`}
                       >
                         {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
                       </button>
@@ -4759,9 +4767,8 @@ const DesignEditor: React.FC = () => {
                             <button
                               key={viewKey}
                               onClick={() => { handleViewSwitch(viewKey); setShowRightPanel(false); }}
-                              className={`group relative flex flex-col rounded-lg overflow-hidden border transition-all ${
-                                isCurrentView ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                              }`}
+                              className={`group relative flex flex-col rounded-lg overflow-hidden border transition-all ${isCurrentView ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                                }`}
                             >
                               <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
                                 {previewUrl ? (
@@ -5821,6 +5828,16 @@ const PropertiesPanel: React.FC<{
         }
       );
 
+      // Only show DPI for user uploads or AI images, not for library assets/graphics/logos/shapes
+      // Library assets contain '/assets/' or '/api/assets/' in their URL
+      const isLibraryAsset = el.imageUrl?.includes('/assets/') || el.imageUrl?.includes('/api/assets/');
+      
+      if (isLibraryAsset) {
+        const widthIn = (el.width || 0) / (PX_PER_INCH || 96);
+        const heightIn = (el.height || 0) / (PX_PER_INCH || 96);
+        return <span>{widthIn.toFixed(1)}" × {heightIn.toFixed(1)}"</span>;
+      }
+
       const colors = {
         excellent: 'text-green-600',
         acceptable: 'text-amber-600',
@@ -5860,8 +5877,7 @@ const PropertiesPanel: React.FC<{
       formData.append('file', file);
 
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_BASE_URL}/api/upload`, {
+        const response = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           body: formData,
         });
@@ -6850,6 +6866,16 @@ const LayersPanel: React.FC<{
         }
       );
 
+      // Only show DPI for user uploads or AI images, not for library assets/graphics/logos/shapes
+      // Library assets contain '/assets/' or '/api/assets/' in their URL
+      const isLibraryAsset = el.imageUrl?.includes('/assets/') || el.imageUrl?.includes('/api/assets/');
+
+      if (isLibraryAsset) {
+        const widthIn = (el.width || 0) / (PX_PER_INCH || 96);
+        const heightIn = (el.height || 0) / (PX_PER_INCH || 96);
+        return <span>{widthIn.toFixed(1)}" × {heightIn.toFixed(1)}"</span>;
+      }
+
       const colors = {
         excellent: 'text-green-600',
         acceptable: 'text-amber-600',
@@ -7052,88 +7078,32 @@ const LayersPanel: React.FC<{
 
                       <AccordionContent className="pt-2 border-t mt-1 pb-4">
                         <div className="space-y-2">
-                          {isMobile ? (() => {
-                            // Mobile: Show only the first element with delete button, then always-visible properties
-                            const sortedElements = (elementsByPlaceholder[placeholder.id] || [])
-                              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
-                            const firstElement = sortedElements[0];
+                          <>
+                            {(elementsByPlaceholder[placeholder.id] || [])
+                              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+                              .map((element) => renderElementRow(element))}
 
-                            if (!firstElement) {
-                              // No elements yet — show empty-state properties panel (design upload)
-                              return (
-                                <div className="pt-2">
-                                  <PropertiesPanel
-                                    selectedPlaceholderId={placeholder.id}
-                                    placeholders={placeholders}
-                                    designUrlsByPlaceholder={designUrlsByPlaceholder}
-                                    onDesignUpload={onDesignUpload || (() => { })}
-                                    onDesignRemove={onDesignRemove}
-                                    displacementSettings={displacementSettings || { scaleX: 10, scaleY: 10, contrastBoost: 1.5 }}
-                                    onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
-                                    selectedElementIds={[]}
-                                    elements={elements}
-                                    onElementUpdate={() => { }}
-                                    onElementDelete={() => { }}
-                                    PX_PER_INCH={PX_PER_INCH}
-                                    canvasPadding={canvasPadding}
-                                  />
-                                </div>
-                              );
-                            }
-
-                            // Show a single element row (first/top element) + inline properties
-                            return (
-                              <div className="space-y-3">
-                                {renderElementRow(firstElement)}
-                                {/* Inline properties always visible on mobile */}
-                                <div className="px-1 pt-1 pb-2 bg-muted/10 rounded-b-xl">
-                                  <PropertiesPanel
-                                    selectedPlaceholderId={placeholder.id}
-                                    placeholders={placeholders}
-                                    designUrlsByPlaceholder={designUrlsByPlaceholder}
-                                    onDesignUpload={onDesignUpload || (() => { })}
-                                    onDesignRemove={onDesignRemove}
-                                    displacementSettings={displacementSettings || { scaleX: 20, scaleY: 20, contrastBoost: 1.5 }}
-                                    onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
-                                    selectedElementIds={[firstElement.id]}
-                                    elements={elements}
-                                    onElementUpdate={(updates) => onUpdate(firstElement.id, updates)}
-                                    onElementDelete={onDelete}
-                                    PX_PER_INCH={PX_PER_INCH}
-                                    canvasPadding={canvasPadding}
-                                    hideElementRow={true}
-                                  />
-                                </div>
+                            {/* Design Upload for Placeholder Section when no elements */}
+                            {(!elementsByPlaceholder[placeholder.id] || elementsByPlaceholder[placeholder.id].length === 0) && (
+                              <div className="pt-2">
+                                <PropertiesPanel
+                                  selectedPlaceholderId={placeholder.id}
+                                  placeholders={placeholders}
+                                  designUrlsByPlaceholder={designUrlsByPlaceholder}
+                                  onDesignUpload={onDesignUpload || (() => { })}
+                                  onDesignRemove={onDesignRemove}
+                                  displacementSettings={displacementSettings || { scaleX: 10, scaleY: 10, contrastBoost: 1.5 }}
+                                  onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
+                                  selectedElementIds={[]}
+                                  elements={elements}
+                                  onElementUpdate={() => { }}
+                                  onElementDelete={() => { }}
+                                  PX_PER_INCH={PX_PER_INCH}
+                                  canvasPadding={canvasPadding}
+                                />
                               </div>
-                            );
-                          })() : (
-                            <>
-                              {elementsByPlaceholder[placeholder.id]
-                                ?.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-                                .map((element) => renderElementRow(element))}
-
-                              {/* Design Upload for Placeholder Section on Desktop when no elements */}
-                              {!elementsByPlaceholder[placeholder.id]?.length && (
-                                <div className="pt-2">
-                                  <PropertiesPanel
-                                    selectedPlaceholderId={placeholder.id}
-                                    placeholders={placeholders}
-                                    designUrlsByPlaceholder={designUrlsByPlaceholder}
-                                    onDesignUpload={onDesignUpload || (() => { })}
-                                    onDesignRemove={onDesignRemove}
-                                    displacementSettings={displacementSettings || { scaleX: 10, scaleY: 10, contrastBoost: 1.5 }}
-                                    onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
-                                    selectedElementIds={[]}
-                                    elements={elements}
-                                    onElementUpdate={() => { }}
-                                    onElementDelete={() => { }}
-                                    PX_PER_INCH={PX_PER_INCH}
-                                    canvasPadding={canvasPadding}
-                                  />
-                                </div>
-                              )}
-                            </>
-                          )}
+                            )}
+                          </>
                         </div>
                       </AccordionContent>
                     </AccordionItem>

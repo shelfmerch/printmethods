@@ -34,13 +34,17 @@ interface Asset {
     width: number;
     height: number;
   };
+  dimensions?: {
+    width: number;
+    height: number;
+  };
   isPublished: boolean;
   downloads: number;
   views: number;
   createdAt: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '@/config';
 
 const AdminAssets: React.FC = () => {
   const { user } = useAuth();
@@ -59,6 +63,8 @@ const AdminAssets: React.FC = () => {
     tags: '',
     recommendedWidth: '',
     recommendedHeight: '',
+    naturalWidth: 0,
+    naturalHeight: 0,
     designNotes: '',
     usage: 'all',
     license: 'commercial',
@@ -88,7 +94,7 @@ const AdminAssets: React.FC = () => {
       if (filters.search) params.append('search', filters.search);
 
       const response = await fetch(
-        `${API_BASE_URL}/api/assets/admin/all?${params.toString()}`,
+        `${API_BASE_URL}/assets/admin/all?${params.toString()}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -135,6 +141,17 @@ const AdminAssets: React.FC = () => {
     };
     reader.readAsDataURL(selectedFile);
 
+    // Detect natural dimensions
+    const img = new Image();
+    img.onload = () => {
+      setFormData(prev => ({ 
+        ...prev, 
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight 
+      }));
+    };
+    img.src = reader.result as string;
+
     // Auto-detect type from file
     if (selectedFile.type === 'image/svg+xml') {
       setFormData(prev => ({ ...prev, type: 'svg' }));
@@ -175,7 +192,7 @@ const AdminAssets: React.FC = () => {
         }
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/assets/admin/upload`, {
+      const response = await fetch(`${API_BASE_URL}/assets/admin/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -202,6 +219,8 @@ const AdminAssets: React.FC = () => {
         tags: '',
         recommendedWidth: '',
         recommendedHeight: '',
+        naturalWidth: 0,
+        naturalHeight: 0,
         designNotes: '',
         usage: 'all',
         license: 'commercial',
@@ -227,7 +246,7 @@ const AdminAssets: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/assets/admin/${assetId}`, {
+      const response = await fetch(`${API_BASE_URL}/assets/admin/${assetId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -248,7 +267,7 @@ const AdminAssets: React.FC = () => {
   const handleTogglePublish = async (assetId: string, currentStatus: boolean) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/assets/admin/${assetId}`, {
+      const response = await fetch(`${API_BASE_URL}/assets/admin/${assetId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -346,17 +365,40 @@ const AdminAssets: React.FC = () => {
                               />
                             )}
                           </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setFile(null);
-                              setPreviewUrl('');
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Remove
-                          </Button>
+                          
+                          <div className="flex flex-col gap-2 mt-2 w-full max-w-sm">
+                            <div className="flex items-center justify-between text-xs font-medium">
+                              <span className="text-muted-foreground">Original Dimensions:</span>
+                              <span>{formData.naturalWidth} × {formData.naturalHeight} px</span>
+                            </div>
+                            {formData.recommendedWidth && formData.recommendedHeight && (
+                              <div className="flex items-center justify-between text-xs font-bold">
+                                <span className="text-muted-foreground">Quality at Recommended Size:</span>
+                                {(() => {
+                                  const recW = parseInt(formData.recommendedWidth as string);
+                                  const actualW = formData.naturalWidth;
+                                  if (!recW || !actualW) return <span>-</span>;
+                                  const dpi = Math.round((actualW / recW) * 300);
+                                  const color = dpi >= 300 ? 'text-green-600' : dpi >= 150 ? 'text-amber-600' : 'text-red-600';
+                                  return <span className={color}>{dpi} DPI</span>;
+                                })()}
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => {
+                                setFile(null);
+                                setPreviewUrl('');
+                                setFormData(prev => ({ ...prev, naturalWidth: 0, naturalHeight: 0 }));
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3 mr-2" />
+                              Remove
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <label className="cursor-pointer">
@@ -614,9 +656,21 @@ const AdminAssets: React.FC = () => {
                       <CardContent className="p-3">
                         <h4 className="font-semibold text-sm truncate">{asset.title}</h4>
                         <div className="flex items-center justify-between mt-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {asset.category}
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="secondary" className="text-[10px] w-fit">
+                              {asset.category}
+                            </Badge>
+                            {asset.dimensions && asset.dimensions.width && (
+                              <div className="text-[10px] text-muted-foreground font-medium">
+                                {asset.dimensions.width}×{asset.dimensions.height}px
+                                {asset.recommendedSize && asset.recommendedSize.width > 0 && asset.dimensions.width > 0 && (
+                                  <span className="ml-1 text-primary">
+                                    ({Math.round(asset.dimensions.width / (asset.recommendedSize.width / 300))} DPI)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                           <div className="flex gap-1">
                             <Button
                               size="icon"
@@ -660,9 +714,26 @@ const AdminAssets: React.FC = () => {
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold">{asset.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {asset.category} • {asset.views} views • {asset.downloads} downloads
-                        </p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>{asset.category}</span>
+                          <span>•</span>
+                          <span>{asset.views} views</span>
+                          <span>•</span>
+                          <span>{asset.downloads} downloads</span>
+                          {asset.dimensions && asset.dimensions.width && (
+                            <>
+                              <span>•</span>
+                              <span className="font-medium text-primary">
+                                {asset.dimensions.width}×{asset.dimensions.height}px
+                                {asset.recommendedSize && asset.recommendedSize.width > 0 && (
+                                  <span className="ml-1 text-muted-foreground">
+                                    ({Math.round(asset.dimensions.width / (asset.recommendedSize.width / 300))} DPI target)
+                                  </span>
+                                )}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <Badge variant={asset.isPublished ? 'default' : 'secondary'}>
                         {asset.isPublished ? 'Published' : 'Draft'}

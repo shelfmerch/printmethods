@@ -2448,7 +2448,7 @@ import { AlertTriangle, ArrowLeft, Image as ImageIcon, Save, Check, Loader2, Spa
 import { RealisticWebGLPreview } from '@/components/admin/RealisticWebGLPreview';
 import type { DisplacementSettings, DesignPlacement } from '@/types/product';
 import { toast } from 'sonner';
-import { RAW_API_URL } from '@/config';
+import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -3049,15 +3049,12 @@ const MockupsLibrary = () => {
                     const formData = new FormData();
                     formData.append('image', blob, `mockup-preview-${mockupId}.png`);
 
-                    const API_BASE_URL = RAW_API_URL;
                     const token = localStorage.getItem('token');
-
                     const headers: HeadersInit = {};
                     if (token) {
                         headers['Authorization'] = `Bearer ${token}`;
                     }
-
-                    const response = await fetch(`${API_BASE_URL}/api/upload/image`, {
+                    const response = await fetch(`${API_BASE_URL}/upload/image`, {
                         method: 'POST',
                         headers,
                         body: formData,

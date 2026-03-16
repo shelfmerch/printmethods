@@ -180,7 +180,7 @@ const StoreAuthPage = () => {
         const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', subdomain);
         sessionStorage.setItem('storeAuthRedirect', redirectUrl);
         sessionStorage.setItem('storeAuthSubdomain', subdomain);
-        window.location.href = `${API_BASE_URL}/api/auth/google`;
+        window.location.href = `${API_BASE_URL}/auth/google`;
     };
 
     if (loading) {
