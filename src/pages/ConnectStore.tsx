@@ -379,25 +379,23 @@ export default function ConnectStore() {
                             <Card className="p-6 bg-green-50/50 border-green-100 flex flex-col justify-between space-y-6">
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-xl font-bold text-[#95BF47]">Shopify</h3>
+                                        <h3 className="text-xl font-bold text-[#95BF47]">Shopify Integration</h3>
                                         <Badge className="bg-muted text-muted-foreground hover:bg-muted font-normal">
                                             Medium
                                         </Badge>
                                     </div>
                                     <p className="text-sm text-muted-foreground">
-                                        Shopify is perfect for established sellers wanting to
-                                        expand their brand and business with easy setup and store
-                                        creation tools.
+                                        Connect your Shopify store with ShelfMerch to automatically sync orders and publish print-on-demand products directly to your store.
                                     </p>
                                     <ul className="space-y-2">
                                         <li className="flex items-center gap-2 text-sm">
-                                            <span className="text-green-600">✔</span> 3-day free trial
+                                            <span className="text-green-600">✔</span> Automatic order syncing
                                         </li>
                                         <li className="flex items-center gap-2 text-sm">
-                                            <span className="text-green-600">✔</span> SEO & marketing tools
+                                            <span className="text-green-600">✔</span> Publish products to Shopify
                                         </li>
                                         <li className="flex items-center gap-2 text-sm">
-                                            <span className="text-green-600">✔</span> Customizable storefronts
+                                            <span className="text-green-600">✔</span> Manage fulfillment from ShelfMerch
                                         </li>
                                     </ul>
                                 </div>
