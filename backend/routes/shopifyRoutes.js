@@ -235,38 +235,41 @@ router.get('/callback', async (req, res) => {
 
     console.log(`[Shopify Callback] Installed shop=${sanitizedShop}`);
 
-    // REGISTER WEBHOOKS (Idempotent)
-    try {
-      const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
-      const webhooksToRegister = [
-        { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/oauth/webhooks/app-uninstalled' },
-        { topic: 'orders/create',  key: 'orders_create',  path: '/api/shopify/oauth/webhooks/orders-create' },
-        { topic: 'orders/updated', key: 'orders_updated', path: '/api/shopify/oauth/webhooks/orders-updated' },
-        { topic: 'products/create', key: 'products_create', path: '/api/shopify/oauth/webhooks/products-create' },
-        { topic: 'products/update', key: 'products_update', path: '/api/shopify/oauth/webhooks/products-update' },
-        // GDPR compliance webhooks (log-only, no destructive actions)
-        { topic: 'customers/data_request', key: 'gdpr_customers_data_request', path: '/api/shopify/gdpr/customers-data-request' },
-        { topic: 'customers/redact',       key: 'gdpr_customers_redact',       path: '/api/shopify/gdpr/customers-redact' },
-        { topic: 'shop/redact',            key: 'gdpr_shop_redact',            path: '/api/shopify/gdpr/shop-redact' },
-      ];
+    // Kick off non-critical tasks (e.g. webhook registration) in the background
+    (async () => {
+      try {
+        // REGISTER WEBHOOKS (Idempotent)
+        const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
+        const webhooksToRegister = [
+          { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/oauth/webhooks/app-uninstalled' },
+          { topic: 'orders/create',  key: 'orders_create',  path: '/api/shopify/oauth/webhooks/orders-create' },
+          { topic: 'orders/updated', key: 'orders_updated', path: '/api/shopify/oauth/webhooks/orders-updated' },
+          { topic: 'products/create', key: 'products_create', path: '/api/shopify/oauth/webhooks/products-create' },
+          { topic: 'products/update', key: 'products_update', path: '/api/shopify/oauth/webhooks/products-update' },
+          // GDPR compliance webhooks (log-only, no destructive actions)
+          { topic: 'customers/data_request', key: 'gdpr_customers_data_request', path: '/api/shopify/gdpr/customers-data-request' },
+          { topic: 'customers/redact',       key: 'gdpr_customers_redact',       path: '/api/shopify/gdpr/customers-redact' },
+          { topic: 'shop/redact',            key: 'gdpr_shop_redact',            path: '/api/shopify/gdpr/shop-redact' },
+        ];
 
-      for (const wh of webhooksToRegister) {
-        try {
-          const webhookId = await ensureWebhook(sanitizedShop, access_token, wh.topic, `${publicBase}${wh.path}`);
-          if (webhookId) {
-            store.webhookIds ??= new Map();
-            store.webhookIds.set(wh.key, String(webhookId));
-            await store.save(); 
+        for (const wh of webhooksToRegister) {
+          try {
+            const webhookId = await ensureWebhook(sanitizedShop, access_token, wh.topic, `${publicBase}${wh.path}`);
+            if (webhookId) {
+              store.webhookIds ??= new Map();
+              store.webhookIds.set(wh.key, String(webhookId));
+              await store.save(); 
+            }
+          } catch (innerErr) {
+            console.error(`[Shopify Callback] Loop error for ${wh.topic}:`, innerErr.message);
           }
-        } catch (innerErr) {
-          console.error(`[Shopify Callback] Loop error for ${wh.topic}:`, innerErr.message);
         }
+        
+        console.log('[Shopify Callback] Webhook Registration Summary:', [...store.webhookIds.entries()]);
+      } catch (whErr) {
+        console.error('[Shopify Callback] Webhook process failed:', whErr.message);
       }
-      
-      console.log('[Shopify Callback] Webhook Registration Summary:', [...store.webhookIds.entries()]);
-    } catch (whErr) {
-      console.error('[Shopify Callback] Webhook process failed:', whErr.message);
-    }
+    })();
 
     res.clearCookie('shopify_state', { path: '/', signed: true });
     res.clearCookie('merchant_id', { path: '/', signed: true });
