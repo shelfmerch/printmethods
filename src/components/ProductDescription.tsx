@@ -64,7 +64,7 @@ export const ProductDescription = ({
     return (
         <section id="size-chart" className="space-y-4">
             <h2 className="section-title">
-                {isSizeChartEnabled ? 'SIZE CHART' : 'SIZE GUIDE'}
+                {isSizeChartEnabled ? 'Size Chart' : 'Size Guide'}
             </h2>
 
             <div className="max-w-9xl space-y-4 text-muted-foreground leading-relaxed">

@@ -162,6 +162,8 @@ const AdminProductCreation = () => {
             setCatalogueData({
               name: product.catalogue.name || '',
               description: product.catalogue.description || '',
+              shortDescription: product.catalogue.shortDescription || '',
+              highlights: product.catalogue.highlights || [],
               categoryId: product.catalogue.categoryId || '',
               subcategoryIds: product.catalogue.subcategoryIds || [],
               basePrice: product.catalogue.basePrice || 0,

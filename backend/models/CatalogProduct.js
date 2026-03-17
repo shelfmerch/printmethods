@@ -153,6 +153,14 @@ const CatalogProductSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  shortDescription: {
+    type: String,
+    default: ''
+  },
+  highlights: {
+    type: [String],
+    default: []
+  },
   categoryId: {
     type: String,
     required: true,

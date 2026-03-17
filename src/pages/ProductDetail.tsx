@@ -455,16 +455,19 @@ const ProductDetail = () => {
             </div>
 
             {/* Minimum Order Notice */}
-            {(product.stocks?.minimumQuantity ?? 1) > 1 && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-                <Package className="w-4 h-4 flex-shrink-0" />
-                <span>Minimum quantity for order is <strong>{product.stocks.minimumQuantity}</strong>.</span>
-              </div>
-            )}
 
-            {/* Product Features - Dynamic from attributes */}
+            {/* Product Features - Prefer highlights, fall back to attributes */}
             <div className="space-y-2.5">
-              {product.catalogue?.attributes && (() => {
+              {product.catalogue?.highlights && product.catalogue.highlights.length > 0 ? (
+                product.catalogue.highlights
+                  .filter((h: string) => h.trim() !== '')
+                  .map((highlight: string, index: number) => (
+                    <div key={index} className="flex items-center gap-2.5">
+                      <Check className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span className="text-sm">{highlight}</span>
+                    </div>
+                  ))
+              ) : product.catalogue?.attributes && (() => {
                 // Convert attributes object to array and limit to 7
                 const attributes = Object.entries(product.catalogue.attributes)
                   .filter(([key, value]) => value && value !== '')
@@ -547,6 +550,12 @@ const ProductDetail = () => {
                 ));
               })()}
             </div>
+            {(product.stocks?.minimumQuantity ?? 1) > 1 && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                <Package className="w-4 h-4 flex-shrink-0" />
+                <span>Minimum quantity for order is <strong>{product.stocks.minimumQuantity}</strong>.</span>
+              </div>
+            )}
 
             {/* Size Selector */}
             {/* {product.availableSizes && product.availableSizes.length > 0 && (
@@ -701,7 +710,17 @@ const ProductDetail = () => {
         <div className="mt-10 lg:mt-12 space-y-8">
           {/* About Section */}
 
-          {/* Product Description */}
+          {/* Product Short Description */}
+          {product.catalogue?.shortDescription && (
+            <section className="space-y-3">
+              <h2 className="section-title">About This Product</h2>
+              <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                {product.catalogue.shortDescription}
+              </p>
+            </section>
+          )}
+
+          {/* Product Description / Size Guide */}
           <ProductDescription
             sizeGuide={product.catalogue?.description}
             sizeChart={product.catalogue?.sizeChart}
