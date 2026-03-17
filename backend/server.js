@@ -52,6 +52,7 @@ const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
 const publicApiV1Router = require('./public-api/v1');
 const swaggerUi = require('swagger-ui-express');
 const { specs: publicApiSpecs } = require('./public-api/openapi/swagger');
+const shopifyGdprRoutes = require('./routes/shopifyGdprRoutes');
 
 const { WHITELISTED_DOMAINS } = require('./utils/security');
 
@@ -140,6 +141,11 @@ app.use('/api/razorpay', razorpayWebhookRoutes);
 
 // ✅ Shopify webhooks MUST use raw body for HMAC validation
 app.use('/api/shopify/oauth/webhooks', express.raw({ type: 'application/json' }));
+
+// ✅ Shopify GDPR webhooks (customers/data_request, customers/redact, shop/redact)
+// use raw body for HMAC validation and isolated routing
+app.use('/api/shopify/gdpr', express.raw({ type: 'application/json' }));
+app.use('/api/shopify/gdpr', shopifyGdprRoutes);
 
 // ✅ Webhook aliases (old Shopify webhook URLs -> existing handlers in shopifyRoutes)
 // NOTE: keep this BEFORE express.json and BEFORE 404 handler
