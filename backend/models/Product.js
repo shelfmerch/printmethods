@@ -54,6 +54,7 @@ const ProductGalleryImageSchema = new mongoose.Schema({
 const ProductCatalogueSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
+  shortDescription: { type: String, default: '' }, // Short product description shown on the product detail page
   categoryId: {
     type: String,
     required: true,

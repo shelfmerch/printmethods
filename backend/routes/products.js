@@ -142,6 +142,8 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     const catalogProductData = {
       name: catalogue.name,
       description: catalogue.description,
+      shortDescription: catalogue.shortDescription || '',
+      highlights: Array.isArray(catalogue.highlights) ? catalogue.highlights : [],
       categoryId: catalogue.categoryId,
       subcategoryIds: Array.isArray(catalogue.subcategoryIds) ? catalogue.subcategoryIds : [],
       productTypeCode: catalogue.productTypeCode,
@@ -238,6 +240,8 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     productResponse.catalogue = {
       name: product.name,
       description: product.description,
+      shortDescription: product.shortDescription || '',
+      highlights: product.highlights || [],
       categoryId: product.categoryId,
       subcategoryIds: product.subcategoryIds,
       productTypeCode: product.productTypeCode,
@@ -395,6 +399,8 @@ router.get('/', protect, async (req, res) => {
         catalogue: {
           name: p.name,
           description: p.description,
+          shortDescription: p.shortDescription || '',
+          highlights: p.highlights || [],
           categoryId: p.categoryId,
           subcategoryIds: p.subcategoryIds,
           productTypeCode: p.productTypeCode,
@@ -585,6 +591,8 @@ router.get('/catalog/active', async (req, res) => {
         catalogue: {
           name: p.name,
           description: p.description,
+          shortDescription: p.shortDescription || '',
+          highlights: p.highlights || [],
           categoryId: p.categoryId,
           subcategoryIds: p.subcategoryIds,
           productTypeCode: p.productTypeCode,
@@ -653,6 +661,8 @@ router.get('/:id', async (req, res) => {
     productResponse.catalogue = {
       name: product.name,
       description: product.description,
+      shortDescription: product.shortDescription || '',
+      highlights: product.highlights || [],
       categoryId: product.categoryId,
       subcategoryIds: product.subcategoryIds,
       productTypeCode: product.productTypeCode,
@@ -725,6 +735,8 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (catalogue) {
       if (catalogue.name !== undefined) product.name = catalogue.name;
       if (catalogue.description !== undefined) product.description = catalogue.description;
+      if (catalogue.shortDescription !== undefined) product.shortDescription = catalogue.shortDescription;
+      if (catalogue.highlights !== undefined) product.highlights = Array.isArray(catalogue.highlights) ? catalogue.highlights : [];
       if (catalogue.categoryId !== undefined) product.categoryId = catalogue.categoryId;
       if (catalogue.subcategoryIds !== undefined) product.subcategoryIds = catalogue.subcategoryIds;
       if (catalogue.productTypeCode !== undefined) product.productTypeCode = catalogue.productTypeCode;

@@ -247,6 +247,36 @@ export const ProductCatalogueSection = ({ data, onChange }: ProductCatalogueSect
         />
       </div>
 
+      {/* Bullet Points (Highlights) */}
+      <div className="space-y-2">
+        <Label htmlFor="highlights">Bullet Points (Highlights)</Label>
+        <Textarea
+          id="highlights"
+          placeholder="Enter each point on a new line"
+          value={data.highlights?.join('\n') || ''}
+          onChange={(e) => {
+            const lines = e.target.value.split('\n');
+            onChange({ ...data, highlights: lines });
+          }}
+          rows={5}
+        />
+        <p className="text-xs text-muted-foreground italic">
+          Enter key features or benefits. These will appear with checkmarks below the product price.
+        </p>
+      </div>
+
+      {/* Short Description */}
+      <div className="space-y-2">
+        <Label htmlFor="shortDescription">Description</Label>
+        <Textarea
+          id="shortDescription"
+          placeholder="Enter a short product description (displayed on the product page)"
+          value={data.shortDescription || ''}
+          onChange={(e) => onChange({ ...data, shortDescription: e.target.value })}
+          rows={4}
+        />
+      </div>
+
       {/* Description / Size Chart Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">

@@ -111,6 +111,8 @@ export interface SizeChartData {
 export interface ProductCatalogueData {
   name: string;
   description: string;
+  shortDescription?: string; // Short product description shown on the product detail page
+  highlights?: string[]; // Bullet points for the product
   categoryId: string;
   subcategoryIds: string[];
   basePrice: number; // Base price for the product
