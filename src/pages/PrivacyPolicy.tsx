@@ -17,7 +17,7 @@ const PrivacyPolicy = () => {
         </div>
         <div className="bg-slate-50 dark:bg-white/[0.03] p-8 rounded-[2rem] border border-slate-200 dark:border-white/5">
           <p className="text-lg leading-relaxed m-0">
-            At <strong>ShelfMerch</strong>, your data privacy isn't just a policy—it's a foundation.
+            At <strong>ShelfMerch</strong>, your data privacy isn't just a policy,it's a foundation.
             We respect the trust you place in us when integrating our fulfillment platform into your Shopify store.
             This document details our rigorous commitment to handling your information with maximum transparency and security.
           </p>
