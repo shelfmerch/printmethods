@@ -31,6 +31,7 @@ const ShopifyApp: React.FC = () => {
     const [linked, setLinked] = useState(false);
     const [linking, setLinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [linkAttempted, setLinkAttempted] = useState(false);
 
     // Step 1: Check install status on mount
     useEffect(() => {
@@ -73,13 +74,25 @@ const ShopifyApp: React.FC = () => {
 
     // Step 3: Auto-link when user is available and app is installed but not linked
     useEffect(() => {
-        if (authLoading || !shop || !user || !installed || linked || linking) return;
+        if (authLoading || !shop || !user || !installed || linked || linking || linkAttempted) return;
 
         const performLinking = async () => {
             setLinking(true);
+            setLinkAttempted(true);
             try {
+                // Guard against retries across fast remounts/rerenders
+                const key = `shopify_link_inflight:${shop}:${user?._id || 'unknown'}`;
+                const now = Date.now();
+                const last = Number(localStorage.getItem(key) || '0');
+                if (last && now - last < 60_000) {
+                    console.log('[ShopifyApp] Link already attempted recently, skipping duplicate call');
+                    return;
+                }
+                localStorage.setItem(key, String(now));
+
                 await shopifyApi.linkAccount(shop);
                 setLinked(true);
+                localStorage.removeItem(key);
                 console.log('[ShopifyApp] Successfully linked');
             } catch (err: any) {
                 console.error('[ShopifyApp] Link failed:', err);
@@ -91,7 +104,7 @@ const ShopifyApp: React.FC = () => {
         };
 
         performLinking();
-    }, [user, authLoading, shop, installed, linked, linking]);
+    }, [user, authLoading, shop, installed, linked, linking, linkAttempted]);
 
     const renderContent = () => {
         if (!shop) {
@@ -102,25 +115,6 @@ const ShopifyApp: React.FC = () => {
                         <CardDescription>Missing shop parameter. Please open this app from your Shopify Admin.</CardDescription>
                     </CardHeader>
                 </Card>
-            );
-        }
-
-        // Loading states
-        if (statusLoading) {
-            return (
-                <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Checking app status...</p>
-                </div>
-            );
-        }
-
-        if (!installed) {
-            return (
-                <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Redirecting to install...</p>
-                </div>
             );
         }
 
@@ -142,6 +136,12 @@ const ShopifyApp: React.FC = () => {
                         <CardDescription>Please login or sign up to connect your store.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
+                        {statusLoading && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Loader2 className="animate-spin h-3.5 w-3.5" />
+                                <span>Checking store connection in the background…</span>
+                            </div>
+                        )}
                         <Button
                             className="w-full"
                             onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}`)}
@@ -160,6 +160,25 @@ const ShopifyApp: React.FC = () => {
                         </p>
                     </CardContent>
                 </Card>
+            );
+        }
+
+        // If status check is still running, don't block UI—just show a minimal inline state.
+        if (statusLoading) {
+            return (
+                <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">Preparing your store connection…</p>
+                </div>
+            );
+        }
+
+        if (!installed) {
+            return (
+                <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">Redirecting to install…</p>
+                </div>
             );
         }
 

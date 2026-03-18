@@ -613,7 +613,7 @@
 
 // export default Auth;
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -628,6 +628,7 @@ import { PasswordInput } from '@/components/ui/PasswordInput';
 import { RAW_API_URL } from '@/config';
 import { getSafeRedirect } from '@/utils/authUtils';
 import createApp from '@shopify/app-bridge';
+import { appBridgeRedirectToApp, getAppBridgeApp } from '@/lib/shopifyAppBridge';
 
 type AuthStep =
   | 'IDENTIFIER'
@@ -669,18 +670,27 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [embedded, setEmbedded] = useState(false);
 
-  // Embedded failsafe: auto-re-embed if opened outside Shopify Admin
+  // Embedded failsafe: re-embed only if opened outside Shopify Admin
   useEffect(() => {
     const host = searchParams.get('host');
     const apiKey = import.meta.env.VITE_SHOPIFY_API_KEY;
 
-    if (host && apiKey) {
+    // Only forceRedirect when NOT already inside an iframe.
+    // Forcing redirects while embedded can trigger repeated auth loops and extra bridge chatter.
+    if (host && apiKey && window.top === window.self) {
       createApp({
         apiKey,
         host,
         forceRedirect: true,
       });
     }
+  }, [searchParams]);
+
+  const appBridge = useMemo(() => {
+    const host = searchParams.get('host');
+    const apiKey = import.meta.env.VITE_SHOPIFY_API_KEY;
+    if (!host || !apiKey) return null;
+    return getAppBridgeApp({ apiKey, host });
   }, [searchParams]);
 
   // Capture returnTo on mount and detect embedded context from it
@@ -898,7 +908,11 @@ const Auth = () => {
           toast.success('Welcome back!');
           const target = consumeReturnTo();
           console.log('[Auth] OTP login redirect to:', target);
-          navigate(target);
+          if (embedded && appBridge && target.startsWith('/')) {
+            appBridgeRedirectToApp(appBridge, target);
+          } else {
+            navigate(target);
+          }
         } else {
           // New user - move to NAME step to complete profile
           setStep('NAME');
@@ -977,7 +991,11 @@ const Auth = () => {
       toast.success('Account successfully created');
       const target = consumeReturnTo();
       console.log('[Auth] Signup redirect to:', target);
-      navigate(target);
+      if (embedded && appBridge && target.startsWith('/')) {
+        appBridgeRedirectToApp(appBridge, target);
+      } else {
+        navigate(target);
+      }
     } catch (err: any) {
       toast.error(err.message || 'Error creating account');
     } finally { setIsLoading(false); }
