@@ -20,8 +20,7 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       compareAtPrice,   // optional
       title,            // optional override
       description,      // optional override
-      tags,             // optional
-      galleryImages,    // optional
+
       designData,       // optional object from editor
       variants,         // optional: [{ catalogProductVariantId, sku, sellingPrice, isActive }]
       status            // optional: 'draft' | 'published'
@@ -65,6 +64,16 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       return res.status(403).json({ success: false, message: 'Not authorized to modify this store' });
     }
 
+    let cleanDesignData = undefined;
+    if (designData) {
+      cleanDesignData = { ...designData };
+      delete cleanDesignData.selectedColors;
+      delete cleanDesignData.selectedSizes;
+      delete cleanDesignData.previewImagesByView;
+      delete cleanDesignData.tags;
+      delete cleanDesignData.galleryImages;
+    }
+
     const spUpdateData = {
       storeId: store._id,
       catalogProductId,
@@ -72,9 +81,7 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       ...(compareAtPrice !== undefined ? { compareAtPrice } : {}),
       ...(title ? { title } : {}),
       ...(description ? { description } : {}),
-      ...(Array.isArray(tags) ? { tags } : {}),
-      ...(Array.isArray(galleryImages) ? { galleryImages } : {}),
-      ...(designData ? { designData } : {}),
+      ...(cleanDesignData ? { designData: cleanDesignData } : {}),
       isActive: true,
       // Handle status: if provided, set it and publishedAt accordingly
       ...(status === 'published' ? {
@@ -549,12 +556,12 @@ router.patch('/:id/design-preview', protect, authorize('merchant', 'superadmin')
     }
 
     // Initialize previewImagesByView if it doesn't exist
-    if (!sp.designData.previewImagesByView) {
-      sp.designData.previewImagesByView = {};
-    }
+    // if (!sp.designData.previewImagesByView) {
+    //   sp.designData.previewImagesByView = {};
+    // }
 
     // Update the preview for this view
-    sp.designData.previewImagesByView[viewKey] = previewUrl;
+    // sp.designData.previewImagesByView[viewKey] = previewUrl;
 
     // Update view-specific data
     if (!sp.designData.views[viewKey]) {
@@ -644,8 +651,8 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
     }
 
     // Initialize designData structures
-    if (!sp.designData) sp.designData = {};
-    if (!sp.designData.previewImagesByView) sp.designData.previewImagesByView = {};
+    // if (!sp.designData) sp.designData = {};
+    // if (!sp.designData.previewImagesByView) sp.designData.previewImagesByView = {};
 
     if (mockupType === 'flat') {
       // Store flat mockups separately
@@ -653,7 +660,7 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
       sp.designData.flatMockups[viewKey] = imageUrl;
 
       // Update legacy field for backward compatibility
-      sp.designData.previewImagesByView[viewKey] = imageUrl;
+      // sp.designData.previewImagesByView[viewKey] = imageUrl;
 
       // Update primary preview if front view
       if (viewKey === 'front') {
@@ -668,8 +675,8 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
       sp.designData.modelMockups[colorKey][viewKey] = imageUrl;
 
       // Update legacy field for backward compatibility with color-prefixed key
-      const legacyKey = `mockup-${colorKey}-${viewKey}`;
-      sp.designData.previewImagesByView[legacyKey] = imageUrl;
+      // const legacyKey = `mockup-${colorKey}-${viewKey}`;
+      // sp.designData.previewImagesByView[legacyKey] = imageUrl;
 
       console.log(`[Mockup] Saved model mockup for ${colorKey}/${viewKey}:`, imageUrl.substring(0, 50) + '...');
     }
@@ -726,7 +733,7 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
     if (updates.description !== undefined) sp.description = updates.description;
     if (updates.sellingPrice !== undefined) sp.sellingPrice = updates.sellingPrice;
     if (updates.compareAtPrice !== undefined) sp.compareAtPrice = updates.compareAtPrice;
-    if (Array.isArray(updates.tags)) sp.tags = updates.tags;
+
 
     // Handle storeId update (reassign product to different store)
     if (updates.storeId && String(updates.storeId) !== String(sp.storeId)) {
@@ -745,7 +752,24 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
 
     // Handle designData updates
     if (updates.designData !== undefined) {
-      sp.designData = { ...(sp.designData || {}), ...updates.designData };
+      let cleanDesignData = { ...updates.designData };
+      delete cleanDesignData.selectedColors;
+      delete cleanDesignData.selectedSizes;
+      delete cleanDesignData.previewImagesByView;
+      delete cleanDesignData.tags;
+      delete cleanDesignData.galleryImages;
+      
+      sp.designData = { ...(sp.designData || {}), ...cleanDesignData };
+      
+      // Also delete from existing designData if they are already present
+      if (sp.designData) {
+        delete sp.designData.selectedColors;
+        delete sp.designData.selectedSizes;
+        delete sp.designData.previewImagesByView;
+        delete sp.designData.tags;
+        delete sp.designData.galleryImages;
+      }
+      
       sp.markModified('designData');
     }
 

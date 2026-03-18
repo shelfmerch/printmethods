@@ -49,7 +49,7 @@ interface LocationState {
   baseSellingPrice?: number;
   title?: string;
   description?: string;
-  galleryImages?: Array<{ id: string; url: string; position: number; isPrimary?: boolean; imageType?: string; altText?: string }>;
+  // galleryImages?: Array<{ id: string; url: string; position: number; isPrimary?: boolean; imageType?: string; altText?: string }>;
   designData?: any;
   variants?: IncomingVariant[];
 }
@@ -469,7 +469,7 @@ const ListingEditor = () => {
 
       if (syncTitle) basePayload.title = title;
       if (syncDescription) basePayload.description = description;
-      if (Array.isArray(state?.galleryImages)) basePayload.galleryImages = state.galleryImages;
+      // if (Array.isArray(state?.galleryImages)) basePayload.galleryImages = state.galleryImages;
 
       // Set selling price - use minimum of all variant retail prices for the "starting at" price
       const retailPrices = variantRows
@@ -545,7 +545,7 @@ const ListingEditor = () => {
               title: basePayload.title,
               description: basePayload.description,
               designData: basePayload.designData,
-              galleryImages: basePayload.galleryImages,
+              // galleryImages: basePayload.galleryImages,
               variants: basePayload.variants,
               status: targetStatus,
             };
@@ -622,10 +622,10 @@ const ListingEditor = () => {
       toast.error('Title is required');
       return;
     }
-    if (!state?.galleryImages || state.galleryImages.length === 0 || !state.galleryImages[0]?.url) {
-      toast.error('At least one gallery image is required');
-      return;
-    }
+    // if (!state?.galleryImages || state.galleryImages.length === 0 || !state.galleryImages[0]?.url) {
+    //   toast.error('At least one gallery image is required');
+    //   return;
+    // }
     if (variantRows.length === 0) {
       toast.error('At least one variant is required');
       return;
@@ -644,7 +644,7 @@ const ListingEditor = () => {
         storeProductId: storeProductId || undefined,
         title: title.trim(),
         description: description || '',
-        galleryImages: state.galleryImages.map(img => ({ url: img.url })),
+        // galleryImages: state.galleryImages.map(img => ({ url: img.url })),
         variants: variantRows.map(r => ({
           size: r.size,
           color: r.color,
@@ -673,9 +673,9 @@ const ListingEditor = () => {
   const isShopifyPublishDisabled =
     !selectedShop ||
     !title.trim() ||
-    !state?.galleryImages ||
-    state.galleryImages.length === 0 ||
-    !state.galleryImages[0]?.url ||
+    // !state?.galleryImages ||
+    // state.galleryImages.length === 0 ||
+    // !state.galleryImages[0]?.url ||
     variantRows.length === 0 ||
     (pricingSummary !== null && pricingSummary.minProfit < 0) ||
     isShopifyPublishing;

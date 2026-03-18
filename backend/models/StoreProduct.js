@@ -70,21 +70,7 @@ const StoreProductSchema = new mongoose.Schema({
       default: true,
     },
   }],
-  // Store-specific gallery images (optional, falls back to catalog)
-  galleryImages: [{
-    id: { type: String, required: true },
-    url: { type: String, required: true },
-    position: { type: Number, required: true },
-    isPrimary: { type: Boolean, default: false },
-    imageType: {
-      type: String,
-      enum: ['lifestyle', 'flat-front', 'flat-back', 'size-chart', 'detail', 'other'],
-      default: 'other'
-    },
-    altText: { type: String, default: '' }
-  }],
-  // Store-specific tags (optional)
-  tags: [String],
+
   // Custom design and properties saved from the design editor
   designData: {
     type: Object,

@@ -27,7 +27,7 @@ export const getProductImageGroups = (product: any, selectedColor?: string) => {
     const designData = product.designData || {};
     const modelMockups = designData.modelMockups || {};
     const flatMockups = designData.flatMockups || {};
-    const previewImagesByView = designData.previewImagesByView || {};
+    // const previewImagesByView = designData.previewImagesByView || {};
     const previewImagesUrl = product.previewImagesUrl || [];
 
     // Group A: Designed Images
@@ -82,7 +82,7 @@ export const getProductImageGroups = (product: any, selectedColor?: string) => {
             if (flatMockups[view]) addUrl(flatMockups[view], designedImages);
         });
         Object.values(flatMockups).forEach(url => addUrl(url as string, designedImages));
-        Object.values(previewImagesByView).forEach(url => addUrl(url as string, designedImages));
+        // Object.values(previewImagesByView).forEach(url => addUrl(url as string, designedImages));
     }
 
     // Group B: Plain Mockups (No Design)

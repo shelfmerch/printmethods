@@ -659,7 +659,7 @@ const AdminOrderDetail = () => {
                     // designData.views is an Array<{key, mockupImageUrl, ...}>
                     const viewsArray: Array<{ key: string; mockupImageUrl?: string }> =
                       Array.isArray(designData?.views) ? designData.views : [];
-                    const previewsByView = designData?.previewImagesByView || {};
+                    // const previewsByView = designData?.previewImagesByView || {};
                     const savedPreviewImages = designData?.savedPreviewImages || {};
                     const elements = designData?.elements || [];
 
@@ -708,9 +708,9 @@ const AdminOrderDetail = () => {
                               const mockupUrl = viewsMockupMap[viewKey] || viewsMockupMap[viewKeyLower];
                               const previewUrl =
                                 savedPreviewImages[viewKey] ||
-                                savedPreviewImages[viewKeyLower] ||
-                                previewsByView[viewKey] ||
-                                previewsByView[viewKeyLower];
+                                savedPreviewImages[viewKeyLower];
+                                // previewsByView[viewKey] ||
+                                // previewsByView[viewKeyLower];
                               const currentDesignElements = elements.filter((el: any) => {
                                   const placement = (el?.placement || el?.view || 'front').toLowerCase();
                                   return placement.includes(viewKeyLower) || (!el?.placement && !el?.view && viewKeyLower === 'front');

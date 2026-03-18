@@ -2671,11 +2671,8 @@ const DesignEditor: React.FC = () => {
               designUrlsByPlaceholder,
               placementsByView,
               views,
-              savedPreviewImages,
               previews: allPreviews,
               displacementSettings,
-              // selectedColors,
-              // selectedSizes,
               selectedSizesByColor,
               primaryColorHex,
             },
@@ -2877,10 +2874,7 @@ const DesignEditor: React.FC = () => {
           designUrlsByPlaceholder,
           placementsByView, // Include normalized placements for accurate mockup rendering
           views: product.design?.views || [],
-          savedPreviewImages,
           displacementSettings,
-          selectedColors, // Save selected colors
-          selectedSizes, // Save selected sizes
           selectedSizesByColor, // Save size selections per color
           primaryColorHex, // Save primary color for garment tinting
         },
@@ -3143,11 +3137,8 @@ const DesignEditor: React.FC = () => {
               designUrlsByPlaceholder,
               placementsByView,
               views: product?.design?.views || [],
-              savedPreviewImages: nextPreviewImages,
               previews: nextMockupPreviews,
               displacementSettings,
-              selectedColors,
-              selectedSizes,
               selectedSizesByColor,
               primaryColorHex,
             },
@@ -3232,11 +3223,8 @@ const DesignEditor: React.FC = () => {
               designUrlsByPlaceholder,
               placementsByView,
               views: views,
-              savedPreviewImages,
               previews: allPreviews,
               displacementSettings,
-              selectedColors,
-              selectedSizes,
               selectedSizesByColor,
               primaryColorHex,
             },
