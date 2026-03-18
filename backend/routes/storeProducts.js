@@ -5,7 +5,11 @@ const { protect, authorize } = require('../middleware/auth');
 const Store = require('../models/Store');
 const StoreProduct = require('../models/StoreProduct');
 const StoreProductVariant = require('../models/StoreProductVariant');
+const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
+const { uploadToS3 } = require('../utils/s3Upload');
+const { compositeMockup } = require('../utils/compositeMockup');
+const { v4: uuidv4 } = require('uuid');
 
 // @route   POST /api/store-products
 // @desc    Create or update a store product with design data, and optional variants
@@ -67,8 +71,6 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
     let cleanDesignData = undefined;
     if (designData) {
       cleanDesignData = { ...designData };
-      delete cleanDesignData.selectedColors;
-      delete cleanDesignData.selectedSizes;
       delete cleanDesignData.previewImagesByView;
       delete cleanDesignData.tags;
       delete cleanDesignData.galleryImages;
@@ -753,8 +755,6 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
     // Handle designData updates
     if (updates.designData !== undefined) {
       let cleanDesignData = { ...updates.designData };
-      delete cleanDesignData.selectedColors;
-      delete cleanDesignData.selectedSizes;
       delete cleanDesignData.previewImagesByView;
       delete cleanDesignData.tags;
       delete cleanDesignData.galleryImages;
@@ -763,8 +763,6 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       
       // Also delete from existing designData if they are already present
       if (sp.designData) {
-        delete sp.designData.selectedColors;
-        delete sp.designData.selectedSizes;
         delete sp.designData.previewImagesByView;
         delete sp.designData.tags;
         delete sp.designData.galleryImages;
@@ -879,6 +877,204 @@ router.delete('/:id', protect, authorize('merchant', 'superadmin'), async (req, 
   } catch (error) {
     console.error('Error deleting store product:', error);
     return res.status(500).json({ success: false, message: 'Failed to delete store product' });
+  }
+});
+
+// @route   POST /api/store-products/:id/generate-mockups
+// @desc    Generate mockups server-side using sharp and persist URLs to designData.modelMockups
+// @access  Private (merchant, superadmin)
+router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid store product ID' });
+    }
+
+    const storeProduct = await StoreProduct.findById(id);
+    if (!storeProduct) {
+      return res.status(404).json({ success: false, message: 'Store product not found' });
+    }
+
+    const store = await Store.findById(storeProduct.storeId);
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'Store not found' });
+    }
+
+    if (req.user.role !== 'superadmin' && String(store.merchant) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    const catalogProductId = storeProduct.catalogProductId?._id
+      ? storeProduct.catalogProductId._id
+      : storeProduct.catalogProductId;
+
+    const catalogProduct = await CatalogProduct.findById(catalogProductId).lean();
+    if (!catalogProduct) {
+      return res.status(404).json({ success: false, message: 'Catalog product not found' });
+    }
+
+    const sampleMockups = catalogProduct.design?.sampleMockups || [];
+    const physicalDimensions = catalogProduct.design?.physicalDimensions || { width: 20, height: 24 };
+
+    const designData = storeProduct.designData || {};
+    const selectedColors = Array.isArray(designData.selectedColors) ? designData.selectedColors : [];
+    const placementsByView = (designData.placementsByView && typeof designData.placementsByView === 'object')
+      ? designData.placementsByView
+      : {};
+    const designUrlsByPlaceholder = (designData.designUrlsByPlaceholder && typeof designData.designUrlsByPlaceholder === 'object')
+      ? designData.designUrlsByPlaceholder
+      : {};
+
+    // Build design image map: viewKey → first visible image element URL
+    const designImagesByView = {};
+    if (Array.isArray(designData.elements)) {
+      for (const el of designData.elements) {
+        if (el && el.type === 'image' && el.imageUrl && el.visible !== false) {
+          const vk = (el.view || 'front').toLowerCase();
+          if (!designImagesByView[vk]) designImagesByView[vk] = el.imageUrl;
+        }
+      }
+    }
+
+    // Load catalog variants (used for per-color viewImages + fallback color discovery)
+    const catalogVariants = await CatalogProductVariant.find({
+      catalogProductId: catalogProductId,
+      ...(selectedColors.length > 0 ? { color: { $in: selectedColors } } : {}),
+    }).lean();
+
+    const variantsByColor = {};
+    catalogVariants.forEach(v => {
+      const key = (v.color || '').toLowerCase();
+      if (!variantsByColor[key]) variantsByColor[key] = v;
+    });
+
+    const modelMockups = (designData.modelMockups && typeof designData.modelMockups === 'object')
+      ? { ...designData.modelMockups }
+      : {};
+
+    const errors = [];
+
+    const normalizeColorKey = (color) => (color || '').toLowerCase().trim().replace(/\s+/g, '-');
+    const normalizeViewKey = (view) => (view || 'front').toLowerCase().trim();
+
+    const BATCH_SIZE = 3;
+    const tasks = [];
+
+    // Fallback color discovery for older drafts where selectedColors wasn't persisted
+    const colorsToProcess = (() => {
+      if (selectedColors.length > 0) return selectedColors;
+
+      const byColor = designData.selectedSizesByColor;
+      if (byColor && typeof byColor === 'object' && !Array.isArray(byColor)) {
+        const keys = Object.keys(byColor).filter(Boolean);
+        if (keys.length > 0) return keys;
+      }
+
+      const unique = new Set();
+      catalogVariants.forEach(v => {
+        if (v && v.color) unique.add(v.color);
+      });
+      return Array.from(unique);
+    })();
+
+    for (const color of colorsToProcess) {
+      const colorKey = normalizeColorKey(color);
+      if (!modelMockups[colorKey]) modelMockups[colorKey] = {};
+
+      const variant = variantsByColor[(color || '').toLowerCase()] || null;
+
+      // Build mockup list: shared sampleMockups + variant-specific view images
+      const colorMockups = [
+        ...sampleMockups.filter((m) => !m.colorKey || m.colorKey === color),
+      ];
+
+      if (variant && variant.viewImages) {
+        for (const view of ['front', 'back', 'left', 'right']) {
+          const variantUrl = variant.viewImages[view];
+          if (!variantUrl) continue;
+          if (colorMockups.some((m) => (m.viewKey || '').toLowerCase() === view)) continue;
+
+          const masterView = Array.isArray(designData.views)
+            ? designData.views.find((v) => (v.key || '').toLowerCase() === view)
+            : null;
+
+          colorMockups.push({
+            id: `variant-${variant._id}-${view}-${colorKey}`,
+            viewKey: view,
+            imageUrl: variantUrl,
+            placeholders: (masterView && masterView.placeholders) ? masterView.placeholders : [],
+          });
+        }
+      }
+
+      for (const mockup of colorMockups) {
+        const viewKey = normalizeViewKey(mockup.viewKey);
+        const designUrl = designImagesByView[viewKey];
+        const placeholder = Array.isArray(mockup.placeholders) ? mockup.placeholders[0] : null;
+
+        tasks.push(async () => {
+          try {
+            let imageBuffer;
+
+            if (designUrl && placeholder) {
+              // Look up saved normalized placement by placeholder ID directly
+              const viewPlacements = placementsByView[viewKey] || {};
+              const placementForPh = placeholder.id
+                ? (viewPlacements[placeholder.id] ?? null)
+                : null;
+
+              // Prefer design URL mapped to this placeholder ID, fall back to per-view first design element
+              const viewDesignUrls = designUrlsByPlaceholder[viewKey] || {};
+              const resolvedDesignUrl = placeholder.id && viewDesignUrls[placeholder.id]
+                ? viewDesignUrls[placeholder.id]
+                : designUrl;
+
+              imageBuffer = await compositeMockup(
+                mockup.imageUrl,
+                resolvedDesignUrl,
+                placeholder,
+                physicalDimensions,
+                placementForPh
+              );
+            } else {
+              const axios = require('axios');
+              const resp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
+              imageBuffer = Buffer.from(resp.data);
+            }
+
+            const filename = `generated-${uuidv4()}.png`;
+            const folder = 'mockups/generated';
+            const s3Url = await uploadToS3(imageBuffer, filename, folder);
+            modelMockups[colorKey][viewKey] = s3Url;
+
+            console.log(`[generate-mockups] ✓ ${colorKey}/${viewKey}:`, s3Url);
+          } catch (e) {
+            const message = e && e.message ? e.message : String(e);
+            console.error(`[generate-mockups] ✗ ${colorKey}/${viewKey}:`, message);
+            errors.push(`${colorKey}/${viewKey}: ${message}`);
+          }
+        });
+      }
+    }
+
+    for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.all(tasks.slice(i, i + BATCH_SIZE).map(t => t()));
+    }
+
+    await StoreProduct.findByIdAndUpdate(id, {
+      $set: { 'designData.modelMockups': modelMockups },
+    });
+
+    return res.json({
+      success: true,
+      modelMockups,
+      ...(errors.length > 0 ? { errors } : {}),
+    });
+  } catch (e) {
+    console.error('[generate-mockups] Fatal:', e);
+    return res.status(500).json({ success: false, message: e.message || 'Failed to generate mockups' });
   }
 });
 

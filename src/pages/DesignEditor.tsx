@@ -2875,6 +2875,8 @@ const DesignEditor: React.FC = () => {
           placementsByView, // Include normalized placements for accurate mockup rendering
           views: product.design?.views || [],
           displacementSettings,
+          selectedColors,
+          selectedSizes,
           selectedSizesByColor, // Save size selections per color
           primaryColorHex, // Save primary color for garment tinting
         },
@@ -2898,6 +2900,33 @@ const DesignEditor: React.FC = () => {
       setStoreProductId(draftId);
 
       // --- NEW MOCKUP GENERATION FLOW ---
+
+      // Fire server-side mockup generation synchronously before navigating.
+      // Non-fatal — if it fails the user can regenerate from MockupsLibrary.
+      const generateMockupsOnServer = async (draftStoreProductId: string): Promise<void> => {
+        try {
+          const token = localStorage.getItem('token');
+          const resp = await fetch(`${RAW_API_URL}/api/store-products/${draftStoreProductId}/generate-mockups`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            credentials: 'include',
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data?.success) {
+            console.warn('[generateMockupsOnServer] Server errors:', data?.errors || data?.message);
+          } else {
+            console.log('[generateMockupsOnServer] Generated:', Object.keys(data?.modelMockups || {}));
+          }
+        } catch (e) {
+          console.error('[generateMockupsOnServer] Failed:', e);
+        }
+      };
+
+      toast.info('Generating mockups...');
+      await generateMockupsOnServer(draftId);
 
       // Helper to save state for restoration when coming back from Mockups/Listing
       const saveStateForReturn = () => {
