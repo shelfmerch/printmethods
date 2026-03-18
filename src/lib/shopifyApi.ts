@@ -95,15 +95,10 @@ export const shopifyApi = {
     shopifyApi.syncOrders(shop, 'products'),
 
   getStatus: (shop: string) =>
-    // Call the OAuth router directly to avoid an extra redirect hop
     shopifyFetch<{ success: boolean; shop: string; installed: boolean; linked: boolean; authUrl?: string }>(
-      `/shopify/oauth/status?shop=${encodeURIComponent(shop)}`
+      `/shopify/status?shop=${encodeURIComponent(shop)}`
     ),
 
   linkAccount: (shop: string) =>
-    // Call the OAuth router directly to avoid an extra redirect hop
-    shopifyFetch('/shopify/oauth/link-account', {
-      method: 'POST',
-      body: JSON.stringify({ shop })
-    })
+    api.post('/shopify/link-account', { shop })
 };
