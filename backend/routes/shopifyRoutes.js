@@ -13,6 +13,7 @@ const FulfillmentOrder = require('../models/FulfillmentOrder');
 const { protect } = require('../middleware/auth');
 const { requireStoreOwnership } = require('../middleware/requireStoreOwnership');
 const { syncForShop, ShopifyApiError, SYNC_MODE } = require('../services/shopifySync');
+const { getClientUrl } = require('../utils/security');
 
 // Bulletproof Shop Sanitization
 const sanitizeShop = (shop) => {
@@ -214,8 +215,12 @@ router.get('/callback', async (req, res) => {
     }
 
     // UPSERT by shop ONLY (one record per shop)
+    // Preserve account-first logic:
+    // - Never wipe an existing merchantId on reinstall
+    // - Only attach merchantId during callback if we already have merchant context (cookie set by /start?token=...)
+    const merchantIdFromCookie = req.signedCookies.merchant_id || req.cookies.merchant_id || null;
+
     const updateData = {
-      merchantId: null, // ensure not linked after install
       accessToken: access_token,
       // Prefer canonical granted scopes from Shopify, fallback to tokenResponse scope
       scope: (grantedScopes.length ? grantedScopes.join(',') : scope) || '',
@@ -232,6 +237,14 @@ router.get('/callback', async (req, res) => {
       { $set: updateData },
       { upsert: true, new: true }
     );
+
+    // If merchant context exists (user already authenticated before install), link during callback.
+    // This is idempotent and does not affect installs initiated before login.
+    if (merchantIdFromCookie && !store.merchantId) {
+      store.merchantId = merchantIdFromCookie;
+      await store.save();
+      console.log(`[Shopify Callback] Linked shop=${sanitizedShop} to merchant=${merchantIdFromCookie}`);
+    }
 
     console.log(`[Shopify Callback] Installed shop=${sanitizedShop}`);
 
@@ -274,12 +287,10 @@ router.get('/callback', async (req, res) => {
     res.clearCookie('shopify_state', { path: '/', signed: true });
     res.clearCookie('merchant_id', { path: '/', signed: true });
 
-    // Redirect to Shopify Admin embedded app URL
-    const shopHandle = sanitizedShop.replace('.myshopify.com', '');
-    const appSlug = process.env.SHOPIFY_APP_SLUG;
-    const adminRedirectUrl = `https://admin.shopify.com/store/${shopHandle}/apps/${appSlug}`;
-    
-    return res.redirect(adminRedirectUrl);
+    // Redirect directly to the embedded app frontend route (avoid extra redirect chains)
+    const clientBase = (process.env.SHOPIFY_CLIENT_URL || process.env.CLIENT_URL || getClientUrl(req) || '').replace(/\/$/, '');
+    const target = `${clientBase}/shopify/app?shop=${encodeURIComponent(sanitizedShop)}${host ? `&host=${encodeURIComponent(String(host))}` : ''}`;
+    return res.redirect(target);
 
   } catch (error) {
     console.error(`[Shopify Callback Error] ${sanitizedShop}:`, error.response?.data || error.message);

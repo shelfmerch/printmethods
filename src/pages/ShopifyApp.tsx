@@ -72,9 +72,9 @@ const ShopifyApp: React.FC = () => {
         checkStatus();
     }, [shop]);
 
-    // Step 3: Auto-link when user is available and app is installed but not linked
+    // Step 3 (fallback only): If user is present and store is still unlinked, attempt one safe link.
     useEffect(() => {
-        if (authLoading || !shop || !user || !installed || linked || linking || linkAttempted) return;
+        if (authLoading || statusLoading || !shop || !user || !installed || linked || linking || linkAttempted) return;
 
         const performLinking = async () => {
             setLinking(true);
@@ -104,7 +104,7 @@ const ShopifyApp: React.FC = () => {
         };
 
         performLinking();
-    }, [user, authLoading, shop, installed, linked, linking, linkAttempted]);
+    }, [user, authLoading, statusLoading, shop, installed, linked, linking, linkAttempted]);
 
     const renderContent = () => {
         if (!shop) {
@@ -115,6 +115,25 @@ const ShopifyApp: React.FC = () => {
                         <CardDescription>Missing shop parameter. Please open this app from your Shopify Admin.</CardDescription>
                     </CardHeader>
                 </Card>
+            );
+        }
+
+        // Loading states
+        if (statusLoading) {
+            return (
+                <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">Checking app status...</p>
+                </div>
+            );
+        }
+
+        if (!installed) {
+            return (
+                <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">Redirecting to install...</p>
+                </div>
             );
         }
 
@@ -136,12 +155,6 @@ const ShopifyApp: React.FC = () => {
                         <CardDescription>Please login or sign up to connect your store.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
-                        {statusLoading && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Loader2 className="animate-spin h-3.5 w-3.5" />
-                                <span>Checking store connection in the background…</span>
-                            </div>
-                        )}
                         <Button
                             className="w-full"
                             onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}`)}
@@ -160,25 +173,6 @@ const ShopifyApp: React.FC = () => {
                         </p>
                     </CardContent>
                 </Card>
-            );
-        }
-
-        // If status check is still running, don't block UI—just show a minimal inline state.
-        if (statusLoading) {
-            return (
-                <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Preparing your store connection…</p>
-                </div>
-            );
-        }
-
-        if (!installed) {
-            return (
-                <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Redirecting to install…</p>
-                </div>
             );
         }
 
