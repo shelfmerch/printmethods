@@ -118,25 +118,6 @@ const ShopifyApp: React.FC = () => {
             );
         }
 
-        // Loading states
-        if (statusLoading) {
-            return (
-                <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Checking app status...</p>
-                </div>
-            );
-        }
-
-        if (!installed) {
-            return (
-                <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Redirecting to install...</p>
-                </div>
-            );
-        }
-
         if (authLoading) {
             return <div className="text-muted-foreground text-center py-12">Loading ShelfMerch context...</div>;
         }
@@ -147,6 +128,7 @@ const ShopifyApp: React.FC = () => {
             let returnPath = `/shopify/app?shop=${encodeURIComponent(shop)}`;
             if (host) returnPath += `&host=${encodeURIComponent(host)}`;
             const returnUrl = encodeURIComponent(returnPath);
+            const hostParam = host ? `&host=${encodeURIComponent(host)}` : '';
 
             return (
                 <Card className="w-full max-w-md">
@@ -155,16 +137,22 @@ const ShopifyApp: React.FC = () => {
                         <CardDescription>Please login or sign up to connect your store.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4">
+                        {statusLoading && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Loader2 className="animate-spin h-3.5 w-3.5" />
+                                <span>Checking store connection in the background…</span>
+                            </div>
+                        )}
                         <Button
                             className="w-full"
-                            onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}`)}
+                            onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}${hostParam}`)}
                         >
                             Login to ShelfMerch
                         </Button>
                         <Button
                             variant="outline"
                             className="w-full"
-                            onClick={() => navigate(`/auth?mode=signup&returnTo=${returnUrl}`)}
+                            onClick={() => navigate(`/auth?mode=signup&returnTo=${returnUrl}${hostParam}`)}
                         >
                             Sign up for ShelfMerch
                         </Button>
@@ -173,6 +161,25 @@ const ShopifyApp: React.FC = () => {
                         </p>
                     </CardContent>
                 </Card>
+            );
+        }
+
+        // If status check is still running, don't block login UI above—only show minimal UI here when user exists.
+        if (statusLoading) {
+            return (
+                <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">Preparing your store connection…</p>
+                </div>
+            );
+        }
+
+        if (!installed) {
+            return (
+                <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
+                    <p className="text-muted-foreground">Redirecting to install...</p>
+                </div>
             );
         }
 
