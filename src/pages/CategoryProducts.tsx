@@ -26,69 +26,49 @@ const mainCategories = ['apparel', 'accessories', 'home', 'print', 'packaging', 
 const categorySlugToSubcategory: Record<string, string> = {
   // Apparel
   't-shirts': 'T-Shirt',
-  'tank-tops': 'Tank Top',
-  'hoodies': 'Hoodie',
-  'sweatshirts': 'Sweatshirt',
-  'jackets': 'Jacket',
-  'crop-tops': 'Crop Top',
-  'aprons': 'Apron',
-  'scarves': 'Scarf',
-  'jerseys': 'Jersey',
+  'hoodies': 'Hoodies',
+  'sweatshirts': 'Sweatshirts',
+  'jackets': 'Jackets',
+  'oversized': 'Oversized',
 
   // Accessories
-  'tote-bag': 'Tote Bag',
-  'tote-bags': 'Tote Bag',
-  'tote bag': 'Tote Bag',
-  'tote bags': 'Tote Bag', // Handle plural slug
-  'caps': 'Cap',
-  'phone-covers': 'Phone Cover',
-  'gaming-pads': 'Gaming Pad',
-  'beanies': 'Beanie',
+  'tote-bags': 'Tote Bags',
+  'caps': 'Caps',
+  'phone-covers': 'Phone Covers',
+  'gaming-pads': 'Gaming Pads',
+  'beanies': 'Beanies',
+  'socks': 'Socks',
+  'backpacks': 'Backpacks',
 
   // Home & Living
-  'cans': 'Can',
-  'mugs': 'Mug',
-  'drinkware': 'Mug',
-  'cushions': 'Cushion',
-  'frames': 'Frame',
-  'coasters': 'Coaster',
+  'cans': 'Cans',
+  'mugs': 'Mugs',
+  'drinkware': 'Mugs',
+  'cushions': 'Cushions',
+  'frames': 'Frames',
+  'coasters': 'Coasters',
+  'bottles': 'Bottles',
+  'wall-art': 'Wall Art',
 
   // Print Products
-  'business-cards': 'Business Card',
-  'books': 'Book',
-  'id-cards': 'ID Card',
-  'stickers': 'Sticker',
-  'posters': 'Poster',
-  'flyers': 'Flyer',
-  'greeting-cards': 'Greeting Card',
-  'billboards': 'Billboard',
-  'magazines': 'Magazine',
-  'brochures': 'Brochure',
-  'lanyards': 'Lanyard',
-  'banners': 'Banner',
-  'canvas': 'Canvas',
   'notebooks': 'Notebook',
-  'stationery': 'Notebook',
+  'posters': 'Posters',
+  'stickers': 'Stickers',
+  'business-cards': 'Business Cards',
 
   // Packaging
   'boxes': 'Box',
-  'tubes': 'Tube',
   'pouches': 'Pouch',
-  // 'cosmetics': 'Cosmetic',
-  'bottles': 'Bottle',
 
   // Tech
-  'iphone-cases': 'IPhone',
-  'laptop-skins': 'Lap Top',
-  'lap-top-cases': 'Lap Top',
-  'ipad-cases': 'IPad',
-  'macbook-cases': 'Macbook',
-  'phone-cases': 'Phone',
-
+  'phone-cases': 'Phone Covers',
+  'cable-cards': 'Cable Card',
+  'bluetooth-speakers': 'Bluetooth Speaker',
+  'wireless-chargers': 'Wireless Charger',
   // Jewelry
-  'rings': 'Ring',
-  'necklaces': 'Necklace',
-  'earrings': 'Earring',
+  // 'rings': 'Ring',
+  // 'necklaces': 'Necklace',
+  // 'earrings': 'Earring',
 };
 
 const categorySlugToParentCategory: Record<string, any> = {
@@ -121,21 +101,10 @@ const categorySlugToParentCategory: Record<string, any> = {
   'coasters': 'home',
 
   // Print
-  'business-cards': 'print',
-  'books': 'print',
-  'id-cards': 'print',
-  'stickers': 'print',
-  'posters': 'print',
-  'flyers': 'print',
-  'greeting-cards': 'print',
-  'billboards': 'print',
-  'magazines': 'print',
-  'brochures': 'print',
-  'lanyards': 'print',
-  'banners': 'print',
-  'canvas': 'print',
   'notebooks': 'print',
-  'stationery': 'print',
+  'posters': 'print',
+  'stickers': 'print',
+  'business-cards': 'print',
 
   // Packaging
   'boxes': 'packaging',
@@ -211,19 +180,19 @@ const CategoryProducts = () => {
   // Known subcategory names (aligned with CategorySidebar)
   const subcategoryNames: string[] = [
     // Apparel
-    "T-shirts", "Hoodies", "Sweatshirts", "Jackets",
+    "T-shirts", "Hoodies", "Sweatshirts", "Jackets","Oversized",
     // Accessories
-    "Tote Bags", "Caps", "Phone Covers", "Gaming Pads", "Beanies",
+    "Tote Bags", "Caps", "Gaming Pads", "Beanies","Socks","Backpacks",
     // Home & Living
-    "Mugs", "Cushions", "Cans", "Frames", "Coasters",
+    "Mugs", "Cushions", "Cans", "Bottles", "Frames", "Coasters","Wall Art",
     // Print Products
-    "Business Cards", "Books", "ID Cards", "Stickers", "Posters", "Flyers", "Greeting Cards", "Billboards", "Magazines", "Brochures", "Lanyards", "Banners", "Canvas", "Notebooks",
+    "Business Cards", "Stickers", "Posters", "Notebook",
     // Packaging
-    "Boxes", "Tubes", "Bottles", "Pouch",
+    "Boxes", "Pouch",
     // Tech
-    "IPhone Cases", "Lap Top Cases", "IPad Cases", "Macbook Cases", "Phone Cases",
+    "Phone Covers", "Cable Card", "Bluetooth Speaker", "Wireless Charger",
     // Jewelry
-    "Rings", "Necklaces", "Earrings", "Bracelets",
+    // "Rings", "Necklaces", "Earrings", "Bracelets",
   ];
 
   const resolveSubcategorySlugFromSearch = (term: string): string | null => {

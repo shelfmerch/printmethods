@@ -740,9 +740,9 @@ const SectionRenderer: React.FC<SectionRendererProps> = ({
             .join(' ');
         }
         const name = (product.name || '').toLowerCase();
-        if (name.includes('cap')) return 'Cap';
-        if (name.includes('tote')) return 'Tote Bag';
-        if (name.includes('jacket')) return 'Jacket';
+        if (name.includes('cap')) return 'Caps';
+        if (name.includes('tote')) return 'Tote Bags';
+        if (name.includes('jacket')) return 'Jackets';
         if (name.includes('t-shirt') || name.includes('tshirt') || name.includes('tee')) return 'T-Shirt';
         return null;
       };

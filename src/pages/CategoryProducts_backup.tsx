@@ -28,65 +28,68 @@ const mainCategories = ['apparel', 'accessories', 'home', 'print', 'packaging', 
 const categorySlugToSubcategory: Record<string, string> = {
   // Apparel
   't-shirts': 'T-Shirt',
-  'tank-tops': 'Tank Top',
-  'hoodies': 'Hoodie',
-  'sweatshirts': 'Sweatshirt',
-  'jackets': 'Jacket',
-  'crop-tops': 'Crop Top',
-  'aprons': 'Apron',
-  'scarves': 'Scarf',
-  'jerseys': 'Jersey',
+  // 'tank-tops': 'Tank Top',
+  'hoodies': 'Hoodies',
+  'sweatshirts': 'Sweatshirts',
+  'jackets': 'Jackets',
+  'oversized': 'Oversized',
+  // 'crop-tops': 'Crop Top',
+  // 'aprons': 'Apron',
+  // 'scarves': 'Scarf',
+  // 'jerseys': 'Jersey',
 
   // Accessories
-  'tote-bag': 'Tote Bag',
-  'caps': 'Cap',
-  'phone-covers': 'Phone Cover',
-  'gaming-pads': 'Gaming Pad',
-  'beanies': 'Beanie',
+  'tote-bag': 'Tote Bags',
+  'caps': 'Caps',
+  'gaming-pads': 'Gaming Pads',
+  'beanies': 'Beanies',
+  'socks': 'Socks',
+  'backpacks': 'Backpacks',
 
   // Home & Living
-  'cans': 'Can',
-  'mugs': 'Mug',
-  'drinkware': 'Mug',
-  'cushions': 'Cushion',
-  'frames': 'Frame',
-  'coasters': 'Coaster',
+  'cans': 'Cans',
+  'mugs': 'Mugs',
+  'drinkware': 'Mugs',
+  'cushions': 'Cushions',
+  'frames': 'Frames',
+  'coasters': 'Coasters',
+  'bottles': 'Bottles',
+  'wall-art': 'Wall Art',
 
   // Print Products
-  'business-cards': 'Business Card',
-  'books': 'Book',
-  'id-cards': 'ID Card',
-  'stickers': 'Sticker',
-  'posters': 'Poster',
-  'flyers': 'Flyer',
-  'greeting-cards': 'Greeting Card',
-  'billboards': 'Billboard',
-  'magazines': 'Magazine',
-  'brochures': 'Brochure',
-  'lanyards': 'Lanyard',
-  'banners': 'Banner',
-  'canvas': 'Canvas',
-  'notebooks': 'Notebook',
-  'stationery': 'Notebook',
+  'business-cards': 'Business Cards',
+  'books': 'Books',
+  // 'id-cards': 'ID Card',
+  'stickers': 'Stickers',
+  'posters': 'Posters',
+  // 'flyers': 'Flyer',
+  // 'greeting-cards': 'Greeting Card',
+  // 'billboards': 'Billboard',
+  // 'magazines': 'Magazine',
+  // 'brochures': 'Brochure',
+  // 'lanyards': 'Lanyard',
+  // 'banners': 'Banner',
+  // 'canvas': 'Canvas',
+  'notebooks': 'Notebooks',
+  'notebook': 'Notebook',
+  // 'stationery': 'Notebook',
 
   // Packaging
   'boxes': 'Box',
-  'tubes': 'Tube',
+  // 'tubes': 'Tube',
   'pouches': 'Pouch',
   // 'cosmetics': 'Cosmetic',
-  'bottles': 'Bottle',
 
   // Tech
-  'iphone-cases': 'IPhone',
-  'laptop-skins': 'Lap Top',
-  'ipad-cases': 'IPad',
-  'macbook-cases': 'Macbook',
-  'phone-cases': 'Phone',
+  'phone-cases': 'Phone Covers',
+  'cable-cards': 'Cable Card',
+  'bluetooth-speakers': 'Bluetooth Speaker',
+  'wireless-chargers': 'Wireless Charger',
 
-  // Jewelry
-  'rings': 'Ring',
-  'necklaces': 'Necklace',
-  'earrings': 'Earring',
+  // // Jewelry
+  // 'rings': 'Ring',
+  // 'necklaces': 'Necklace',
+  // 'earrings': 'Earring',
 };
 
 const categorySlugToParentCategory: Record<string, any> = {
@@ -117,21 +120,10 @@ const categorySlugToParentCategory: Record<string, any> = {
   'coasters': 'home',
 
   // Print
-  'business-cards': 'print',
-  'books': 'print',
-  'id-cards': 'print',
-  'stickers': 'print',
-  'posters': 'print',
-  'flyers': 'print',
-  'greeting-cards': 'print',
-  'billboards': 'print',
-  'magazines': 'print',
-  'brochures': 'print',
-  'lanyards': 'print',
-  'banners': 'print',
-  'canvas': 'print',
   'notebooks': 'print',
-  'stationery': 'print',
+  'posters': 'print',
+  'stickers': 'print',
+  'business-cards': 'print',
 
   // Packaging
   'boxes': 'packaging',
@@ -338,7 +330,7 @@ const CategoryProducts = () => {
   useEffect(() => {
     // Determine parent category ID for field definitions
     let parentCategoryId: string | undefined = undefined;
-    
+
     if (isMainCategory) {
       // For main categories, use the slug directly
       parentCategoryId = slug || undefined;
@@ -346,20 +338,20 @@ const CategoryProducts = () => {
       // For subcategories, look up the parent category
       // Try exact match first
       parentCategoryId = categorySlugToParentCategory[slug || ''];
-      
+
       // If not found, try variations (singular/plural)
       if (!parentCategoryId && slug) {
         // Try adding 's' (e.g., 'hoodie' -> 'hoodies')
         const pluralSlug = slug + 's';
         parentCategoryId = categorySlugToParentCategory[pluralSlug];
-        
+
         // Try removing 's' if it ends with 's' (e.g., 'hoodies' -> 'hoodie')
         if (!parentCategoryId && slug.endsWith('s')) {
           const singularSlug = slug.slice(0, -1);
           parentCategoryId = categorySlugToParentCategory[singularSlug];
         }
       }
-      
+
       // If still not found, try to find by subcategory name
       if (!parentCategoryId && subcategory) {
         // Reverse lookup: find which parent category has this subcategory
@@ -371,7 +363,7 @@ const CategoryProducts = () => {
             if (parentCategoryId) break;
           }
         }
-        
+
       }
     }
 
@@ -379,7 +371,7 @@ const CategoryProducts = () => {
     const fieldDefinitions = parentCategoryId
       ? getFieldDefinitions(parentCategoryId as any, subcategory ? [subcategory] : [])
       : [];
-    
+
     // Debug logging
     if (fieldDefinitions.length === 0) {
       console.warn('No field definitions found', { parentCategoryId, slug, subcategory, isMainCategory });
@@ -464,7 +456,7 @@ const CategoryProducts = () => {
 
     // Process attributes for display - include ALL field definitions
     const processedAttributes: Record<string, { label: string, options: string[], type: string, fieldDef: FieldDefinition, hasProducts: Set<string> }> = {};
-    
+
     console.log('Processing field definitions:', {
       count: fieldDefinitions.length,
       definitions: fieldDefinitions.map(d => ({ key: d.key, label: d.label, type: d.type })),
@@ -472,12 +464,12 @@ const CategoryProducts = () => {
       subcategory,
       productsCount: products?.length || 0
     });
-    
+
     fieldDefinitions.forEach(def => {
       // For select fields, use all options from field definition
       // For other field types, use values found in products
       let options: string[] = [];
-      
+
       if (def.type === 'select' && def.options && def.options.length > 0) {
         // Use all options from field definition for select fields
         options = [...def.options];
@@ -493,7 +485,7 @@ const CategoryProducts = () => {
       // Show other field types only if they have values in products
       const isSelectWithOptions = def.type === 'select' && def.options && def.options.length > 0;
       const hasProductValues = options.length > 0;
-      
+
       if (isSelectWithOptions || hasProductValues) {
         processedAttributes[def.key] = {
           label: def.label,
@@ -522,7 +514,7 @@ const CategoryProducts = () => {
     });
 
     console.log('Final processed attributes:', Object.keys(processedAttributes));
-    
+
     setAvailableColors(colors);
     setAvailableSizes(sizes);
     setAvailableTags(tags);
@@ -634,7 +626,7 @@ const CategoryProducts = () => {
                                     onCheckedChange={() => toggleAttribute(key, option)}
                                     disabled={!optionHasProducts && products.length > 0}
                                   />
-                                  <Label 
+                                  <Label
                                     htmlFor={`${key}-${option}`}
                                     className={`cursor-pointer flex-1 ${!optionHasProducts && products.length > 0 ? 'text-muted-foreground opacity-60' : ''}`}
                                   >

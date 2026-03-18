@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
@@ -11,13 +10,14 @@ interface CategoryItem {
 const categories: CategoryItem[] = [
   {
     name: "Apparel",
-    children: ["T-shirts", "Hoodies", "Sweatshirts", "Jackets"],
+    children: ["T-Shirt", "Hoodies", "Sweatshirts", "Jackets", "Oversized"],
   },
-  { name: "Accessories", children: ["Tote Bags", "Caps", "Phone Covers", "Gaming Pads", "Beanies"] },
-  { name: "Home & Living", children: ["Mugs", "Cushions", "Cans", "Frames", "Coasters"] },
-  { name: "Print Products", children: ["Business Cards", "Books", "ID Cards", "Stickers", "Posters", "Flyers", "Greeting Cards", "Billboards", "Magazines", "Brochures", "Lanyards", "Banners", "Canvas", "Notebooks"] },
-  { name: "Packaging", children: ["Boxes", "Tubes", "Bottles", "Pouch", "Bottles"] },
-  { name: "Tech", children: ["IPhone Cases", "Lap Top Cases", "IPad Cases", "Macbook Cases", "Phone Cases"] },
+  { name: "Accessories", children: ["Tote Bags", "Caps", "Gaming Pads", "Beanies","Socks","Backpacks"] },
+  { name: "Home & Living", children: ["Mugs", "Cushions", "Cans", "Bottles", "Frames", "Coasters"] }, 
+  { name: "Print Products", children: ["Business Cards", "Stickers","Posters", "Notebook"] },
+  { name: "Packaging", children: ["Box", "Pouch"] },
+  { name: "Tech", children: ["Phone Covers","Cable Card", "Bluetooth Speaker","Wireless Charger"] },
+
   // { name: "Jewelry", children: ["Rings", "Necklaces", "Earrings", "Bracelets"] },
 ];
 
