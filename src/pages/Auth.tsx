@@ -613,7 +613,7 @@
 
 // export default Auth;
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -628,7 +628,6 @@ import { PasswordInput } from '@/components/ui/PasswordInput';
 import { RAW_API_URL } from '@/config';
 import { getSafeRedirect } from '@/utils/authUtils';
 import createApp from '@shopify/app-bridge';
-import { appBridgeRedirectToApp, getAppBridgeApp } from '@/lib/shopifyAppBridge';
 
 type AuthStep =
   | 'IDENTIFIER'
@@ -659,12 +658,6 @@ const consumeReturnTo = (): string => {
     }
   }
 
-  // Ensure the redirect is always treated as an absolute in-app path.
-  // Without a leading '/', react-router will resolve it relative to `/auth` (e.g. `/auth/shopify/app`).
-  if (stored && !stored.startsWith('/')) {
-    stored = `/${stored}`;
-  }
-
   return getSafeRedirect(stored, '/connect-store');
 };
 
@@ -676,27 +669,18 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [embedded, setEmbedded] = useState(false);
 
-  // Embedded failsafe: re-embed only if opened outside Shopify Admin
+  // Embedded failsafe: auto-re-embed if opened outside Shopify Admin
   useEffect(() => {
     const host = searchParams.get('host');
     const apiKey = import.meta.env.VITE_SHOPIFY_API_KEY;
 
-    // Only forceRedirect when NOT already inside an iframe.
-    // Forcing redirects while embedded can trigger repeated auth loops and extra bridge chatter.
-    if (host && apiKey && window.top === window.self) {
+    if (host && apiKey) {
       createApp({
         apiKey,
         host,
         forceRedirect: true,
       });
     }
-  }, [searchParams]);
-
-  const appBridge = useMemo(() => {
-    const host = searchParams.get('host');
-    const apiKey = import.meta.env.VITE_SHOPIFY_API_KEY;
-    if (!host || !apiKey) return null;
-    return getAppBridgeApp({ apiKey, host });
   }, [searchParams]);
 
   // Capture returnTo on mount and detect embedded context from it
@@ -711,7 +695,6 @@ const Auth = () => {
       if (clean.startsWith('http://') || clean.startsWith('https://')) {
         try { clean = new URL(clean).pathname + new URL(clean).search; } catch { }
       }
-      if (clean && !clean.startsWith('/')) clean = `/${clean}`;
       resolvedReturnTo = clean;
       sessionStorage.setItem('returnTo', clean);
       console.log('[Auth] returnTo saved from URL param:', clean);
@@ -719,10 +702,9 @@ const Auth = () => {
       const { pathname, search, hash } = (location.state as any).from;
       const fullPath = `${pathname || ''}${search || ''}${hash || ''}`;
       if (fullPath) {
-        const normalized = fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
-        resolvedReturnTo = normalized;
-        sessionStorage.setItem('returnTo', normalized);
-        console.log('[Auth] returnTo saved from location.state:', normalized);
+        resolvedReturnTo = fullPath;
+        sessionStorage.setItem('returnTo', fullPath);
+        console.log('[Auth] returnTo saved from location.state:', fullPath);
       }
     } else {
       // Check if there's already a stored value
@@ -916,11 +898,7 @@ const Auth = () => {
           toast.success('Welcome back!');
           const target = consumeReturnTo();
           console.log('[Auth] OTP login redirect to:', target);
-          if (embedded && appBridge && target.startsWith('/')) {
-            appBridgeRedirectToApp(appBridge, target);
-          } else {
-            navigate(target);
-          }
+          navigate(target);
         } else {
           // New user - move to NAME step to complete profile
           setStep('NAME');
@@ -999,11 +977,7 @@ const Auth = () => {
       toast.success('Account successfully created');
       const target = consumeReturnTo();
       console.log('[Auth] Signup redirect to:', target);
-      if (embedded && appBridge && target.startsWith('/')) {
-        appBridgeRedirectToApp(appBridge, target);
-      } else {
-        navigate(target);
-      }
+      navigate(target);
     } catch (err: any) {
       toast.error(err.message || 'Error creating account');
     } finally { setIsLoading(false); }

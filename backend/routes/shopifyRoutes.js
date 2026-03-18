@@ -13,7 +13,6 @@ const FulfillmentOrder = require('../models/FulfillmentOrder');
 const { protect } = require('../middleware/auth');
 const { requireStoreOwnership } = require('../middleware/requireStoreOwnership');
 const { syncForShop, ShopifyApiError, SYNC_MODE } = require('../services/shopifySync');
-const { getClientUrl } = require('../utils/security');
 
 // Bulletproof Shop Sanitization
 const sanitizeShop = (shop) => {
@@ -197,30 +196,12 @@ router.get('/callback', async (req, res) => {
     const { access_token, scope } = tokenResponse.data;
 
     // --- SCOPES FIX (safe, no flow changes) ---
-    let grantedScopes = [];
-    try {
-      const scopesResp = await axios.get(
-        `https://${sanitizedShop}/admin/oauth/access_scopes.json`,
-        { headers: { 'X-Shopify-Access-Token': access_token } }
-      );
-      grantedScopes = (scopesResp.data?.access_scopes || [])
-        .map(s => s.handle)
-        .filter(Boolean);
-      console.log('[Shopify Callback] Granted scopes:', grantedScopes);
-    } catch (e) {
-      console.warn(
-        '[Shopify Callback] Could not fetch access_scopes.json, falling back to token scope:',
-        e.response?.data || e.message
-      );
-    }
+    // Keep callback fast: store token scope now; refresh canonical granted scopes in background.
+    const grantedScopes = [];
 
     // UPSERT by shop ONLY (one record per shop)
-    // Preserve account-first logic:
-    // - Never wipe an existing merchantId on reinstall
-    // - Only attach merchantId during callback if we already have merchant context (cookie set by /start?token=...)
-    const merchantIdFromCookie = req.signedCookies.merchant_id || req.cookies.merchant_id || null;
-
     const updateData = {
+      merchantId: null, // ensure not linked after install
       accessToken: access_token,
       // Prefer canonical granted scopes from Shopify, fallback to tokenResponse scope
       scope: (grantedScopes.length ? grantedScopes.join(',') : scope) || '',
@@ -238,19 +219,37 @@ router.get('/callback', async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // If merchant context exists (user already authenticated before install), link during callback.
-    // This is idempotent and does not affect installs initiated before login.
-    if (merchantIdFromCookie && !store.merchantId) {
-      store.merchantId = merchantIdFromCookie;
-      await store.save();
-      console.log(`[Shopify Callback] Linked shop=${sanitizedShop} to merchant=${merchantIdFromCookie}`);
-    }
-
     console.log(`[Shopify Callback] Installed shop=${sanitizedShop}`);
 
-    // Kick off non-critical tasks (e.g. webhook registration) in the background
+    // Kick off non-critical tasks (e.g. scopes refresh, webhook registration) in the background
     (async () => {
       try {
+        // Refresh granted scopes from Shopify (non-critical for immediate redirect)
+        try {
+          const scopesResp = await axios.get(
+            `https://${sanitizedShop}/admin/oauth/access_scopes.json`,
+            { headers: { 'X-Shopify-Access-Token': access_token } }
+          );
+          const canonicalScopes = (scopesResp.data?.access_scopes || [])
+            .map(s => s.handle)
+            .filter(Boolean);
+
+          if (canonicalScopes.length) {
+            const storeForScopes = await ShopifyStore.findOne({ shop: sanitizedShop });
+            if (storeForScopes) {
+              storeForScopes.scope = canonicalScopes.join(',');
+              storeForScopes.scopes = canonicalScopes;
+              await storeForScopes.save();
+            }
+            console.log('[Shopify Callback] Granted scopes:', canonicalScopes);
+          }
+        } catch (e) {
+          console.warn(
+            '[Shopify Callback] Could not fetch access_scopes.json, falling back to token scope:',
+            e.response?.data || e.message
+          );
+        }
+
         // REGISTER WEBHOOKS (Idempotent)
         const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
         const webhooksToRegister = [
@@ -287,10 +286,12 @@ router.get('/callback', async (req, res) => {
     res.clearCookie('shopify_state', { path: '/', signed: true });
     res.clearCookie('merchant_id', { path: '/', signed: true });
 
-    // Redirect directly to the embedded app frontend route (avoid extra redirect chains)
-    const clientBase = (process.env.SHOPIFY_CLIENT_URL || process.env.CLIENT_URL || getClientUrl(req) || '').replace(/\/$/, '');
-    const target = `${clientBase}/shopify/app?shop=${encodeURIComponent(sanitizedShop)}${host ? `&host=${encodeURIComponent(String(host))}` : ''}`;
-    return res.redirect(target);
+    // Redirect to Shopify Admin embedded app URL
+    const shopHandle = sanitizedShop.replace('.myshopify.com', '');
+    const appSlug = process.env.SHOPIFY_APP_SLUG;
+    const adminRedirectUrl = `https://admin.shopify.com/store/${shopHandle}/apps/${appSlug}`;
+    
+    return res.redirect(adminRedirectUrl);
 
   } catch (error) {
     console.error(`[Shopify Callback Error] ${sanitizedShop}:`, error.response?.data || error.message);

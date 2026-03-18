@@ -31,7 +31,6 @@ const ShopifyApp: React.FC = () => {
     const [linked, setLinked] = useState(false);
     const [linking, setLinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [linkAttempted, setLinkAttempted] = useState(false);
 
     // Step 1: Check install status on mount
     useEffect(() => {
@@ -72,27 +71,15 @@ const ShopifyApp: React.FC = () => {
         checkStatus();
     }, [shop]);
 
-    // Step 3 (fallback only): If user is present and store is still unlinked, attempt one safe link.
+    // Step 3: Auto-link when user is available and app is installed but not linked
     useEffect(() => {
-        if (authLoading || statusLoading || !shop || !user || !installed || linked || linking || linkAttempted) return;
+        if (authLoading || !shop || !user || !installed || linked || linking) return;
 
         const performLinking = async () => {
             setLinking(true);
-            setLinkAttempted(true);
             try {
-                // Guard against retries across fast remounts/rerenders
-                const key = `shopify_link_inflight:${shop}:${user?._id || 'unknown'}`;
-                const now = Date.now();
-                const last = Number(localStorage.getItem(key) || '0');
-                if (last && now - last < 60_000) {
-                    console.log('[ShopifyApp] Link already attempted recently, skipping duplicate call');
-                    return;
-                }
-                localStorage.setItem(key, String(now));
-
                 await shopifyApi.linkAccount(shop);
                 setLinked(true);
-                localStorage.removeItem(key);
                 console.log('[ShopifyApp] Successfully linked');
             } catch (err: any) {
                 console.error('[ShopifyApp] Link failed:', err);
@@ -104,7 +91,7 @@ const ShopifyApp: React.FC = () => {
         };
 
         performLinking();
-    }, [user, authLoading, statusLoading, shop, installed, linked, linking, linkAttempted]);
+    }, [user, authLoading, shop, installed, linked, linking]);
 
     const renderContent = () => {
         if (!shop) {
@@ -118,58 +105,12 @@ const ShopifyApp: React.FC = () => {
             );
         }
 
-        if (authLoading) {
-            return <div className="text-muted-foreground text-center py-12">Loading ShelfMerch context...</div>;
-        }
-
-        // Step 2: Installed but no user → show login/signup
-        if (!user) {
-            const host = searchParams.get('host');
-            let returnPath = `/shopify/app?shop=${encodeURIComponent(shop)}`;
-            if (host) returnPath += `&host=${encodeURIComponent(host)}`;
-            const returnUrl = encodeURIComponent(returnPath);
-            const hostParam = host ? `&host=${encodeURIComponent(host)}` : '';
-
-            return (
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle>Welcome to ShelfMerch</CardTitle>
-                        <CardDescription>Please login or sign up to connect your store.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-4">
-                        {statusLoading && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Loader2 className="animate-spin h-3.5 w-3.5" />
-                                <span>Checking store connection in the background…</span>
-                            </div>
-                        )}
-                        <Button
-                            className="w-full"
-                            onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}${hostParam}`)}
-                        >
-                            Login to ShelfMerch
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => navigate(`/auth?mode=signup&returnTo=${returnUrl}${hostParam}`)}
-                        >
-                            Sign up for ShelfMerch
-                        </Button>
-                        <p className="text-xs text-center text-muted-foreground mt-2">
-                            You'll return to Shopify after login.
-                        </p>
-                    </CardContent>
-                </Card>
-            );
-        }
-
-        // If status check is still running, don't block login UI above—only show minimal UI here when user exists.
+        // Loading states
         if (statusLoading) {
             return (
                 <div className="flex flex-col items-center gap-3 py-12">
                     <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
-                    <p className="text-muted-foreground">Preparing your store connection…</p>
+                    <p className="text-muted-foreground">Checking app status...</p>
                 </div>
             );
         }
@@ -180,6 +121,45 @@ const ShopifyApp: React.FC = () => {
                     <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
                     <p className="text-muted-foreground">Redirecting to install...</p>
                 </div>
+            );
+        }
+
+        if (authLoading) {
+            return <div className="text-muted-foreground text-center py-12">Loading ShelfMerch context...</div>;
+        }
+
+        // Step 2: Installed but no user → show login/signup
+        if (!user) {
+            const host = searchParams.get('host');
+            let returnPath = `/shopify/app?shop=${encodeURIComponent(shop)}`;
+            if (host) returnPath += `&host=${encodeURIComponent(host)}`;
+            const returnUrl = encodeURIComponent(returnPath);
+
+            return (
+                <Card className="w-full max-w-md">
+                    <CardHeader>
+                        <CardTitle>Welcome to ShelfMerch</CardTitle>
+                        <CardDescription>Please login or sign up to connect your store.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4">
+                        <Button
+                            className="w-full"
+                            onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}`)}
+                        >
+                            Login to ShelfMerch
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => navigate(`/auth?mode=signup&returnTo=${returnUrl}`)}
+                        >
+                            Sign up for ShelfMerch
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground mt-2">
+                            You'll return to Shopify after login.
+                        </p>
+                    </CardContent>
+                </Card>
             );
         }
 
