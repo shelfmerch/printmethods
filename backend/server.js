@@ -197,7 +197,16 @@ app.get('/api/shopify/auth', (req, res) => {
 app.get('/api/shopify/callback', (req, res) => {
   const qs = req.originalUrl.split('?')[1];
   const suffix = qs ? `?${qs}` : '';
-  res.redirect(302, `/api/shopify/oauth/callback${suffix}`);
+  // Fast-path: forward internally to OAuth router (avoid extra HTTP redirect hop)
+  req.url = `/callback${suffix}`;
+  shopifyOAuthRoutes(req, res, (err) => {
+    if (err) {
+      console.error('[Shopify Callback Forward Error]', err);
+      return res.status(500).send('Authentication failed.');
+    }
+    // If it falls through the router, return a safe error
+    return res.status(404).send('Not found');
+  });
 });
 app.get('/api/shopify/start', (req, res) => {
   const qs = req.originalUrl.split('?')[1];
