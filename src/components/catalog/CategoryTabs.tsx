@@ -44,12 +44,10 @@ import subNotebooks from "@/assets/sub-notebooks.jpg";
 import subBoxes from "@/assets/sub-boxes.jpg";
 import subBottles from "@/assets/sub-bottles.jpg";
 import subPouches from "@/assets/sub-pouches.jpg";
-import subIphonecases from "@/assets/sub-iphonecases.jpg";
-import subLaptopcases from "@/assets/sub-laptopcases.jpg";
-import subRings from "@/assets/sub-rings.jpg";
-import subNecklaces from "@/assets/sub-necklaces.jpg";
-import subEarrings from "@/assets/sub-earrings.jpg";
-import subBracelets from "@/assets/sub-bracelets.jpg";
+import subCablecard from "@/assets/sub-cablecard.png";
+// import subPowerbank from "@/assets/sub-powerbank.png";
+import subBluetoothspeaker from "@/assets/sub-bluetooth.png";
+import subWirelesscharger from "@/assets/sub-wirelesscharger.png";
 
 interface Subcategory {
   name: string;
@@ -69,14 +67,14 @@ const categories: Category[] = [
     name: "Apparel",
     image: apparelImg,
     subcategories: [
-      { name: "T-Shirts", image: subTshirts },
+      { name: "T-Shirt", image: subTshirts },
       { name: "Hoodies", image: subHoodies },
       { name: "Sweatshirts", image: subSweatshirts },
       { name: "Jackets", image: subJackets },
       // { name: "Crop Tops", image: subCroptops },
       // { name: "Tank Tops", image: subTanktops },
-      { name: "Long Sleeves", image: subLongsleeves },
-      { name: "Oversized Tees", image: subOversized },
+      // { name: "Long Sleeves", image: subLongsleeves },
+      { name: "Oversized", image: subOversized },
     ],
   },
   {
@@ -86,7 +84,6 @@ const categories: Category[] = [
     subcategories: [
       { name: "Tote Bags", image: subTotebags },
       { name: "Caps", image: subCaps },
-      { name: "Phone Covers", image: subPhonecovers },
       { name: "Gaming Pads", image: subGamingpads },
       { name: "Beanies", image: subBeanies },
       { name: "Socks", image: subSocks },
@@ -103,8 +100,9 @@ const categories: Category[] = [
       { name: "Cans", image: subCans },
       { name: "Frames", image: subFrames },
       { name: "Coasters", image: subCoasters },
-      { name: "Blankets", image: subBlankets },
+      // { name: "Blankets", image: subBlankets },
       { name: "Wall Art", image: subWallart },
+      { name: "Bottles", image: subBottles },
     ],
   },
   {
@@ -113,10 +111,14 @@ const categories: Category[] = [
     image: printImg,
     subcategories: [
       { name: "Business Cards", image: subBusinesscards },
-      { name: "Books", image: subBooks },
+      // { name: "Books", image: subBooks },
+      // {name: "ID Cards", image: subIdcards},
       { name: "Stickers", image: subStickers },
       { name: "Posters", image: subPosters },
-      { name: "Notebooks", image: subNotebooks },
+      { name: "Notebook", image: subNotebooks },
+      // {name: "Flyers", image: subFlyers},
+      // {name: "Greeting Cards", image: subGreetingcards},
+    
     ],
   },
   {
@@ -125,7 +127,6 @@ const categories: Category[] = [
     image: packagingImg,
     subcategories: [
       { name: "Boxes", image: subBoxes },
-      { name: "Bottles", image: subBottles },
       { name: "Pouch", image: subPouches },
     ],
   },
@@ -134,9 +135,13 @@ const categories: Category[] = [
     name: "Tech",
     image: techImg,
     subcategories: [
-      { name: "iPhone Cases", image: subIphonecases },
-      { name: "Laptop Cases", image: subLaptopcases },
+      // { name: "iPhone Cases", image: subIphonecases },
+      // { name: "Laptop Cases", image: subLaptopcases },
       { name: "Phone Covers", image: subPhonecovers },
+      {name: "Cable Card", image: subCablecard},
+      // {name: "Power Bank", image: subPowerbank},
+      {name: "Bluetooth Speaker", image: subBluetoothspeaker},
+      {name: "Wireless Charger", image: subWirelesscharger},
     ],
   },
   // {

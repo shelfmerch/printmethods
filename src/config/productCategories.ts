@@ -11,55 +11,59 @@ export const CATEGORIES = {
     name: 'Apparel',
     subcategories: [
       'T-Shirt',
-      'Tank Top',
-      'Hoodie',
-      'Sweatshirt',
-      'Jacket',
-      'Crop Top',
-      'Apron',
-      'Scarf',
-      'Jersey'
+      // 'Tank Top',
+      'Hoodies',
+      'Sweatshirts',
+      'Jackets',
+      'Oversized'
+      // 'Crop Top',
+      // 'Apron',
+      // 'Scarf',
+      // 'Jersey'
     ]
   },
   accessories: {
     id: 'accessories',
     name: 'Accessories',
     subcategories: [
-      'Tote Bag',
-      'Cap',
-      'Phone Cover',
-      'Gaming Pad',
-      'Beanie'
+      'Tote Bags',
+      'Caps',
+      'Gaming Pads',
+      'Beanies',
+      'Socks',
+      'Backpacks'
     ]
   },
   home: {
     id: 'home',
     name: 'Home & Living',
     subcategories: [
-      'Can',
-      'Mug',
-      'Cushion',
-      'Frame',
-      'Coaster'
+      'Cans',
+      'Mugs',
+      'Cushions',
+      'Frames',
+      'Coasters',
+      'Bottles',
+      'Wall Art' 
     ]
   },
   print: {
     id: 'print',
     name: 'Print',
     subcategories: [
-      'Business Card',
-      'Book',
-      'ID Card',
-      'Sticker',
-      'Poster',
-      'Flyer',
-      'Greeting Card',
-      'Billboard',
-      'Magazine',
-      'Brochure',
-      'Lanyard',
-      'Banner',
-      'Canvas',
+      'Business Cards',
+      'Books',
+      'ID Cards',
+      'Stickers',
+      'Posters',
+      // 'Flyers',
+      // 'Greeting Cards',
+      // 'Billboards',
+      // 'Magazine',
+      // 'Brochure',
+      // 'Lanyard',
+      // 'Banner',
+      // 'Canvas',
       'Notebook'
     ]
   },
@@ -68,21 +72,20 @@ export const CATEGORIES = {
     name: 'Packaging',
     subcategories: [
       'Box',
-      'Tube',
-      'Pouch',
-      'Cosmetic',
-      'Bottle'
+      // 'Tube',
+      'Pouch'
+      // 'Cosmetic',
+      // 'Bottle'
     ]
   },
   tech: {
     id: 'tech',
     name: 'Tech',
     subcategories: [
-      'IPhone',
-      'Lap Top',
-      'IPad',
-      'Macbook',
-      'Phone'
+      'Phone Covers',
+      'Cable Card',
+      'Bluetooth Speaker',
+      'Wireless Charger' 
     ]
   },
   // jewelry: {

@@ -51,21 +51,21 @@ const Products = () => {
 
     // Known subcategory names from the catalogue sidebar
     const subcategoryNames: string[] = [
-        // Apparel
-        'T-shirts', 'Hoodies', 'Sweatshirts', 'Jackets', 
-        // Accessories
-        'Tote Bags', 'Caps', 'Phone Covers', 'Gaming Pads', 'Beanies',
-        // Home & Living
-        'Mugs', 'Cushions', 'Cans', 'Frames', 'Coasters',
-        // Print Products
-        'Business Cards', 'Books', 'ID Cards', 'Stickers', 'Posters', 'Flyers', 'Greeting Cards', 'Billboards', 'Magazines', 'Brochures', 'Lanyards', 'Banners', 'Canvas', 'Notebooks',
-        // Packaging
-        'Boxes', 'Tubes', 'Bottles', 'Pouch', 
-        // Tech
-        'IPhone Cases', 'Lap Top Cases', 'IPad Cases', 'Macbook Cases', 'Phone Cases',
-        // Jewelry
-        // 'Rings', 'Necklaces', 'Earrings', 'Bracelets',
-    ];
+    // Apparel
+    "T-Shirt", "Hoodies", "Sweatshirts", "Jackets","Oversized",
+    // Accessories
+    "Tote Bags", "Caps", "Gaming Pads", "Beanies","Socks","Backpacks",
+    // Home & Living
+    "Mugs", "Cushions", "Cans", "Bottles", "Frames", "Coasters","Wall Art",
+    // Print Products
+    "Business Cards", "Stickers", "Posters", "Notebook",
+    // Packaging
+    "Boxes", "Pouch",
+    // Tech
+    "Phone Covers", "Cable Card", "Bluetooth Speaker", "Wireless Charger",
+    // Jewelry
+    // "Rings", "Necklaces", "Earrings", "Bracelets",
+  ];
 
     const resolveSubcategorySlugFromSearch = (term: string): string | null => {
         const q = term.toLowerCase().trim();

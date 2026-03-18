@@ -13,41 +13,52 @@ import { Search, ArrowLeft } from 'lucide-react';
 const categorySlugToSubcategory: Record<string, string> = {
   // Apparel
   't-shirts': 'T-Shirt',
-  'tank-tops': 'Tank Top',
-  'hoodies': 'Hoodie',
-  'sweatshirts': 'Sweatshirt',
-  'jackets': 'Jacket',
-  'crop-tops': 'Crop Top',
+  'hoodies': 'Hoodies',
+  'sweatshirts': 'Sweatshirts',
+  'jackets': 'Jackets',
+  'oversized': 'Oversized',
   
   // Accessories
-  'bags': 'Tote Bag',
-  'caps': 'Cap',
-  'phone-covers': 'Phone Cover',
-  'beanies': 'Beanie',
+  'bags': 'Tote Bags',
+  'tote-bags': 'Tote Bags',
+  'caps': 'Caps',
+  'gaming-pads': 'Gaming Pads',
+  'socks': 'Socks',
+  'backpacks': 'Backpacks',
+  'beanies': 'Beanies',
   
   // Home & Living
-  'mugs': 'Mug',
-  'cushions': 'Cushion',
-  'frames': 'Frame',
-  'coasters': 'Coaster',
+  'mugs': 'Mugs',
+  'cushions': 'Cushions',
+  'cans': 'Cans',
+  'drinkware': 'Mugs',
+  'wall-art': 'Wall Art',
+  'bottles': 'Bottles',
+  'frames': 'Frames',
+  'coasters': 'Coasters',
   
   // Print Products
   'notebooks': 'Notebook',
-  'posters': 'Poster',
-  'stickers': 'Sticker',
-  'business-cards': 'Business Card',
+  'posters': 'Posters',
+  'stickers': 'Stickers',
+  'business-cards': 'Business Cards',
   
   // Tech
-  'iphone-cases': 'IPhone',
-  'laptop-skins': 'Lap Top',
+  'phone-covers': 'Phone Covers',
+  'phone-cases': 'Phone Covers',
+  'cable-cards': 'Cable Card',
+  'bluetooth-speakers': 'Bluetooth Speaker',
+  'wireless-chargers': 'Wireless Charger', 
   
   // Packaging
   'boxes': 'Box',
-  'bottles': 'Bottle',
+  'pouches': 'Pouch',
+
+
   
   // Jewelry
-  'rings': 'Ring',
-  'necklaces': 'Necklace',
+  // 'rings': 'Ring',
+  // 'necklaces': 'Necklace',
 };
 
 const AllCategories = () => {

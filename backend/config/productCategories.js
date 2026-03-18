@@ -12,56 +12,46 @@ const CATEGORIES = {
     name: 'Apparel',
     subcategories: [
       'T-Shirt',
-      'Shirt',
-      'Tank Top',
-      'Hoodie',
-      'Sweatshirt',
-      'Jacket',
-      'Crop Top',
-      'Apron',
-      'Scarf',
-      'Jersey'
+      'Hoodies',
+      'Sweatshirts',
+      'Jackets',
+      'Oversized'
     ]
   },
   accessories: {
     id: 'accessories',
     name: 'Accessories',
     subcategories: [
-      'Tote Bag',
-      'Cap',
-      'Phone Cover',
-      'Gaming Pad',
-      'Beanie'
+      'Tote Bags',
+      'Caps',
+      'Gaming Pads',
+      'Beanies',
+      'Socks',
+      'Backpacks'
     ]
   },
   home: {
     id: 'home',
     name: 'Home & Living',
     subcategories: [
-      'Can',
-      'Mug',
-      'Cushion',
-      'Frame',
-      'Coaster'
+      'Cans',
+      'Mugs',
+      'Cushions',
+      'Frames',
+      'Coasters',
+      'Bottles',
+      'Wall Art'
     ]
   },
   print: {
     id: 'print',
     name: 'Print',
     subcategories: [
-      'Business Card',
-      'Book',
-      'ID Card',
-      'Sticker',
-      'Poster',
-      'Flyer',
-      'Greeting Card',
-      'Billboard',
-      'Magazine',
-      'Brochure',
-      'Lanyard',
-      'Banner',
-      'Canvas',
+      'Business Cards',
+      'Books',
+      'ID Cards',
+      'Stickers',
+      'Posters',
       'Notebook'
     ]
   },
@@ -70,21 +60,17 @@ const CATEGORIES = {
     name: 'Packaging',
     subcategories: [
       'Box',
-      'Tube',
-      'Pouch',
-      'Cosmetic',
-      'Bottle'
+      'Pouch'
     ]
   },
   tech: {
     id: 'tech',
     name: 'Tech',
     subcategories: [
-      'IPhone',
-      'Lap Top',
-      'IPad',
-      'Macbook',
-      'Phone'
+      'Phone Covers',
+      'Cable Card',
+      'Bluetooth Speaker',
+      'Wireless Charger'
     ]
   },
   jewelry: {
