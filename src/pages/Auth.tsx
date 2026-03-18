@@ -659,6 +659,12 @@ const consumeReturnTo = (): string => {
     }
   }
 
+  // Ensure the redirect is always treated as an absolute in-app path.
+  // Without a leading '/', react-router will resolve it relative to `/auth` (e.g. `/auth/shopify/app`).
+  if (stored && !stored.startsWith('/')) {
+    stored = `/${stored}`;
+  }
+
   return getSafeRedirect(stored, '/connect-store');
 };
 
@@ -705,6 +711,7 @@ const Auth = () => {
       if (clean.startsWith('http://') || clean.startsWith('https://')) {
         try { clean = new URL(clean).pathname + new URL(clean).search; } catch { }
       }
+      if (clean && !clean.startsWith('/')) clean = `/${clean}`;
       resolvedReturnTo = clean;
       sessionStorage.setItem('returnTo', clean);
       console.log('[Auth] returnTo saved from URL param:', clean);
@@ -712,9 +719,10 @@ const Auth = () => {
       const { pathname, search, hash } = (location.state as any).from;
       const fullPath = `${pathname || ''}${search || ''}${hash || ''}`;
       if (fullPath) {
-        resolvedReturnTo = fullPath;
-        sessionStorage.setItem('returnTo', fullPath);
-        console.log('[Auth] returnTo saved from location.state:', fullPath);
+        const normalized = fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
+        resolvedReturnTo = normalized;
+        sessionStorage.setItem('returnTo', normalized);
+        console.log('[Auth] returnTo saved from location.state:', normalized);
       }
     } else {
       // Check if there's already a stored value
