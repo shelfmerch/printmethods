@@ -144,14 +144,30 @@ const ShopifyApp: React.FC = () => {
                     <CardContent className="flex flex-col gap-4">
                         <Button
                             className="w-full"
+
                             onClick={() => navigate(`/auth?mode=login&returnTo=${returnUrl}`)}
+
+                            onClick={() =>
+                                navigate(
+                                    `/auth?mode=login&shop=${encodeURIComponent(shop)}${hostParam}&returnTo=${returnUrl}`
+                                )
+                            }
+
                         >
                             Login to ShelfMerch
                         </Button>
                         <Button
                             variant="outline"
                             className="w-full"
+
                             onClick={() => navigate(`/auth?mode=signup&returnTo=${returnUrl}`)}
+
+                            onClick={() =>
+                                navigate(
+                                    `/auth?mode=signup&shop=${encodeURIComponent(shop)}${hostParam}&returnTo=${returnUrl}`
+                                )
+                            }
+
                         >
                             Sign up for ShelfMerch
                         </Button>
