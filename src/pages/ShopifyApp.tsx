@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { shopifyApi } from '@/lib/shopifyApi';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ const ShopifyApp: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { user, isLoading: authLoading } = useAuth();
-    const location = useLocation();
 
     const shop = searchParams.get('shop');
 
@@ -32,6 +31,26 @@ const ShopifyApp: React.FC = () => {
     const [linking, setLinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const linkStartedRef = useRef(false);
+    const statusFetchedRef = useRef(false);
+
+    const performLinking = useCallback(async () => {
+        if (!shop || authLoading || !user || !installed || linked) return;
+        if (linkStartedRef.current) return;
+
+        linkStartedRef.current = true;
+        setLinking(true);
+        try {
+            await shopifyApi.linkAccount(shop);
+            setLinked(true);
+            console.log('[ShopifyApp] Successfully linked');
+        } catch (err: any) {
+            console.error('[ShopifyApp] Link failed:', err);
+            setError(err.message || 'Failed to link account');
+            toast.error('Failed to link ShelfMerch account');
+        } finally {
+            setLinking(false);
+        }
+    }, [shop, authLoading, user, installed, linked]);
 
     // Step 1: Check install status on mount
     useEffect(() => {
@@ -61,25 +80,7 @@ const ShopifyApp: React.FC = () => {
 
                 setInstalled(true);
                 setLinked(status.linked);
-
-                // If already authenticated, start linking immediately after status check (avoid extra effect tick)
-                if (!authLoading && user && status.installed && !status.linked && !linkStartedRef.current) {
-                    linkStartedRef.current = true;
-                    setLinking(true);
-                    (async () => {
-                        try {
-                            await shopifyApi.linkAccount(shop);
-                            setLinked(true);
-                            console.log('[ShopifyApp] Successfully linked');
-                        } catch (err: any) {
-                            console.error('[ShopifyApp] Link failed:', err);
-                            setError(err.message || 'Failed to link account');
-                            toast.error('Failed to link ShelfMerch account');
-                        } finally {
-                            setLinking(false);
-                        }
-                    })();
-                }
+                statusFetchedRef.current = true;
             } catch (err: any) {
                 console.error('[ShopifyApp] Status check failed:', err);
                 setError(err.message || 'Failed to check app status');
@@ -89,31 +90,15 @@ const ShopifyApp: React.FC = () => {
         };
 
         checkStatus();
-    }, [shop, authLoading, user]);
+    }, [shop]);
 
-    // Step 3: Auto-link when user is available and app is installed but not linked
+    // As soon as status is fetched AND auth is ready, link immediately (avoids OTP-login delay).
     useEffect(() => {
-        if (authLoading || !shop || !user || !installed || linked || linking) return;
-        if (linkStartedRef.current) return;
-        linkStartedRef.current = true;
-
-        const performLinking = async () => {
-            setLinking(true);
-            try {
-                await shopifyApi.linkAccount(shop);
-                setLinked(true);
-                console.log('[ShopifyApp] Successfully linked');
-            } catch (err: any) {
-                console.error('[ShopifyApp] Link failed:', err);
-                setError(err.message || 'Failed to link account');
-                toast.error('Failed to link ShelfMerch account');
-            } finally {
-                setLinking(false);
-            }
-        };
-
+        if (!statusFetchedRef.current) return;
+        if (authLoading || !user) return;
+        if (!installed || linked) return;
         performLinking();
-    }, [user, authLoading, shop, installed, linked, linking]);
+    }, [authLoading, user, installed, linked, performLinking]);
 
     const renderContent = () => {
         if (!shop) {
