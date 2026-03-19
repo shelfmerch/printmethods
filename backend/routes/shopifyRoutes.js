@@ -253,11 +253,11 @@ router.get('/callback', async (req, res) => {
         // REGISTER WEBHOOKS (Idempotent)
         const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
         const webhooksToRegister = [
-          { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/oauth/webhooks/app-uninstalled' },
-          { topic: 'orders/create',  key: 'orders_create',  path: '/api/shopify/oauth/webhooks/orders-create' },
-          { topic: 'orders/updated', key: 'orders_updated', path: '/api/shopify/oauth/webhooks/orders-updated' },
-          { topic: 'products/create', key: 'products_create', path: '/api/shopify/oauth/webhooks/products-create' },
-          { topic: 'products/update', key: 'products_update', path: '/api/shopify/oauth/webhooks/products-update' },
+          { topic: 'app/uninstalled', key: 'app_uninstalled', path: '/api/shopify/webhooks/app-uninstalled' },
+          { topic: 'orders/create',  key: 'orders_create',  path: '/api/shopify/webhooks/orders-create' },
+          { topic: 'orders/updated', key: 'orders_updated', path: '/api/shopify/webhooks/orders-updated' },
+          { topic: 'products/create', key: 'products_create', path: '/api/shopify/webhooks/products-create' },
+          { topic: 'products/update', key: 'products_update', path: '/api/shopify/webhooks/products-update' },
           // GDPR compliance webhooks (log-only, no destructive actions)
           { topic: 'customers/data_request', key: 'gdpr_customers_data_request', path: '/api/shopify/gdpr/customers-data-request' },
           { topic: 'customers/redact',       key: 'gdpr_customers_redact',       path: '/api/shopify/gdpr/customers-redact' },

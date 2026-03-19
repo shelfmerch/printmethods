@@ -31,7 +31,7 @@ const ShopifyApp: React.FC = () => {
     const [linking, setLinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const linkStartedRef = useRef(false);
-    const statusFetchedRef = useRef(false);
+    const [statusFetched, setStatusFetched] = useState(false);
 
     const performLinking = useCallback(async () => {
         if (!shop || authLoading || !user || !installed || linked) return;
@@ -80,7 +80,7 @@ const ShopifyApp: React.FC = () => {
 
                 setInstalled(true);
                 setLinked(status.linked);
-                statusFetchedRef.current = true;
+                setStatusFetched(true);
             } catch (err: any) {
                 console.error('[ShopifyApp] Status check failed:', err);
                 setError(err.message || 'Failed to check app status');
@@ -94,11 +94,11 @@ const ShopifyApp: React.FC = () => {
 
     // As soon as status is fetched AND auth is ready, link immediately (avoids OTP-login delay).
     useEffect(() => {
-        if (!statusFetchedRef.current) return;
+        if (!statusFetched) return;
         if (authLoading || !user) return;
         if (!installed || linked) return;
         performLinking();
-    }, [authLoading, user, installed, linked, performLinking]);
+    }, [statusFetched, authLoading, user, installed, linked, performLinking]);
 
     const renderContent = () => {
         if (!shop) {

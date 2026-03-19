@@ -140,7 +140,7 @@ app.use(session({
 app.use('/api/razorpay', razorpayWebhookRoutes);
 
 // ✅ Shopify webhooks MUST use raw body for HMAC validation
-app.use('/api/shopify/oauth/webhooks', express.raw({ type: 'application/json' }));
+app.use('/api/shopify/webhooks', express.raw({ type: 'application/json' }));
 
 // ✅ Shopify GDPR webhooks (customers/data_request, customers/redact, shop/redact)
 // use raw body for HMAC validation and isolated routing
@@ -189,32 +189,7 @@ app.post('/api/shopify/webhooks/orders-updated', forwardToOAuth('/webhooks/order
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.get('/api/shopify/auth', (req, res) => {
-  const qs = req.originalUrl.split('?')[1];
-  const suffix = qs ? `?${qs}` : '';
-  res.redirect(302, `/api/shopify/oauth/start${suffix}`);
-});
-app.get('/api/shopify/callback', (req, res) => {
-  const qs = req.originalUrl.split('?')[1];
-  const suffix = qs ? `?${qs}` : '';
-  res.redirect(302, `/api/shopify/oauth/callback${suffix}`);
-});
-app.get('/api/shopify/start', (req, res) => {
-  const qs = req.originalUrl.split('?')[1];
-  const suffix = qs ? `?${qs}` : '';
-  res.redirect(302, `/api/shopify/oauth/start${suffix}`);
-});
-app.get('/api/shopify/status', (req, res) => {
-  const qs = req.originalUrl.split('?')[1];
-  const suffix = qs ? `?${qs}` : '';
-  res.redirect(302, `/api/shopify/oauth/status${suffix}`);
-});
-app.post('/api/shopify/link-account', (req, res) => {
-  const qs = req.originalUrl.split('?')[1];
-  const suffix = qs ? `?${qs}` : '';
-  // 307 to preserve method and body
-  res.redirect(307, `/api/shopify/oauth/link-account${suffix}`);
-});
+// Shopify routes are mounted directly at /api/shopify (no redirect wrappers)
 
 
 
@@ -341,7 +316,7 @@ app.use('/api/admin/shopify-orders', require('./routes/adminShopifyOrders'));
 app.use('/api/admin/fulfillment-orders', require('./routes/adminFulfillmentOrders'));
 
 app.use('/api/shopify', shopifyPublishRoutes);
-app.use('/api/shopify/oauth', require('./routes/shopifyRoutes'));
+app.use('/api/shopify', require('./routes/shopifyRoutes'));
 app.use('/api/ai', require('./routes/ai'));
 
 // Log registered endpoints (including /api/v1/*) at startup for verification
