@@ -612,6 +612,33 @@ const ListingEditor = () => {
     saveProduct('published');
   };
 
+  // Build gallery image URLs for Shopify from draft designData (flatMockups / modelMockups) or state
+  const shopifyGalleryImages = useMemo(() => {
+    const urls: Array<{ url: string }> = [];
+    if (Array.isArray(state?.galleryImages) && state.galleryImages.length > 0) {
+      state.galleryImages.forEach((img: any) => {
+        if (img?.url) urls.push({ url: img.url });
+      });
+    }
+    if (draftData?.designData) {
+      const dd = draftData.designData;
+      if (dd.flatMockups && typeof dd.flatMockups === 'object') {
+        Object.values(dd.flatMockups).forEach((v) => {
+          if (typeof v === 'string' && v.trim()) urls.push({ url: v });
+        });
+      }
+      if (dd.modelMockups && typeof dd.modelMockups === 'object' && urls.length === 0) {
+        const firstColor = Object.values(dd.modelMockups)[0];
+        if (firstColor && typeof firstColor === 'object') {
+          Object.values(firstColor).forEach((v) => {
+            if (typeof v === 'string' && v.trim()) urls.push({ url: v });
+          });
+        }
+      }
+    }
+    return urls;
+  }, [draftData?.designData, state?.galleryImages]);
+
   // --- SHOPIFY PUBLISH HANDLER ---
   const handleShopifyPublish = async () => {
     if (!selectedShop) {
@@ -622,10 +649,10 @@ const ListingEditor = () => {
       toast.error('Title is required');
       return;
     }
-    // if (!state?.galleryImages || state.galleryImages.length === 0 || !state.galleryImages[0]?.url) {
-    //   toast.error('At least one gallery image is required');
-    //   return;
-    // }
+    if (shopifyGalleryImages.length === 0 || !shopifyGalleryImages[0]?.url) {
+      toast.error('At least one product image is required. Save flat or model mockups in the Design Editor first.');
+      return;
+    }
     if (variantRows.length === 0) {
       toast.error('At least one variant is required');
       return;
@@ -644,7 +671,7 @@ const ListingEditor = () => {
         storeProductId: storeProductId || undefined,
         title: title.trim(),
         description: description || '',
-        // galleryImages: state.galleryImages.map(img => ({ url: img.url })),
+        galleryImages: shopifyGalleryImages,
         variants: variantRows.map(r => ({
           size: r.size,
           color: r.color,
@@ -673,9 +700,8 @@ const ListingEditor = () => {
   const isShopifyPublishDisabled =
     !selectedShop ||
     !title.trim() ||
-    // !state?.galleryImages ||
-    // state.galleryImages.length === 0 ||
-    // !state.galleryImages[0]?.url ||
+    shopifyGalleryImages.length === 0 ||
+    !shopifyGalleryImages[0]?.url ||
     variantRows.length === 0 ||
     (pricingSummary !== null && pricingSummary.minProfit < 0) ||
     isShopifyPublishing;
