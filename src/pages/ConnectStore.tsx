@@ -105,7 +105,7 @@ export default function ConnectStore() {
 
             const createResp = await storeApi.create({
                 name: storeName,
-                description: "My ShelfMerch Pop-Up Store",
+                description: "My ShelfMerch Brand Store",
             });
 
             if (!createResp.success || !createResp.data) {
@@ -113,7 +113,7 @@ export default function ConnectStore() {
             }
 
             const newStore = createResp.data;
-            toast.success("ShelfMerch Pop-Up store created!");
+            toast.success("ShelfMerch Brand store created!");
             await refreshStores();
             selectStoreById(newStore.id || newStore._id || "");
 
@@ -272,7 +272,7 @@ export default function ConnectStore() {
                         </div>
                         <div onClick={() => setCreateStoreDialogOpen(true)}>
                             <ChannelButton
-                                name="ShelfMerch Pop-Up"
+                                name="ShelfMerch Brand"
                                 icon={<StoreIcon className="text-primary" />}
                             />
                         </div>
@@ -306,7 +306,7 @@ export default function ConnectStore() {
                                     <h3 className="text-2xl font-bold flex items-center gap-2">
                                         ShelfMerch{" "}
                                         <span className="font-normal text-muted-foreground">
-                                            Pop-Up
+                                            Brand
                                         </span>
                                     </h3>
                                     <Badge
@@ -330,7 +330,7 @@ export default function ConnectStore() {
                                 className="shrink-0 bg-[#343A40] text-white hover:bg-[#212529]"
                                 onClick={() => setCreateStoreDialogOpen(true)}
                             >
-                                Launch Pop-Up store
+                                Launch Brand store
                             </Button>
                         </Card>
 

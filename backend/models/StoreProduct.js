@@ -1,5 +1,18 @@
 const mongoose = require('mongoose');
 
+const StoreProductGalleryImageSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  url: { type: String, required: true },
+  position: { type: Number, required: true },
+  isPrimary: { type: Boolean, default: false },
+  imageType: {
+    type: String,
+    enum: ['lifestyle', 'flat-front', 'flat-back', 'size-chart', 'detail', 'mockup', 'other'],
+    default: 'other',
+  },
+  altText: { type: String, default: '' },
+}, { _id: false });
+
 const StoreProductSchema = new mongoose.Schema({
   storeId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -32,6 +45,7 @@ const StoreProductSchema = new mongoose.Schema({
     type: Number,
     min: 0
   },
+  tags: { type: [String], default: [] },
   // Optional: summary of variant-level pricing embedded on the StoreProduct
   // This mirrors data from StoreProductVariant + CatalogProductVariant so that
   // storefronts and dashboards can quickly read per-variant size/color/pricing
@@ -75,6 +89,24 @@ const StoreProductSchema = new mongoose.Schema({
   designData: {
     type: Object,
   },
+
+  galleryImages: { type: [StoreProductGalleryImageSchema], default: [] },
+
+  catalogSnapshot: {
+    name: { type: String },
+    category: { type: String },
+    material: { type: String },
+    shipping_weight_grams: { type: Number },
+    gst_slab: { type: Number },
+    dpi: { type: Number, default: 300 },
+  },
+
+  source: {
+    type: String,
+    enum: ['native', 'api'],
+    default: 'native',
+    index: true,
+  },
   // Publication status
   status: {
     type: String,
@@ -110,5 +142,8 @@ StoreProductSchema.index(
 
 StoreProductSchema.index({ isActive: 1 });
 StoreProductSchema.index({ createdAt: -1 });
+StoreProductSchema.index({ storeId: 1, status: 1 });
+StoreProductSchema.index({ storeId: 1, source: 1 });
+StoreProductSchema.index({ 'variantsSummary.catalogProductVariantId': 1 });
 
 module.exports = mongoose.model('StoreProduct', StoreProductSchema);

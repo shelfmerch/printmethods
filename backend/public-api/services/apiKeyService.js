@@ -5,7 +5,19 @@
 const crypto = require('crypto');
 const ApiKey = require('../models/ApiKey');
 const { NotFoundError, ValidationError } = require('../core/errors');
-const { ALL_SCOPES } = require('../core/constants');
+const { ALL_SCOPES, ALWAYS_GRANTED, DEFAULT_SCOPES } = require('../core/scopes');
+const { ALL_SCOPES: LEGACY_SCOPES } = require('../core/constants');
+
+// Allow both new-style and legacy scope strings during the transition.
+const ALLOWED_SCOPES_SET = new Set([
+    ...ALL_SCOPES,
+    ...LEGACY_SCOPES,
+]);
+
+function filterAllowedScopes(scopes) {
+    if (!Array.isArray(scopes)) return [];
+    return scopes.filter((s) => ALLOWED_SCOPES_SET.has(s));
+}
 
 /**
  * Generate a random API key with a prefix for identification.
@@ -28,24 +40,42 @@ function hashKey(rawKey) {
  * Create a new API key or PAT.
  * Returns the raw key (shown once).
  */
-async function createApiKey({ userId, name, scopes, planCode = 'free', type = 'api_key', clientId = null, expiresAt = null }) {
-    // Validate scopes
-    const invalidScopes = scopes.filter(s => !ALL_SCOPES.includes(s));
+async function createApiKey({
+    userId,
+    name,
+    scopes,
+    planCode = 'free',
+    type = 'api_key',
+    clientId = null,
+    expiresAt = null,
+    storeId = null,
+}) {
+    // Resolve and validate scopes
+    const requested = Array.isArray(scopes) && scopes.length ? scopes : null;
+    let resolvedScopes = requested
+        ? filterAllowedScopes(requested)
+        : DEFAULT_SCOPES;
+
+    const invalidScopes = (requested || []).filter((s) => !ALLOWED_SCOPES_SET.has(s));
     if (invalidScopes.length > 0) {
         throw new ValidationError(`Invalid scope(s): ${invalidScopes.join(', ')}`);
     }
 
+    // Always include ALWAYS_GRANTED scopes
+    resolvedScopes = [...new Set([...ALWAYS_GRANTED, ...resolvedScopes])];
+
     const rawKey = generateRawKey(type);
     const keyHash = hashKey(rawKey);
-    const keyPrefix = rawKey.substring(0, 12); // e.g., "sm_key_ab3c" for visual ID
+    const keyPrefix = rawKey.substring(0, 10); // e.g., "sm_key_ab" for visual ID
 
     const apiKey = await ApiKey.create({
         ownerUserId: userId,
+        storeId,
         clientId,
         name,
         keyPrefix,
         keyHash,
-        scopes,
+        scopes: resolvedScopes,
         planCode,
         type,
         expiresAt,

@@ -5,6 +5,7 @@
 const CatalogProduct = require('../../models/CatalogProduct');
 const CatalogProductVariant = require('../../models/CatalogProductVariant');
 const { NotFoundError } = require('../core/errors');
+const catalogService = require('../../services/catalog.service');
 
 /**
  * Map a CatalogProduct to a public blueprint DTO.
@@ -158,4 +159,8 @@ module.exports = {
     getBlueprintVariants,
     listPrintProviders,
     getCatalogPricing,
+    // New catalog endpoints (preferred)
+    listCatalogProducts: catalogService.listCatalogProducts,
+    getCatalogProductDetail: catalogService.getCatalogProductDetail,
+    getCatalogVariants: catalogService.getCatalogVariants,
 };

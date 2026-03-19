@@ -83,7 +83,7 @@
 //       const storeName = `Store ${new Date().toLocaleDateString().replace(/\//g, '-')}`;
 //       const createResp = await storeApi.create({
 //         name: storeName,
-//         description: 'My ShelfMerch Pop-Up Store',
+//         description: 'My ShelfMerch Brand Store',
 //       });
 
 //       if (!createResp.success || !createResp.data) {
@@ -91,7 +91,7 @@
 //       }
 
 //       const newStore = createResp.data;
-//       toast.success('ShelfMerch Pop-Up store created!');
+//       toast.success('ShelfMerch Brand store created!');
 
 //       // 2. If coming from Listing Editor, publish the product
 //       if (state && state.productId && state.variantRows) {
@@ -358,9 +358,9 @@
 //               <div onClick={() => handleConnectChannel('Amazon')}>
 //                 <ChannelButton name="Amazon" icon={<span className="font-bold text-lg">amazon</span>} />
 //               </div>
-//               {/* Placeholder for Printify Pop-Up equivalent */}
+//               {/* Placeholder for Printify Brand equivalent */}
 //               <div onClick={() => handleLaunchPopupStore()}>
-//                 <ChannelButton name="ShelfMerch Pop-Up" icon={<Store className="text-primary" />} />
+//                 <ChannelButton name="ShelfMerch Brand" icon={<Store className="text-primary" />} />
 //               </div>
 //               <div onClick={() => handleConnectChannel('eBay')}>
 //                 <ChannelButton name="eBay" icon={<span className="font-bold text-xl"><span className="text-[#E53238]">e</span><span className="text-[#0064D2]">B</span><span className="text-[#F5AF02]">a</span><span className="text-[#86B817]">y</span></span>} />
@@ -395,11 +395,11 @@
 //             <p className="text-muted-foreground">Choose a sales channel that fits your business and needs.</p>
 
 //             <div className="grid gap-6">
-//               {/* ShelfMerch Pop-Up Card */}
+//               {/* ShelfMerch Brand Card */}
 //               <Card className="p-8 bg-muted/30 border-none shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
 //                 <div className="space-y-4">
 //                   <div className="flex items-center gap-3">
-//                     <h3 className="text-2xl font-bold flex items-center gap-2">ShelfMerch <span className="font-normal text-muted-foreground">Pop-Up</span></h3>
+//                     <h3 className="text-2xl font-bold flex items-center gap-2">ShelfMerch <span className="font-normal text-muted-foreground">Brand</span></h3>
 //                     <Badge variant="secondary" className="bg-white/50 text-xs font-normal border">Beta version</Badge>
 //                   </div>
 //                   <p className="text-muted-foreground max-w-2xl">
@@ -408,7 +408,7 @@
 //                   </p>
 //                 </div>
 //                 <Button size="lg" className="shrink-0 bg-[#343A40] text-white hover:bg-[#212529]" onClick={handleLaunchPopupStore} disabled={isCreatingInternal}>
-//                   {isCreatingInternal ? 'Launching...' : 'Launch Pop-Up store'}
+//                   {isCreatingInternal ? 'Launching...' : 'Launch Brand store'}
 //                 </Button>
 //               </Card>
 
@@ -875,7 +875,7 @@ export default function Stores() {
                   <h3 className="text-2xl font-bold flex items-center gap-2">
                     ShelfMerch{" "}
                     <span className="font-normal text-muted-foreground">
-                      Pop-Up
+                      Brand Store
                     </span>
                   </h3>
                   <Badge
@@ -899,7 +899,7 @@ export default function Stores() {
                 className="shrink-0 bg-[#343A40] text-white hover:bg-[#212529]"
                 onClick={() => setCreateStoreDialogOpen(true)}
               >
-                Launch Pop-Up store
+                Launch Brand store
               </Button>
             </Card>
 

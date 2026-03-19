@@ -16,7 +16,9 @@ const { parsePublicCredential } = require('../../middleware/parsePublicCredentia
 const { auditHook } = require('../../middleware/auditHook');
 const { successResponse } = require('../../core/response');
 const { ValidationError } = require('../../core/errors');
-const { ALL_SCOPES } = require('../../core/constants');
+const { ALL_SCOPES, DEFAULT_SCOPES, ALWAYS_GRANTED } = require('../../core/scopes');
+const Store = require('../../../models/Store');
+const { PLAN_LIMITS } = require('../../core/constants');
 const { INTERNAL_OAUTH_ENABLED } = require('../../../config/features');
 
 function oauthFrozenResponse(req, res) {
@@ -202,16 +204,20 @@ function registerPatAndApiKeyRoutes(targetRouter) {
                     ? new Date(Date.now() + expires_in_days * 24 * 60 * 60 * 1000)
                     : null;
 
+                // Scope resolution + ALWAYS_GRANTED
+                let requestedScopes = Array.isArray(scopes) ? scopes : undefined;
                 const result = await apiKeyService.createApiKey({
                     userId: req.apiAuth.userId,
                     name,
-                    scopes: scopes || req.apiAuth.scopes,
+                    scopes: requestedScopes,
                     planCode: req.apiAuth.planCode,
                     type: 'personal_access_token',
                     expiresAt,
                 });
 
-                res.status(201).json(successResponse(result));
+                res.status(201).json(successResponse(result, {
+                    warning: 'This token will not be shown again. Copy it now.',
+                }));
             } catch (error) {
                 next(error);
             }
@@ -253,21 +259,61 @@ function registerPatAndApiKeyRoutes(targetRouter) {
         auditHook('apikey.created'),
         async (req, res, next) => {
             try {
-                const { name, scopes } = req.body;
+                const { name, scopes, store_id } = req.body;
 
                 if (!name) {
                     throw new ValidationError('name is required.');
                 }
 
+                if (!store_id) {
+                    return res.status(422).json({
+                        error: {
+                            code: 'VALIDATION_ERROR',
+                            message: 'store_id is required. API keys must be scoped to a store.',
+                            details: { field: 'store_id' },
+                        },
+                    });
+                }
+
+                // Verify user owns this store
+                const store = await Store.findOne({
+                    _id: store_id,
+                    merchant: req.apiAuth.userId,
+                    isActive: true,
+                }).lean();
+
+                if (!store) {
+                    return res.status(403).json({
+                        error: {
+                            code: 'STORE_ACCESS_DENIED',
+                            message: 'Store not found or access denied.',
+                        },
+                    });
+                }
+
                 const result = await apiKeyService.createApiKey({
                     userId: req.apiAuth.userId,
                     name,
-                    scopes: scopes || req.apiAuth.scopes,
+                    scopes,
                     planCode: req.apiAuth.planCode,
                     type: 'api_key',
+                    storeId: store._id,
                 });
 
-                res.status(201).json(successResponse(result));
+                const payload = {
+                    id: result.id,
+                    name: result.name,
+                    key: result.key,
+                    key_prefix: result.keyPrefix,
+                    store_id: store._id,
+                    store_name: store.name,
+                    scopes: result.scopes,
+                    created_at: result.createdAt,
+                };
+
+                res.status(201).json(successResponse(payload, {
+                    warning: 'This is the only time your API key will be shown. Copy it now and store it securely.',
+                }));
             } catch (error) {
                 next(error);
             }
@@ -312,6 +358,44 @@ function registerPatAndApiKeyRoutes(targetRouter) {
                     scopes: req.apiAuth.scopes,
                     credential_type: req.apiAuth.credentialType,
                     plan: req.apiAuth.planCode,
+                    // Extended but backwards compatible:
+                    store_id: null,
+                    store_name: null,
+                }));
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
+
+    // New richer identity endpoint
+    targetRouter.get('/me',
+        parsePublicCredential,
+        requirePublicAuth,
+        async (req, res, next) => {
+            try {
+                const { userId, scopes, credentialType, planCode } = req.apiAuth;
+
+                const stores = await Store.find({ merchant: userId, isActive: true })
+                    .select('name slug type isConnected settings.currency domain')
+                    .lean();
+
+                const rpm = (PLAN_LIMITS[planCode] || PLAN_LIMITS.free).rpm;
+
+                res.json(successResponse({
+                    credential_type: credentialType,
+                    user_id: userId,
+                    scopes,
+                    active_store: null, // v1: store context is per-request; future: derive from key storeId
+                    stores: stores.map(s => ({
+                        id: s._id,
+                        name: s.name,
+                        slug: s.slug,
+                        source: s.type,
+                        status: s.isActive ? 'active' : 'inactive',
+                        plan: planCode,
+                    })),
+                    rate_limit_rpm: rpm,
                 }));
             } catch (error) {
                 next(error);

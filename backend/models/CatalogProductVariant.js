@@ -7,6 +7,14 @@ const CatalogProductVariantSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  currency: { type: String, default: 'INR' },
+  sortOrder: { type: Number, default: 0 },
+  stockStatus: {
+    type: String,
+    enum: ['unlimited', 'in_stock', 'out_of_stock'],
+    default: 'unlimited',
+  },
+  discontinuedAt: { type: Date, default: null },
   size: {
     type: String,
     required: true
@@ -35,13 +43,24 @@ const CatalogProductVariantSchema = new mongoose.Schema({
   },
   // Per-view base images for this variant
   viewImages: {
-    front: { type: String, default: '' },
-    back: { type: String, default: '' },
-    left: { type: String, default: '' },
-    right: { type: String, default: '' }
+    front: { type: String, default: null },
+    back: { type: String, default: null },
+    left: { type: String, default: null },
+    right: { type: String, default: null }
   }
 }, {
   timestamps: true
+});
+
+CatalogProductVariantSchema.pre('save', function (next) {
+  const imgs = this.viewImages;
+  if (imgs) {
+    if (imgs.front === '') imgs.front = null;
+    if (imgs.back === '') imgs.back = null;
+    if (imgs.left === '') imgs.left = null;
+    if (imgs.right === '') imgs.right = null;
+  }
+  next();
 });
 
 // Compound index: ensure unique size+color per catalog product
@@ -51,5 +70,8 @@ CatalogProductVariantSchema.index(
 );
 
 CatalogProductVariantSchema.index({ isActive: 1 });
+CatalogProductVariantSchema.index({ catalogProductId: 1, isActive: 1 });
+CatalogProductVariantSchema.index({ catalogProductId: 1, color: 1 });
+CatalogProductVariantSchema.index({ catalogProductId: 1, size: 1 });
 
 module.exports = mongoose.model('CatalogProductVariant', CatalogProductVariantSchema);

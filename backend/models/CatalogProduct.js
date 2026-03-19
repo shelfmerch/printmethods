@@ -192,6 +192,11 @@ const CatalogProductSchema = new mongoose.Schema({
     min: 0
   },
 
+  currency: {
+    type: String,
+    default: 'INR'
+  },
+
   // GST Settings
   gst: {
     slab: { type: Number, enum: [0, 5, 12, 18], default: 18 },
@@ -264,5 +269,6 @@ CatalogProductSchema.index({ isActive: 1, isPublished: 1 });
 CatalogProductSchema.index({ createdAt: -1 });
 CatalogProductSchema.index({ categoryId: 1 });
 CatalogProductSchema.index({ productTypeCode: 1 });
+CatalogProductSchema.index({ 'design.sampleMockups.colorKey': 1 });
 
 module.exports = mongoose.model('CatalogProduct', CatalogProductSchema);

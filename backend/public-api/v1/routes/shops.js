@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const shopsFacade = require('../../services/shopsFacade');
+const productsFacade = require('../../services/productsFacade');
 const { requireScopes } = require('../../middleware/requireScopes');
 const { successResponse, paginatedResponse } = require('../../core/response');
 const { SCOPES } = require('../../core/constants');
@@ -59,6 +60,26 @@ router.delete('/:shopId/connection',
         try {
             const result = await shopsFacade.disconnectShop(req.params.shopId, req.apiAuth.userId);
             res.json(successResponse(result));
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+/**
+ * GET /shops/:shopId/products/:productId/public
+ * Customer-safe view of a published product.
+ */
+router.get('/:shopId/products/:productId/public',
+    requireScopes(SCOPES.SHOPS_READ),
+    async (req, res, next) => {
+        try {
+            const data = await productsFacade.getPublicProduct(
+                req.params.shopId,
+                req.params.productId,
+                req.apiAuth.userId
+            );
+            res.json(successResponse(data));
         } catch (error) {
             next(error);
         }

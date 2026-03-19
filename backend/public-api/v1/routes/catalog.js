@@ -4,9 +4,78 @@
 const express = require('express');
 const router = express.Router();
 const catalogFacade = require('../../services/catalogFacade');
+const catalogService = require('../../../services/catalog.service');
 const { requireScopes } = require('../../middleware/requireScopes');
 const { successResponse, paginatedResponse } = require('../../core/response');
 const { SCOPES } = require('../../core/constants');
+
+/**
+ * GET /catalog/products
+ * List catalog products (new DTO shape).
+ */
+router.get('/products',
+    requireScopes(SCOPES.CATALOG_READ),
+    async (req, res, next) => {
+        try {
+            const {
+                categoryId,
+                subcategory,
+                search,
+                page = 1,
+                limit = 20,
+            } = req.query;
+
+            const result = await catalogService.listCatalogProducts({
+                categoryId,
+                subcategory,
+                search,
+                page: parseInt(page) || 1,
+                limit: Math.min(parseInt(limit) || 20, 100),
+            });
+
+            res.json(paginatedResponse(result.data, {
+                page: result.pagination.page,
+                limit: result.pagination.limit,
+                total: result.pagination.total,
+            }));
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+/**
+ * GET /catalog/products/:catalogProductId
+ * Get catalog product detail.
+ */
+router.get('/products/:catalogProductId',
+    requireScopes(SCOPES.CATALOG_READ),
+    async (req, res, next) => {
+        try {
+            const product = await catalogService.getCatalogProductDetail(req.params.catalogProductId);
+            res.json(successResponse(product));
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
+/**
+ * GET /catalog/products/:catalogProductId/variants
+ * Get variants for a catalog product.
+ */
+router.get('/products/:catalogProductId/variants',
+    requireScopes(SCOPES.CATALOG_READ),
+    async (req, res, next) => {
+        try {
+            const { color, size } = req.query;
+            const variants = await catalogService.getCatalogVariants(req.params.catalogProductId, { color, size });
+            res.json(successResponse(variants));
+        } catch (error) {
+            next(error);
+        }
+    }
+);
 
 /**
  * GET /catalog/blueprints
