@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { shopifyApi } from '@/lib/shopifyApi';
@@ -31,6 +31,7 @@ const ShopifyApp: React.FC = () => {
     const [linked, setLinked] = useState(false);
     const [linking, setLinking] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const linkStartedRef = useRef(false);
 
     // Step 1: Check install status on mount
     useEffect(() => {
@@ -60,6 +61,25 @@ const ShopifyApp: React.FC = () => {
 
                 setInstalled(true);
                 setLinked(status.linked);
+
+                // If already authenticated, start linking immediately after status check (avoid extra effect tick)
+                if (!authLoading && user && status.installed && !status.linked && !linkStartedRef.current) {
+                    linkStartedRef.current = true;
+                    setLinking(true);
+                    (async () => {
+                        try {
+                            await shopifyApi.linkAccount(shop);
+                            setLinked(true);
+                            console.log('[ShopifyApp] Successfully linked');
+                        } catch (err: any) {
+                            console.error('[ShopifyApp] Link failed:', err);
+                            setError(err.message || 'Failed to link account');
+                            toast.error('Failed to link ShelfMerch account');
+                        } finally {
+                            setLinking(false);
+                        }
+                    })();
+                }
             } catch (err: any) {
                 console.error('[ShopifyApp] Status check failed:', err);
                 setError(err.message || 'Failed to check app status');
@@ -69,11 +89,13 @@ const ShopifyApp: React.FC = () => {
         };
 
         checkStatus();
-    }, [shop]);
+    }, [shop, authLoading, user]);
 
     // Step 3: Auto-link when user is available and app is installed but not linked
     useEffect(() => {
         if (authLoading || !shop || !user || !installed || linked || linking) return;
+        if (linkStartedRef.current) return;
+        linkStartedRef.current = true;
 
         const performLinking = async () => {
             setLinking(true);
