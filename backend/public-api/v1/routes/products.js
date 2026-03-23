@@ -1,5 +1,8 @@
 /**
  * Products Routes — Public API v1
+ *
+ * NOTE: Product CREATION must use POST /shops/:shopId/products.
+ * This router handles cross-shop reads and product lifecycle actions.
  */
 const express = require('express');
 const router = express.Router();
@@ -10,15 +13,15 @@ const { SCOPES } = require('../../core/constants');
 
 /**
  * GET /products
- * List products across the user's stores.
+ * List products across all of the user's shops.
  */
 router.get('/',
     requireScopes(SCOPES.PRODUCTS_READ),
     async (req, res, next) => {
         try {
-            const { store_id, status, page = 1, limit = 20 } = req.query;
+            const { store_id, shop_id, status, page = 1, limit = 20 } = req.query;
             const result = await productsFacade.listProducts(req.apiAuth.userId, {
-                storeId: store_id,
+                storeId: shop_id || store_id,
                 status,
                 page: parseInt(page),
                 limit: Math.min(parseInt(limit), 100),
@@ -53,17 +56,19 @@ router.get('/:id',
 
 /**
  * POST /products
- * Create a product.
+ * DEPRECATED: Product creation requires a shop.
+ * Use POST /shops/:shopId/products instead.
  */
 router.post('/',
     requireScopes(SCOPES.PRODUCTS_WRITE),
-    async (req, res, next) => {
-        try {
-            const product = await productsFacade.createProduct(req.apiAuth.userId, req.body);
-            res.status(201).json(successResponse(product));
-        } catch (error) {
-            next(error);
-        }
+    async (req, res) => {
+        return res.status(422).json({
+            error: {
+                code: 'SHOP_REQUIRED',
+                message: 'Create a shop before creating products. Use POST /shops/:shopId/products.',
+                hint: 'First call GET /shops to list or POST /shops to create a shop, then use POST /shops/{shopId}/products.',
+            },
+        });
     }
 );
 
@@ -101,7 +106,7 @@ router.delete('/:id',
 
 /**
  * POST /products/:id/publish
- * Publish a product.
+ * Publish a product. Auto-derives galleryImages from designData.modelMockups.
  */
 router.post('/:id/publish',
     requireScopes(SCOPES.PRODUCTS_WRITE),
@@ -133,16 +138,13 @@ router.post('/:id/unpublish',
 
 /**
  * POST /products/:id/artworks
- * Upload artwork for a product (delegates to uploads).
+ * Upload artwork for a product.
  */
 router.post('/:id/artworks',
     requireScopes(SCOPES.PRODUCTS_WRITE, SCOPES.UPLOADS_WRITE),
     async (req, res, next) => {
         try {
-            // Verify product exists and belongs to user
             await productsFacade.getProduct(req.params.id, req.apiAuth.userId);
-
-            // Artwork upload will be handled by multer middleware at the router level
             res.status(501).json({
                 error: {
                     code: 'NOT_IMPLEMENTED',

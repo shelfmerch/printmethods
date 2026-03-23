@@ -2928,6 +2928,66 @@ export const shopifyApi = {
   }),
 };
 
+// Developer Shops API (Public API v1)
+// Uses the stored PAT (sm_pat_...) from localStorage to call /api/v1/shops
+
+const getPublicApiToken = (): string | null =>
+  localStorage.getItem('sm_pat') || localStorage.getItem('sm_api_key');
+
+const publicApiRequest = async <T = any>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const token = getPublicApiToken();
+  const response = await fetch(`${API_BASE_URL.replace('/api', '/api/v1')}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { 'X-API-Key': token } : {}),
+      ...(options.headers as Record<string, string> || {}),
+    },
+    credentials: 'include',
+  });
+
+  const json = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new ApiError(
+      (json as any)?.error?.message || (json as any)?.message || 'API error',
+      response.status
+    );
+  }
+
+  // Public API wraps data in { data: ... }
+  return ((json as any)?.data ?? json) as T;
+};
+
+export interface Shop {
+  id: string;
+  name: string;
+  slug: string;
+  currency: string;
+  country: string;
+  status: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export const developerShopsApi = {
+  list: async (): Promise<Shop[]> => {
+    const result = await publicApiRequest<Shop[] | { items: Shop[] }>('/shops');
+    return Array.isArray(result) ? result : (result as any).items ?? [];
+  },
+
+  create: async (payload: { name: string; currency?: string; country?: string }): Promise<Shop> => {
+    return publicApiRequest<Shop>('/shops', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
 // Developer Personal Access Tokens API (Public API v1)
 export interface PersonalAccessToken {
   id: string;

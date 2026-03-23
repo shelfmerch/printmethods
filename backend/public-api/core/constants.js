@@ -5,6 +5,7 @@
 // Available scopes for API keys and OAuth tokens
 const SCOPES = {
     SHOPS_READ: 'shops.read',
+    SHOPS_WRITE: 'shops.write',
     CATALOG_READ: 'catalog.read',
     PRODUCTS_READ: 'products.read',
     PRODUCTS_WRITE: 'products.write',

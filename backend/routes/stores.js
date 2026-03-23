@@ -140,7 +140,7 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    const { name, theme, description } = req.body;
+    const { name, theme, description, currency, country } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -169,10 +169,13 @@ router.post('/', protect, async (req, res) => {
       slug,
       merchant: user._id,
       type: 'native',
+      currency: (currency || 'INR').toUpperCase(),
+      country: country || 'India',
+      status: 'active',
       description: description || '',
       theme: theme || 'modern',
       settings: {
-        currency: 'INR',
+        currency: (currency || 'INR').toUpperCase(),
         timezone: 'UTC',
         primaryColor: '#000000',
       },

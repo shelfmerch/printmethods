@@ -60,6 +60,18 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
     }
 
     if (!store) {
+      // No store found — enforce shop-first rule
+      // If merchant has NO stores at all, return structured SHOP_REQUIRED error
+      const anyStore = await Store.findOne({ merchant: req.user._id }).lean();
+      if (!anyStore) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'SHOP_REQUIRED',
+            message: 'Create a shop before creating products',
+          },
+        });
+      }
       return res.status(404).json({ success: false, message: 'Store not found' });
     }
 
@@ -94,6 +106,12 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
         publishedAt: undefined
       } : {}),
     };
+
+    // Stamp source/channel only on creation (not on update)
+    if (!spId) {
+      spUpdateData.source = 'native';
+      spUpdateData.channel = 'web';
+    }
 
     // Resolve StoreProduct: If ID provided, update; otherwise create new.
     // This avoids overwriting other listings of the same catalog product.

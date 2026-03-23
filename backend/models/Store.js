@@ -6,6 +6,24 @@ const storeSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  // Top-level currency and country for public API shop creation
+  currency: {
+    type: String,
+    default: 'INR',
+    trim: true,
+    uppercase: true,
+  },
+  country: {
+    type: String,
+    default: 'India',
+    trim: true,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active',
+    index: true,
+  },
   slug: {
     type: String,
     required: true,
@@ -25,6 +43,24 @@ const storeSchema = new mongoose.Schema({
     enum: ['native', 'shopify', 'etsy', 'woocommerce'],
     default: 'native',
     required: true
+  },
+  // Top-level currency and country for public API / onboarding flow
+  currency: {
+    type: String,
+    default: 'INR',
+    trim: true,
+    uppercase: true,
+  },
+  country: {
+    type: String,
+    default: 'India',
+    trim: true,
+  },
+  // Merchant-facing status (mirrors isActive but as a string for API DTO)
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active',
   },
   // Optional basic branding fields
   description: {
