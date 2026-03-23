@@ -3,7 +3,18 @@
  * Wraps existing Store model for public API, using DTO mapping.
  */
 const Store = require('../../models/Store');
-const { NotFoundError } = require('../core/errors');
+const { NotFoundError, ValidationError } = require('../core/errors');
+
+/**
+ * Generate a URL-safe slug from a name string.
+ */
+function generateSlug(name) {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
 
 /**
  * Map a Store document to a public DTO.
@@ -14,10 +25,13 @@ function toDTO(store) {
         name: store.name,
         slug: store.slug,
         type: store.type,
+        currency: store.currency || store.settings?.currency || 'INR',
+        country: store.country || 'India',
+        status: store.status || (store.isActive ? 'active' : 'inactive'),
         description: store.description || null,
         domain: store.domain || null,
         settings: {
-            currency: store.settings?.currency || 'INR',
+            currency: store.settings?.currency || store.currency || 'INR',
             timezone: store.settings?.timezone || 'UTC',
             logo_url: store.settings?.logoUrl || null,
             favicon_url: store.settings?.faviconUrl || null,
@@ -64,6 +78,50 @@ async function getShop(shopId, userId) {
 }
 
 /**
+ * Create a new shop via API.
+ */
+async function createShop(userId, { name, currency = 'INR', country = 'India' } = {}) {
+    if (!name || !name.trim()) {
+        throw new ValidationError('name is required');
+    }
+
+    let baseSlug = generateSlug(name.trim());
+    if (!baseSlug) {
+        baseSlug = `shop-${Date.now().toString(36)}`;
+    }
+
+    // Ensure slug uniqueness
+    let slug = baseSlug;
+    let suffix = 1;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const existing = await Store.findOne({ slug }).lean();
+        if (!existing) break;
+        slug = `${baseSlug}-${suffix++}`;
+    }
+
+    const store = await Store.create({
+        name: name.trim(),
+        slug,
+        merchant: userId,
+        type: 'native',
+        currency: (currency || 'INR').toUpperCase(),
+        country: country || 'India',
+        status: 'active',
+        description: '',
+        settings: {
+            currency: (currency || 'INR').toUpperCase(),
+            timezone: 'UTC',
+            primaryColor: '#000000',
+        },
+        isActive: true,
+        isConnected: false,
+    });
+
+    return toDTO(store);
+}
+
+/**
  * Disconnect a shop (remove external connection).
  */
 async function disconnectShop(shopId, userId) {
@@ -86,6 +144,7 @@ async function disconnectShop(shopId, userId) {
 module.exports = {
     listShops,
     getShop,
+    createShop,
     disconnectShop,
     toDTO,
 };

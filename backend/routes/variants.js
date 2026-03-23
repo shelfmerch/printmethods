@@ -3,6 +3,7 @@ const router = express.Router();
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProduct = require('../models/CatalogProduct');
 const { protect, authorize } = require('../middleware/auth');
+const { populateViewImages } = require('../utils/populateViewImages');
 
 // @route   POST /api/variants
 // @desc    Create a new product variant (Admin only)
@@ -38,7 +39,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     }
 
     // Create catalog variant
-    const variant = await CatalogProductVariant.create({
+    const variant = new CatalogProductVariant({
       catalogProductId: productId,
       size,
       color,
@@ -47,6 +48,10 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       basePrice: price !== undefined ? price : undefined,
       isActive: isActive !== undefined ? isActive : true
     });
+
+    populateViewImages(variant, product);
+
+    await variant.save();
 
     // Transform variant: basePrice -> price, skuTemplate -> sku for frontend compatibility
     // Keep basePrice in response for production cost calculation (required by ListingEditor)
@@ -119,15 +124,19 @@ router.post('/bulk', protect, authorize('superadmin'), async (req, res) => {
     }
 
     // Transform variants to catalog variant structure
-    const catalogVariants = variants.map(v => ({
-      catalogProductId: productId,
-      size: v.size,
-      color: v.color,
-      colorHex: v.colorHex,
-      skuTemplate: v.sku || `${product.productTypeCode}-${v.size}-${v.color}`,
-      basePrice: v.price !== undefined ? v.price : undefined,
-      isActive: v.isActive !== false
-    }));
+    const catalogVariants = variants.map(v => {
+      const variant = new CatalogProductVariant({
+        catalogProductId: productId,
+        size: v.size,
+        color: v.color,
+        colorHex: v.colorHex,
+        skuTemplate: v.sku || `${product.productTypeCode}-${v.size}-${v.color}`,
+        basePrice: v.price !== undefined ? v.price : undefined,
+        isActive: v.isActive !== false
+      });
+      populateViewImages(variant, product);
+      return variant;
+    });
 
     // Create all catalog variants
     const createdVariants = await CatalogProductVariant.insertMany(catalogVariants, {
@@ -278,6 +287,9 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (isActive !== undefined) variant.isActive = isActive;
 
     variant.updatedAt = Date.now();
+
+    const product = await CatalogProduct.findById(variant.catalogProductId).select('design.sampleMockups').lean();
+    populateViewImages(variant, product);
 
     await variant.save();
 
