@@ -1,0 +1,9 @@
+# Shopify app configuration
+# See: https://shopify.dev/docs/apps/tools/cli/configuration
+
+[webhooks]
+api_version = "2026-01"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://shelfmerch.com/api/shopify/gdpr"
