@@ -286,15 +286,17 @@ router.get('/callback', async (req, res) => {
     res.clearCookie('shopify_state', { path: '/', signed: true });
     res.clearCookie('merchant_id', { path: '/', signed: true });
 
-    // Redirect to Shopify Admin embedded app URL
+    // Redirect back to the app's embedded entry URL so `host` lands in `window.location.search`.
+    const publicBase = (process.env.PUBLIC_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
+
+    // Keep existing admin redirect as a fallback to avoid changing behavior when `host` is missing.
     const shopHandle = sanitizedShop.replace('.myshopify.com', '');
     const appSlug = process.env.SHOPIFY_APP_SLUG;
     const adminRedirectUrlBase = `https://admin.shopify.com/store/${shopHandle}/apps/${appSlug}`;
 
-    // Include required embedded params so the frontend receives `host` and App Bridge can initialize.
     if (host) {
-      const adminRedirectUrl = `${adminRedirectUrlBase}?shop=${encodeURIComponent(sanitizedShop)}&host=${encodeURIComponent(host)}&embedded=1`;
-      return res.redirect(adminRedirectUrl);
+      const frontendRedirectUrl = `${publicBase}/shopify/app?shop=${encodeURIComponent(sanitizedShop)}&host=${encodeURIComponent(host)}&embedded=1`;
+      return res.redirect(frontendRedirectUrl);
     }
 
     return res.redirect(adminRedirectUrlBase);
