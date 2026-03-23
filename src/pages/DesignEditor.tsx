@@ -2901,8 +2901,7 @@ const DesignEditor: React.FC = () => {
 
       // --- NEW MOCKUP GENERATION FLOW ---
 
-      // Fire server-side mockup generation synchronously before navigating.
-      // Non-fatal — if it fails the user can regenerate from MockupsLibrary.
+      // Fire server-side mockup generation in the background — do not block navigation.
       const generateMockupsOnServer = async (draftStoreProductId: string): Promise<void> => {
         try {
           const token = localStorage.getItem('token');
@@ -2925,8 +2924,8 @@ const DesignEditor: React.FC = () => {
         }
       };
 
-      toast.info('Generating mockups...');
-      await generateMockupsOnServer(draftId);
+      toast.info('Opening mockups — previews will generate in the background.');
+      void generateMockupsOnServer(draftId);
 
       // Helper to save state for restoration when coming back from Mockups/Listing
       const saveStateForReturn = () => {
@@ -3417,8 +3416,8 @@ const DesignEditor: React.FC = () => {
                     key={viewKey}
                     onClick={() => handleViewSwitch(viewKey)}
                     className={`px-5 py-1.5 transition-all duration-200 font-bold text-[12px] whitespace-nowrap rounded-lg ${isActive
-                        ? 'bg-[#22c55e] text-white shadow-sm'
-                        : 'text-slate-600 hover:text-[#22c55e]'
+                      ? 'bg-[#22c55e] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-[#22c55e]'
                       }`}
                   >
                     {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
@@ -4568,9 +4567,9 @@ const DesignEditor: React.FC = () => {
                       <button
                         key={viewKey}
                         onClick={() => handleViewSwitch(viewKey)}
-                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px] ${isActive
-                            ? 'bg-[#22c55e] text-white rounded-xl shadow-[0_4px_12px_rgba(34,197,94,0.3)]'
-                            : 'text-[#334155] hover:text-[#22c55e] bg-transparent'
+                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px]
+                          ? 'bg-[#22c55e] text-white rounded-xl shadow-[0_4px_12px_rgba(34,197,94,0.3)]'
+                          : 'text-[#334155] hover:text-[#22c55e] bg-transparent'
                           }`}
                       >
                         {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
@@ -5848,7 +5847,7 @@ const PropertiesPanel: React.FC<{
       // Only show DPI for user uploads or AI images, not for library assets/graphics/logos/shapes
       // Library assets contain '/assets/' or '/api/assets/' in their URL
       const isLibraryAsset = el.imageUrl?.includes('/assets/') || el.imageUrl?.includes('/api/assets/');
-      
+
       if (isLibraryAsset) {
         const widthIn = (el.width || 0) / (PX_PER_INCH || 96);
         const heightIn = (el.height || 0) / (PX_PER_INCH || 96);
@@ -6429,8 +6428,8 @@ const PropertiesPanel: React.FC<{
                             onUpdate({ height: pixels });
                           }
                         }}
-                        className="w-full h-8 text-sm"
-                        step="0.01"
+                        // className="w-full h-8 text-sm"
+                        // step="0.01"
                       />
                       <span className="text-xs text-muted-foreground">in</span>
                     </div>

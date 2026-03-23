@@ -1,10 +1,8 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { storeProductsApi, productApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, ArrowLeft, Image as ImageIcon, Save, Check, Loader2, Sparkles, ChevronRight, Eye, Download, Zap, Package } from 'lucide-react';
 import { RealisticWebGLPreview } from '@/components/admin/RealisticWebGLPreview';
 import type { DisplacementSettings, DesignPlacement } from '@/types/product';
@@ -21,6 +19,35 @@ interface LocationState {
     selectedColors?: string[];
     selectedSizes?: string[];
     primaryColorHex?: string | null;
+}
+
+/** Only mount heavy children (e.g. WebGL) when near viewport — reduces load while user scrolls. */
+function LazyVisible({ children, className }: { children: ReactNode; className?: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [visible, setVisible] = useState(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) setVisible(true);
+            },
+            { rootMargin: '240px 0px', threshold: 0.01 }
+        );
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, []);
+    return (
+        <div ref={ref} className={className}>
+            {visible ? (
+                children
+            ) : (
+                <div className="w-full h-full min-h-[220px] bg-gradient-to-br from-slate-100 to-slate-50 animate-pulse rounded-lg flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                </div>
+            )}
+        </div>
+    );
 }
 
 const MockupsLibrary = () => {
@@ -49,7 +76,6 @@ const MockupsLibrary = () => {
     const [displacementSettings, setDisplacementSettings] = useState<DisplacementSettings>(defaultDisplacementSettings);
     const [savedMockupUrls, setSavedMockupUrls] = useState<Record<string, string>>({});
     const [savingMockups, setSavingMockups] = useState<Record<string, boolean>>({});
-    const [allSaved, setAllSaved] = useState(false);
     const [isSavingAll, setIsSavingAll] = useState(false);
 
     const [selectedColors, setSelectedColors] = useState<string[]>([]);
@@ -58,7 +84,6 @@ const MockupsLibrary = () => {
     const [primaryColorHex, setPrimaryColorHex] = useState<string | null>(null);
 
     const [availableColors, setAvailableColors] = useState<string[]>([]);
-    const [currentPreviewColor, setCurrentPreviewColor] = useState<string | null>(null);
 
     const convertPlaceholderToPixels = (
         placeholder: any,
@@ -299,8 +324,7 @@ const MockupsLibrary = () => {
             }
         }
         if (Object.keys(flatUrls).length > 0) {
-            setSavedMockupUrls(flatUrls);
-            setAllSaved(true);
+            setSavedMockupUrls(prev => ({ ...prev, ...flatUrls }));
             console.log('[MockupsLibrary] Loaded pre-generated mockups:', Object.keys(flatUrls).length);
         }
     }, [storeProduct?.designData?.modelMockups]);
@@ -332,13 +356,6 @@ const MockupsLibrary = () => {
             }
         }
     }, [storeProduct?.designData, state.selectedColors, state.selectedSizes, state.primaryColorHex]);
-
-    useEffect(() => {
-        const colorsToUse = selectedColors.length > 0 ? selectedColors : availableColors;
-        if (colorsToUse.length > 0 && !currentPreviewColor) {
-            setCurrentPreviewColor(colorsToUse[0]);
-        }
-    }, [selectedColors, availableColors, currentPreviewColor]);
 
     const getColorHex = (colorName: string): string => {
         const colorMap: { [key: string]: string } = {
@@ -388,44 +405,7 @@ const MockupsLibrary = () => {
         return colorMap[normalized] || '#CCCCCC';
     };
 
-    const currentPreviewColorHex = currentPreviewColor ? getColorHex(currentPreviewColor) : null;
-
     const colorsToDisplay = selectedColors.length > 0 ? selectedColors : availableColors;
-
-    const filteredMockups = useMemo(() => {
-        let result = sampleMockups.filter((m: any) =>
-            !m.colorKey ||
-            (currentPreviewColor && m.colorKey === currentPreviewColor)
-        );
-
-        if (currentPreviewColor && variants.length > 0) {
-            const activeVariant = variants.find((v: any) => v.color === currentPreviewColor);
-            if (activeVariant && activeVariant.viewImages) {
-                (['front', 'back', 'left', 'right'] as const).forEach((view) => {
-                    const variantImageUrl = activeVariant.viewImages[view];
-                    if (!variantImageUrl) return;
-
-                    const hasMockup = result.some((m: any) => m.viewKey === view);
-
-                    if (!hasMockup) {
-                        const masterView = designData?.views?.find((v: any) => v.key === view);
-                        const masterPlaceholders = masterView?.placeholders || [];
-
-                        result.push({
-                            id: `variant-${activeVariant.id}-${view}`,
-                            viewKey: view,
-                            colorKey: currentPreviewColor,
-                            imageUrl: variantImageUrl,
-                            placeholders: masterPlaceholders,
-                            displacementSettings: null,
-                            isVariantFallback: true
-                        });
-                    }
-                });
-            }
-        }
-        return result;
-    }, [sampleMockups, currentPreviewColor, variants, designData]);
 
     const getMockupsForColor = useCallback((color: string) => {
         let result = sampleMockups.filter((m: any) =>
@@ -468,6 +448,14 @@ const MockupsLibrary = () => {
             mockups: getMockupsForColor(color)
         }));
     }, [colorsToDisplay, getMockupsForColor, getColorHex]);
+
+    const findMockupById = useCallback((mockupId: string) => {
+        for (const { mockups } of allColorMockups) {
+            const m = mockups.find((x: any) => x.id === mockupId);
+            if (m) return m;
+        }
+        return undefined;
+    }, [allColorMockups]);
 
     const designImagesByView: Record<string, string> = (() => {
         const result: Record<string, string> = {};
@@ -587,18 +575,17 @@ const MockupsLibrary = () => {
         generateAllPreviews();
     }, [sampleMockups, designImagesByView, catalogPhysicalDimensions]);
 
-    const saveMockupPreview = useCallback(async (mockupId: string) => {
+    const saveMockupPreview = useCallback(async (mockupId: string, rowColor: string) => {
         try {
-            const mockup = filteredMockups.find((m: any) => m.id === mockupId);
+            const mockup = findMockupById(mockupId);
             if (!storeProductId || !mockup) return;
 
-            const colorKey = (currentPreviewColor || 'default').toLowerCase().replace(/\s+/g, '-');
+            const colorKey = (rowColor || 'default').toLowerCase().replace(/\s+/g, '-');
             const viewKey = (mockup.viewKey || 'front').toLowerCase();
             const mapKey = `${colorKey}:${viewKey}`;
 
             setSavingMockups(prev => ({ ...prev, [mapKey]: true }));
 
-            // Re-trigger full server generation (simplest approach — regenerates all)
             const token = localStorage.getItem('token');
             const resp = await fetch(
                 `${RAW_API_URL}/api/store-products/${storeProductId}/generate-mockups`,
@@ -617,7 +604,6 @@ const MockupsLibrary = () => {
             const url = data.modelMockups?.[colorKey]?.[viewKey];
             if (url) {
                 setSavedMockupUrls(prev => ({ ...prev, [mapKey]: url }));
-                setAllSaved(true);
                 toast.success(`Saved ${colorKey}/${viewKey}`);
             } else {
                 toast.warning('Mockup generated but URL not found in response');
@@ -625,13 +611,13 @@ const MockupsLibrary = () => {
         } catch (error: any) {
             toast.error(error?.message || 'Failed to save preview');
         } finally {
-            const mockup = filteredMockups.find((m: any) => m.id === mockupId);
-            const colorKey = (currentPreviewColor || 'default').toLowerCase().replace(/\s+/g, '-');
+            const mockup = findMockupById(mockupId);
+            const colorKey = (rowColor || 'default').toLowerCase().replace(/\s+/g, '-');
             const viewKey = (mockup?.viewKey || 'front').toLowerCase();
             const mapKey = `${colorKey}:${viewKey}`;
             setSavingMockups(prev => ({ ...prev, [mapKey]: false }));
         }
-    }, [storeProductId, filteredMockups, currentPreviewColor]);
+    }, [storeProductId, findMockupById]);
 
     const saveAllMockupPreviews = useCallback(async () => {
         if (!storeProductId) { toast.error('No store product ID'); return; }
@@ -659,7 +645,6 @@ const MockupsLibrary = () => {
                 }
             }
             setSavedMockupUrls(flatUrls);
-            setAllSaved(true);
             toast.success(`All mockups regenerated!`);
         } catch (e: any) {
             toast.error(e.message || 'Failed to generate mockups');
@@ -689,6 +674,49 @@ const MockupsLibrary = () => {
     }, 0);
     const savedCount = Object.keys(savedMockupUrls).length;
     const saveProgress = totalMockups > 0 ? (savedCount / totalMockups) * 100 : 0;
+    const allMockupsReady = totalMockups > 0 && savedCount >= totalMockups;
+
+    const pollAttemptsRef = useRef(0);
+    useEffect(() => {
+        pollAttemptsRef.current = 0;
+    }, [storeProductId, totalMockups]);
+
+    // Background sync: server may still be generating after immediate navigation from DesignEditor.
+    useEffect(() => {
+        if (!storeProductId || totalMockups === 0) return;
+        if (savedCount >= totalMockups) return;
+        const maxAttempts = 48;
+        const iv = setInterval(async () => {
+            pollAttemptsRef.current++;
+            if (pollAttemptsRef.current > maxAttempts) {
+                clearInterval(iv);
+                return;
+            }
+            try {
+                const resp = await storeProductsApi.getById(storeProductId);
+                if (resp?.success === false || !resp?.data) return;
+                setStoreProduct(resp.data);
+                const mm = resp.data.designData?.modelMockups;
+                if (!mm || typeof mm !== 'object') return;
+                const flat: Record<string, string> = {};
+                for (const [ck, views] of Object.entries(mm)) {
+                    for (const [vk, url] of Object.entries(views || {})) {
+                        if (url) flat[`${ck}:${vk}`] = url as string;
+                    }
+                }
+                setSavedMockupUrls(prev => {
+                    const next = { ...prev, ...flat };
+                    if (Object.keys(next).length >= totalMockups) {
+                        clearInterval(iv);
+                    }
+                    return next;
+                });
+            } catch {
+                /* ignore */
+            }
+        }, 2500);
+        return () => clearInterval(iv);
+    }, [storeProductId, totalMockups, savedCount]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -758,18 +786,18 @@ const MockupsLibrary = () => {
                 )}
 
                 {!isLoading && !error && storeProduct && (
-                    <div className="space-y-8">
+                    // <div className="space-y-8">
                         {/* Design Previews Section */}
-                        <Card className="border-slate-200/60 shadow-sm overflow-hidden mb-8">
-                            <CardHeader className="pb-4 bg-white border-b border-slate-100">
-                                <div>
-                                    <CardTitle className="text-lg font-bold text-slate-800">Your Design</CardTitle>
+                        // <Card className="border-slate-200/60 shadow-sm overflow-hidden mb-8">
+                            {/* <CardHeader className="pb-4 bg-white border-b border-slate-100"> */}
+                                {/* <div> */}
+                                    {/* <CardTitle className="text-lg font-bold text-slate-800">Your Design</CardTitle>
                                     <CardDescription className="text-xs mt-1 text-slate-500">
                                         The artwork that will appear on your products
-                                    </CardDescription>
-                                </div>
+                                    </CardDescription> */}
+                                {/* </div> */}
                             </CardHeader>
-                            <CardContent className="pt-8">
+                            {/* <CardContent className="pt-8">
                                 {uniqueDesignImages.length > 0 ? (
                                     <div className="flex flex-wrap gap-4">
                                         {uniqueDesignImages.map((el, idx) => (
@@ -796,8 +824,8 @@ const MockupsLibrary = () => {
                                         <p className="text-xs text-slate-500">Your design will appear here once generated</p>
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
+                            </CardContent> */}
+                        {/* </Card> */}
 
                         {/* Mockups Section */}
                         <Card className="border-slate-200/60 shadow-lg overflow-hidden">
@@ -814,11 +842,11 @@ const MockupsLibrary = () => {
                                     {allColorMockups.length > 0 && Object.keys(designImagesByView).length > 0 && (
                                         <Button
                                             onClick={saveAllMockupPreviews}
-                                            disabled={isSavingAll || allSaved}
+                                            disabled={isSavingAll || allMockupsReady}
                                             size="lg"
                                             className={cn(
                                                 "gap-2 px-6 py-3 font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105",
-                                                allSaved
+                                                allMockupsReady
                                                     ? "bg-emerald-500 hover:bg-emerald-600"
                                                     : "bg-gradient-to-r from-primary to-primary/80"
                                             )}
@@ -828,7 +856,7 @@ const MockupsLibrary = () => {
                                                     <Loader2 className="h-4 w-4 animate-spin" />
                                                     Saving All...
                                                 </>
-                                            ) : allSaved ? (
+                                            ) : allMockupsReady ? (
                                                 <>
                                                     <Check className="h-4 w-4" />
                                                     All Saved!
@@ -855,75 +883,56 @@ const MockupsLibrary = () => {
                                         <p className="mt-1 text-xs text-slate-500">This may take a moment</p>
                                     </div>
                                 ) : allColorMockups.length > 0 ? (
-                                    <div className="space-y-12">
-                                        {/* Color Tab Bar */}
-                                        {allColorMockups.length > 0 && (
-                                            <div className="flex items-center border-b border-slate-100 -mx-8 px-8 mt-4 overflow-x-auto no-scrollbar">
-                                                {allColorMockups.map(({ color, colorHex }) => {
-                                                    const isActive = currentPreviewColor === color;
-                                                    const count = getMockupsForColor(color).length;
-                                                    return (
-                                                        <button
-                                                            key={color}
-                                                            onClick={() => setCurrentPreviewColor(color)}
-                                                            className={cn(
-                                                                "flex items-center gap-2.5 px-5 py-3 text-sm font-semibold",
-                                                                "whitespace-nowrap border-b-2 transition-all duration-200 flex-shrink-0",
-                                                                isActive
-                                                                    ? "border-primary text-primary"
-                                                                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                                                            )}
-                                                        >
-                                                            <span
-                                                                className={cn(
-                                                                    "w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all",
-                                                                    isActive ? "border-primary scale-110 shadow-sm" : "border-slate-200"
-                                                                )}
-                                                                style={{ backgroundColor: colorHex }}
-                                                            />
-                                                            <span className="capitalize">{color}</span>
-                                                            <span className={cn(
-                                                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center transition-colors",
-                                                                isActive
-                                                                    ? "bg-primary/10 text-primary"
-                                                                    : "bg-slate-100 text-slate-500"
-                                                            )}>
-                                                                {count}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
+                                    <div className="space-y-10">
+                                        <p className="text-sm text-slate-600 -mt-2 mb-4">
+                                            Each color is shown in its own row below. Previews <strong>load as you scroll</strong>; server-rendered images appear automatically as generation finishes.
+                                        </p>
+                                        {/* Quick jump — scroll to a color row */}
+                                        <div className="sticky top-0 z-30 -mx-2 px-2 py-2 bg-white/90 backdrop-blur-md border border-slate-100 rounded-xl shadow-sm flex flex-wrap gap-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 self-center mr-1">Jump:</span>
+                                            {allColorMockups.map(({ color, colorHex }) => {
+                                                const anchor = `mockup-row-${(color || 'c').toLowerCase().replace(/\s+/g, '-')}`;
+                                                return (
+                                                    <button
+                                                        key={color}
+                                                        type="button"
+                                                        onClick={() => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors"
+                                                    >
+                                                        <span className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: colorHex }} />
+                                                        <span className="capitalize">{color}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
 
-                                        {(() => {
-                                            const activeColorData = allColorMockups.find(
-                                                ({ color }) => color === currentPreviewColor
-                                            );
-
-                                            if (!activeColorData) return (
-                                                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                                                    <ImageIcon className="h-12 w-12 mb-3 opacity-20" />
-                                                    <p className="text-sm font-medium">Select a color tab above to preview mockups</p>
-                                                </div>
-                                            );
-
-                                            const { color, mockups: displayMockups } = activeColorData;
-
-                                            if (displayMockups.length === 0) return (
-                                                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                                                    <ImageIcon className="h-12 w-12 mb-3 opacity-20" />
-                                                    <p className="text-sm font-medium">No mockups available for {color}</p>
-                                                </div>
-                                            );
-
+                                        {allColorMockups.map(({ color, colorHex, mockups: displayMockups }) => {
+                                            const anchor = `mockup-row-${(color || 'c').toLowerCase().replace(/\s+/g, '-')}`;
                                             const normalizedColorKey = (color || 'default').toLowerCase().replace(/\s+/g, '-');
 
+                                            if (displayMockups.length === 0) {
+                                                return (
+                                                    <div key={color} id={anchor} className="scroll-mt-28 py-8 text-center text-slate-400 text-sm">
+                                                        No mockups for {color}
+                                                    </div>
+                                                );
+                                            }
+
                                             return (
-                                                <div
-                                                    className="space-y-6 animate-in fade-in slide-in-from-bottom-1 duration-300"
+                                                <section
                                                     key={color}
+                                                    id={anchor}
+                                                    className="scroll-mt-28 space-y-4 pb-10 border-b border-slate-100 last:border-0 last:pb-0"
                                                 >
+                                                    <div className="flex items-center gap-3 flex-wrap">
+                                                        <span
+                                                            className="w-9 h-9 rounded-full border-2 border-white shadow ring-2 ring-slate-200"
+                                                            style={{ backgroundColor: colorHex }}
+                                                        />
+                                                        <h3 className="text-lg font-bold text-slate-800 capitalize">{color}</h3>
+                                                        <Badge variant="secondary" className="text-[10px]">{displayMockups.length} view{displayMockups.length !== 1 ? 's' : ''}</Badge>
+                                                    </div>
+
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                                         {displayMockups.map((mockup: any, index: number) => {
                                                             const viewKey = (mockup.viewKey || 'front').toLowerCase();
@@ -941,10 +950,9 @@ const MockupsLibrary = () => {
 
                                                             if (!hasCanvasElements && designImagesByView[viewKey]) {
                                                                 const viewPlacements = placementsByView[viewKey] || {};
-                                                                mockup.placeholders?.forEach((ph: any, idx: number) => {
+                                                                mockup.placeholders?.forEach((ph: any) => {
                                                                     if (ph.id) {
                                                                         mockupDesignUrls[ph.id] = designImagesByView[viewKey];
-                                                                        // Look up placement by placeholderId key directly
                                                                         const savedPlacement = viewPlacements[ph.id];
                                                                         if (savedPlacement) {
                                                                             mockupPlacements[ph.id] = {
@@ -963,7 +971,6 @@ const MockupsLibrary = () => {
                                                                     key={mapKey || index}
                                                                     className="group relative bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                                                                 >
-                                                                    {/* View label + save button */}
                                                                     <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
                                                                         <span className="text-[10px] uppercase font-bold tracking-wider bg-white/70 backdrop-blur-sm px-2 py-0.5 rounded text-slate-600 capitalize">
                                                                             {viewKey}
@@ -972,7 +979,7 @@ const MockupsLibrary = () => {
                                                                             size="icon"
                                                                             variant="ghost"
                                                                             className="h-7 px-3 w-auto rounded-md bg-white/95 border border-slate-100 shadow-sm pointer-events-auto hover:bg-slate-50"
-                                                                            onClick={() => saveMockupPreview(mockup.id)}
+                                                                            onClick={() => saveMockupPreview(mockup.id, color)}
                                                                             disabled={isSaving || isSaved}
                                                                         >
                                                                             {isSaving ? (
@@ -988,7 +995,6 @@ const MockupsLibrary = () => {
                                                                         </Button>
                                                                     </div>
 
-                                                                    {/* Saved badge */}
                                                                     {isSaved && (
                                                                         <div className="absolute bottom-3 left-3 z-20 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow flex items-center gap-1 animate-in fade-in zoom-in duration-300">
                                                                             <Check className="h-3 w-3" />
@@ -996,16 +1002,17 @@ const MockupsLibrary = () => {
                                                                         </div>
                                                                     )}
 
-                                                                    {/* Mockup image — show server-saved URL if available, else WebGL preview */}
                                                                     <div className="aspect-[4/3] relative bg-white overflow-hidden">
                                                                         {savedUrl ? (
                                                                             <img
                                                                                 src={savedUrl}
                                                                                 alt={`${color} ${viewKey} mockup`}
                                                                                 className="w-full h-full object-contain"
+                                                                                loading="lazy"
+                                                                                decoding="async"
                                                                             />
                                                                         ) : mockup.imageUrl && hasPlaceholder && catalogPhysicalDimensions ? (
-                                                                            <div className="relative w-full h-full">
+                                                                            <LazyVisible className="relative w-full h-full">
                                                                                 <RealisticWebGLPreview
                                                                                     key={`webgl-${mapKey}-${designImagesByView[viewKey]?.slice(-20) || ''}`}
                                                                                     mockupImageUrl={mockup.imageUrl}
@@ -1038,13 +1045,15 @@ const MockupsLibrary = () => {
                                                                                         return masterView?.placeholders || [];
                                                                                     })()}
                                                                                 />
-                                                                            </div>
+                                                                            </LazyVisible>
                                                                         ) : mockup.imageUrl ? (
                                                                             <img
                                                                                 src={mockup.imageUrl}
                                                                                 alt="Mockup"
                                                                                 className="w-full h-full object-cover"
                                                                                 crossOrigin="anonymous"
+                                                                                loading="lazy"
+                                                                                decoding="async"
                                                                             />
                                                                         ) : (
                                                                             <div className="flex flex-col items-center justify-center h-full text-slate-300 gap-2">
@@ -1057,9 +1066,9 @@ const MockupsLibrary = () => {
                                                             );
                                                         })}
                                                     </div>
-                                                </div>
+                                                </section>
                                             );
-                                        })()}
+                                        })}
                                     </div>
                                 ) : storeProduct.catalogProductId ? (
                                     <div className="border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50/50 p-16 text-center">
@@ -1079,29 +1088,32 @@ const MockupsLibrary = () => {
                             </CardContent>
                         </Card>
 
-                        {/* CTA Button */}
-                        {
-                            allColorMockups.length > 0 && Object.keys(savedMockupUrls).length > 0 && (
-                                <div className="flex justify-end pt-8 pb-12">
-                                    <Button
-                                        size="lg"
-                                        className="px-10 py-6 text-lg font-bold gap-3 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/80"
-                                        onClick={() => {
-                                            navigate('/listing-editor', {
-                                                state: {
-                                                    ...state,
-                                                    storeProductId,
-                                                    savedMockupUrls,
-                                                },
-                                            });
-                                        }}
-                                    >
-                                        Continue
-                                        <ChevronRight className="h-6 w-6" />
-                                    </Button>
-                                </div>
-                            )
-                        }
+                        {/* Continue only when every expected mockup slot has a server URL (scroll + poll buy time for generation). */}
+                        {allColorMockups.length > 0 && totalMockups > 0 && !allMockupsReady && (
+                            <p className="text-center text-sm text-slate-500 py-6 border-t border-slate-100">
+                                Keep scrolling — previews load lazily. <strong>{savedCount}/{totalMockups}</strong> server mockups ready. Continue unlocks when all are generated.
+                            </p>
+                        )}
+                        {allColorMockups.length > 0 && allMockupsReady && (
+                            <div className="flex justify-end pt-8 pb-12">
+                                <Button
+                                    size="lg"
+                                    className="px-10 py-6 text-lg font-bold gap-3 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 bg-gradient-to-r from-primary to-primary/80"
+                                    onClick={() => {
+                                        navigate('/listing-editor', {
+                                            state: {
+                                                ...state,
+                                                storeProductId,
+                                                savedMockupUrls,
+                                            },
+                                        });
+                                    }}
+                                >
+                                    Continue
+                                    <ChevronRight className="h-6 w-6" />
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )
                 }
