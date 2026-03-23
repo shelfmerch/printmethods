@@ -786,18 +786,18 @@ const MockupsLibrary = () => {
                 )}
 
                 {!isLoading && !error && storeProduct && (
-                    // <div className="space-y-8">
+                    <div className="space-y-8">
                         {/* Design Previews Section */}
-                        // <Card className="border-slate-200/60 shadow-sm overflow-hidden mb-8">
-                            {/* <CardHeader className="pb-4 bg-white border-b border-slate-100"> */}
-                                {/* <div> */}
-                                    {/* <CardTitle className="text-lg font-bold text-slate-800">Your Design</CardTitle>
+                        {/* <Card className="border-slate-200/60 shadow-sm overflow-hidden mb-8">
+                            <CardHeader className="pb-4 bg-white border-b border-slate-100">
+                                <div>
+                                    <CardTitle className="text-lg font-bold text-slate-800">Your Design</CardTitle>
                                     <CardDescription className="text-xs mt-1 text-slate-500">
                                         The artwork that will appear on your products
-                                    </CardDescription> */}
-                                {/* </div> */}
+                                    </CardDescription>
+                                </div>
                             </CardHeader>
-                            {/* <CardContent className="pt-8">
+                            <CardContent className="pt-8">
                                 {uniqueDesignImages.length > 0 ? (
                                     <div className="flex flex-wrap gap-4">
                                         {uniqueDesignImages.map((el, idx) => (
@@ -824,8 +824,8 @@ const MockupsLibrary = () => {
                                         <p className="text-xs text-slate-500">Your design will appear here once generated</p>
                                     </div>
                                 )}
-                            </CardContent> */}
-                        {/* </Card> */}
+                            </CardContent>
+                        </Card> */}
 
                         {/* Mockups Section */}
                         <Card className="border-slate-200/60 shadow-lg overflow-hidden">
