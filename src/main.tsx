@@ -44,7 +44,6 @@ if (host) {
       host,
       forceRedirect: true,
     });
-    (window as any).__SHOPIFY_APP_BRIDGE__ = app;
     // Keep a reference so initialization happens immediately.
     void app;
   }
