@@ -1,14 +1,29 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const verifyShopifySessionToken = (token) => {
+  const shopifyApiSecret = process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_API_SECRET_KEY;
+  const shopifyApiKey = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_APIKEY || process.env.SHOPIFY_CLIENT_ID;
+
+  if (!shopifyApiSecret || !shopifyApiKey) {
+    throw new Error('Shopify API credentials are not configured');
+  }
+
+  return jwt.verify(token, shopifyApiSecret, {
+    algorithms: ['HS256'],
+    audience: shopifyApiKey,
+  });
+};
+
 // Verify JWT token
 exports.protect = async (req, res, next) => {
   try {
     let token;
+    const authHeader = req.headers.authorization;
 
     // Check for token in Authorization header
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (authHeader && authHeader.startsWith('Bearer')) {
+      token = authHeader.split(' ')[1];
     }
     // Check for token in cookies
     else if (req.cookies && req.cookies.token) {
@@ -23,6 +38,19 @@ exports.protect = async (req, res, next) => {
     }
 
     try {
+      // Try Shopify session token verification first (Bearer header only).
+      if (authHeader && authHeader.startsWith('Bearer')) {
+        try {
+          const shopifyPayload = verifyShopifySessionToken(token);
+          req.shop = shopifyPayload.dest || shopifyPayload.iss || shopifyPayload.shop || null;
+          req.shopifySession = shopifyPayload;
+          req.isShopify = true;
+          return next();
+        } catch (shopifyError) {
+          console.log('Shopify session token failed, falling back to JWT');
+        }
+      }
+
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
