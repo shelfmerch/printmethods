@@ -97,7 +97,7 @@ const jwt = require('jsonwebtoken');
 // @desc    Step 1: Start Shopify OAuth. Token is OPTIONAL (Qikink flow: install before login).
 router.get('/start', async (req, res) => {
   try {
-    const { shop, token } = req.query;
+    const { shop, token, host } = req.query;
     const sanitizedShop = sanitizeShop(shop);
 
     if (!sanitizedShop) {
@@ -119,7 +119,8 @@ router.get('/start', async (req, res) => {
     const publicBase = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '');
     const redirectUri = encodeURIComponent(`${publicBase}/api/shopify/callback`);
 
-    const authorizeUrl = `https://${sanitizedShop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_API_KEY}&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}&redirect_uri=${redirectUri}&state=${nonce}&shop=${sanitizedShop}`;
+    const hostParam = host ? `&host=${encodeURIComponent(host)}` : '';
+    const authorizeUrl = `https://${sanitizedShop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_API_KEY}&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}&redirect_uri=${redirectUri}&state=${nonce}&shop=${sanitizedShop}${hostParam}`;
 
     const cookieOptions = {
       httpOnly: true,
