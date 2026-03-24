@@ -30,6 +30,10 @@ import App from "./App.tsx";
 import "./index.css";
 import "./fonts.css";
 
+if (window.location.pathname.startsWith("/shopify/app")) {
+  window.history.replaceState({}, "", "/");
+}
+
 const params = new URLSearchParams(window.location.search);
 const host = params.get("host"); // ONLY use real host from Shopify, never fake it
 
