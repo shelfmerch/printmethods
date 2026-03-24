@@ -296,7 +296,7 @@ router.get('/callback', async (req, res) => {
     const adminRedirectUrlBase = `https://admin.shopify.com/store/${shopHandle}/apps/${appSlug}`;
 
     if (host) {
-      const frontendRedirectUrl = `${publicBase}/shopify/app?shop=${encodeURIComponent(sanitizedShop)}&host=${encodeURIComponent(host)}&embedded=1`;
+      const frontendRedirectUrl = `${publicBase.replace(/\/$/, '')}/shopify/app?shop=${encodeURIComponent(sanitizedShop)}&host=${encodeURIComponent(host)}&embedded=1`;
       return res.redirect(frontendRedirectUrl);
     }
 
