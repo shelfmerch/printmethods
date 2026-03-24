@@ -10,12 +10,16 @@ const host = params.get("host");
 // Initialize Shopify App Bridge so the app can communicate with the Shopify admin iframe.
 // `host` should be provided by the OAuth callback redirect.
 if (host) {
-  const app = createApp({
-    apiKey: import.meta.env.VITE_SHOPIFY_API_KEY as string,
-    host: host,
-    forceRedirect: true,
-  });
-  void app;
+  const apiKey = import.meta.env.VITE_SHOPIFY_API_KEY;
+  if (apiKey) {
+    const app = createApp({
+      apiKey,
+      host,
+      forceRedirect: true,
+    });
+    // Keep a reference so initialization happens immediately.
+    void app;
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
