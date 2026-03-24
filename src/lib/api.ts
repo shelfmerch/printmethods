@@ -2938,13 +2938,15 @@ const publicApiRequest = async <T = any>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> => {
-  const token = getPublicApiToken();
+  const publicApiToken = getPublicApiToken();
+  const authToken = getToken();
   const response = await fetch(`${API_BASE_URL.replace('/api', '/api/v1')}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'ngrok-skip-browser-warning': 'true',
-      ...(token ? { 'X-API-Key': token } : {}),
+      ...(publicApiToken ? { 'X-API-Key': publicApiToken } : {}),
+      ...(!publicApiToken && authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(options.headers as Record<string, string> || {}),
     },
     credentials: 'include',
@@ -2981,7 +2983,9 @@ export const developerShopsApi = {
   },
 
   create: async (payload: { name: string; currency?: string; country?: string }): Promise<Shop> => {
-    return publicApiRequest<Shop>('/shops', {
+    // Public API currently does not expose POST /shops.
+    // Create via authenticated merchant route, then rely on list() to read via Public API.
+    return apiRequest<Shop>('/stores', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
