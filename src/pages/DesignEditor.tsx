@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Stage, Layer, Text, TextPath, Image, Rect, Group, Transformer, Line, Shape, Circle, RegularPolygon, Star } from 'react-konva';
 import Konva from 'konva';
@@ -39,140 +39,34 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { productApi, storeApi, storeProductsApi } from '@/lib/api';
-import TextPanel from '@/components/designer/TextPanel';
 import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
-import { UploadPanel } from '@/components/designer/UploadPanel';
 // import { DpiWarningPanel } from '@/components/designer/DpiWarningPanel';
 import { DpiIndicator } from '@/components/designer/DpiIndicator';
 import { calculateEffectiveDpi } from '@/types/editor';
 import { useDpiCalculation } from '@/hooks/useDpiCalculation';
-
-import AIimageGen from '@/components/designer/AIimageGen';
+import { useCanvasElements } from '@/hooks/useCanvasElements';
 import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
 import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
+import type { CanvasElement, HistoryState, Placeholder, ProductView, Product } from '@/types/editor';
 import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
 import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
 
-// Types
-interface CanvasElement {
-  id: string;
-  type: 'text' | 'image' | 'shape' | 'group';
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  rotation?: number;
-  opacity?: number;
-  visible?: boolean;
-  locked?: boolean;
-  zIndex: number;
-  name?: string; // Human-readable name
-  view?: string; // Store which view this element belongs to (e.g., 'front', 'back')
-  // Text specific
-  text?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  fill?: string;
-  fontStyle?: string;
-  align?: string;
-  letterSpacing?: number;
-  curved?: boolean;
-  curveRadius?: number;
-  curveShape?: 'arch-down' | 'arch-up' | 'circle';
-  // Image specific
-  imageUrl?: string;
-  placeholderId?: string; // Store which placeholder this image belongs to
-  // Shape specific
-  shapeType?: 'rect' | 'circle' | 'triangle' | 'star' | 'heart' | 'line' | 'arrow';
-  fillColor?: string;
-  strokeColor?: string;
-  strokeWidth?: number;
-  cornerRadius?: number;
-  // Advanced image properties
-  flipX?: boolean;
-  flipY?: boolean;
-  scaleX?: number;
-  scaleY?: number;
-  lockAspectRatio?: boolean;
-  skewX?: number; // Warping/distortion -180 to 180
-  skewY?: number; // Warping/distortion -180 to 180
-  // Original image pixel dimensions (for accurate DPI calculation)
-  naturalWidth?: number;
-  naturalHeight?: number;
-  // Filters
-  brightness?: number; // -100 to 100
-  contrast?: number; // -100 to 100
-  saturation?: number; // -100 to 100
-  hue?: number; // 0 to 360
-  blur?: number; // 0 to 20
-  // Shadow
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-  shadowColor?: string;
-  shadowOpacity?: number;
-  // Border
-  borderWidth?: number;
-  borderColor?: string;
-  borderStyle?: 'solid' | 'dashed';
-  // Blend mode
-  blendMode?: 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light' | 'difference' | 'exclusion' | 'hue' | 'saturation' | 'color' | 'luminosity';
-}
+const UploadPanel = lazy(() => import('@/components/designer/UploadPanel').then(m => ({ default: m.UploadPanel })));
+const TextPanel = lazy(() => import('@/components/designer/TextPanel'));
+const ShapesPanel = lazy(() => import('@/components/designer/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
+const GraphicsPanel = lazy(() => import('@/components/designer/panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
+const LibraryPanel = lazy(() => import('@/components/designer/panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
+const LogosPanel = lazy(() => import('@/components/designer/panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
+const AssetPanel = lazy(() => import('@/components/designer/panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
+const TemplatesPanel = lazy(() => import('@/components/designer/panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
+const AIimageGen = lazy(() => import('@/components/designer/AIimageGen'));
 
-interface HistoryState {
-  elements: CanvasElement[];
-  view: string; // Track which view this history state belongs to
-  timestamp: number;
-}
-
-interface Placeholder {
-  id: string;
-  name?: string;
-  color?: string;
-  xIn: number;
-  yIn: number;
-  widthIn: number;
-  heightIn: number;
-  rotationDeg?: number;
-  scale?: number;
-  lockSize?: boolean;
-  dpi?: number;
-  normalizedPosition?: NormalizedPosition;
-  // For polygon/magnetic lasso placeholders
-  polygonPoints?: Array<{ xIn: number; yIn: number }>;
-  shapeType?: 'rect' | 'polygon';
-}
-
-interface ProductView {
-  key: string;
-  mockupImageUrl: string;
-  placeholders: Placeholder[];
-}
-
-interface Product {
-  _id?: string;
-  id?: string;
-  catalogue?: {
-    name?: string;
-    description?: string;
-    basePrice?: number;
-  };
-
-  design?: {
-    views?: ProductView[];
-    dpi?: number;
-    physicalDimensions?: {
-      width?: number;  // in inches
-      height?: number; // in inches
-      length?: number; // in inches
-    };
-    displacementSettings?: DisplacementSettings;
-  };
-  galleryImages?: Array<{ url: string; isPrimary?: boolean }>;
-  availableColors?: string[];
-  availableSizes?: string[];
-}
+const PanelFallback = () => (
+  <div className="flex items-center justify-center h-32">
+    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+  </div>
+);
 
 // Helper to measure text width
 const getTextWidth = (text: string, fontSize: number, fontFamily: string) => {
@@ -1621,215 +1515,31 @@ const DesignEditor: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedIds, elements]);
 
-  // Element manipulation
-  const addElement = (element: Omit<CanvasElement, 'id' | 'zIndex'>): string => {
-    let finalName = element.name || (element.type === 'image' ? 'Image' : element.type === 'text' ? 'Text' : 'Shape');
-    if (finalName) {
-      const baseNameStr = finalName as string;
-      const existingNames = elements
-        .filter(e => e.view === element.view && e.placeholderId === element.placeholderId && e.name)
-        .map(e => e.name as string);
-
-      let counter = 1;
-      let checkName = baseNameStr;
-      while (existingNames.includes(checkName)) {
-        checkName = `${baseNameStr} (${counter})`;
-        counter++;
-      }
-      finalName = checkName;
-    }
-
-    const newElement: CanvasElement = {
-      ...element,
-      name: finalName,
-      id: Math.random().toString(36).substr(2, 9),
-      zIndex: elements.length,
-      visible: element.visible !== false,
-      locked: element.locked || false,
-      opacity: element.opacity ?? 1,
-      rotation: element.rotation || 0
-    };
-    setElements(prev => [...prev, newElement]);
-    setSelectedIds([newElement.id]);
-    setHasUnsavedChanges(true); // Mark as having unsaved changes
-    // Mark views as dirty: if element has no view, it appears on all views
-    if (newElement.view) {
-      setDirtyViewsForDesign(prev => new Set([...prev, newElement.view!]));
-    } else {
-      // Element without view appears on all views - mark all views dirty
-      if (product?.design?.views) {
-        const allViewKeys = product.design.views.map((v: ProductView) => v.key);
-        setDirtyViewsForDesign(prev => new Set([...prev, ...allViewKeys]));
-      }
-    }
-    // Save immediately for add action
-    setTimeout(() => saveToHistory(true), 0);
-    return newElement.id;
-  };
-
-  // Helper to constrain text element to print area when properties change
-  const constrainTextToPrintArea = (element: CanvasElement, updates: Partial<CanvasElement>): Partial<CanvasElement> => {
-    if (element.type !== 'text') return updates;
-
-    const placeholder = element.placeholderId
-      ? placeholders.find((p) => p.id === element.placeholderId)
-      : undefined;
-
-    if (!placeholder) return updates;
-
-    const printArea = {
-      x: placeholder.x,
-      y: placeholder.y,
-      width: placeholder.width,
-      height: placeholder.height,
-    };
-
-    // Always enforce width equal to the print area width so Konva text wraps
-    const constrainedWidth = printArea.width;
-
-    const fontSize = updates.fontSize !== undefined
-      ? updates.fontSize
-      : (element.fontSize || 24);
-
-    const currentX = updates.x !== undefined ? updates.x : element.x;
-    const currentY = updates.y !== undefined ? updates.y : element.y;
-
-    // Clamp X so the text box stays fully inside the placeholder horizontally
-    const constrainedX = Math.max(
-      printArea.x,
-      Math.min(currentX, printArea.x + printArea.width - constrainedWidth),
-    );
-
-    // Approximate text height with one line; clamp Y so top/bottom stay inside
-    const lineHeight = fontSize * 1.2;
-    const constrainedY = Math.max(
-      printArea.y,
-      Math.min(currentY, printArea.y + printArea.height - lineHeight),
-    );
-
-    return {
-      ...updates,
-      x: constrainedX,
-      y: constrainedY,
-      width: constrainedWidth,
-    };
-  };
-
-  const updateElement = (id: string, updates: Partial<CanvasElement>, saveHistory = true) => {
-    registerEditActivity();
-    // Track the updated element for placement calculation
-    let updatedElement: CanvasElement | null = null;
-
-    setElements(prev => {
-      const updated = prev.map(el => {
-        if (el.id === id) {
-          // Apply constraints for text elements
-          const constrainedUpdates = el.type === 'text' ? constrainTextToPrintArea(el, updates) : updates;
-          const updatedEl = { ...el, ...constrainedUpdates };
-          // Mark views as dirty: if element has no view, it appears on all views
-          if (updatedEl.view) {
-            setDirtyViewsForDesign(prevDirty => new Set([...prevDirty, updatedEl.view!]));
-          } else {
-            // Element without view appears on all views - mark all views dirty
-            if (product?.design?.views) {
-              const allViewKeys = product.design.views.map((v: ProductView) => v.key);
-              setDirtyViewsForDesign(prevDirty => new Set([...prevDirty, ...allViewKeys]));
-            }
-          }
-          updatedElement = updatedEl;
-          return updatedEl;
-        }
-        return el;
-      });
-      return updated;
-    });
-    setHasUnsavedChanges(true); // Mark as having unsaved changes
-
-    // Update placement if this is an image element with a placeholderId and position/size changed
-    const positionOrSizeChanged =
-      updates.x !== undefined || updates.y !== undefined ||
-      updates.width !== undefined || updates.height !== undefined ||
-      updates.rotation !== undefined;
-
-    // Use updatedElement which was captured during the state update
-    if (updatedElement && positionOrSizeChanged) {
-      const el = updatedElement;
-      if (el.type === 'image' && el.placeholderId && el.width && el.height) {
-        const placeholder = placeholders.find(p => p.id === el.placeholderId);
-        if (placeholder) {
-          const printAreaPx: PrintAreaPixels = {
-            x: placeholder.x,
-            y: placeholder.y,
-            w: placeholder.width,
-            h: placeholder.height,
-          };
-          const placement = pixelsToNormalized(
-            {
-              x: el.x,
-              y: el.y,
-              width: el.width,
-              height: el.height,
-              rotation: el.rotation || 0
-            },
-            printAreaPx,
-            (el.view || currentView) as ViewKey,
-            el.placeholderId
-          );
-          // Preserve aspect ratio from original
-          placement.aspectRatio = el.width / el.height;
-          setPlacementForView(el.view || currentView, el.placeholderId, placement);
-
-          console.log('📐 Updated placement after element transform:', {
-            elementId: el.id,
-            placeholderId: el.placeholderId,
-            placement,
-          });
-        }
-      }
-    }
-
-    // Save to history (debounced for rapid updates like dragging)
-    if (saveHistory) {
-      saveToHistory(false); // Use debounced save for property updates
-    }
-
-    // Force transformer to update when text changes (for proper bounding box)
-    if (updates.text !== undefined && selectedIds.includes(id) && transformerRef.current) {
-      setTimeout(() => {
-        if (transformerRef.current && stageRef.current) {
-          const selectedNode = stageRef.current.findOne(`#${id}`);
-          if (selectedNode) {
-            transformerRef.current.nodes([selectedNode]);
-            transformerRef.current.getLayer()?.batchDraw();
-          }
-        }
-      }, 0);
-    }
-  };
-
-  const deleteSelected = () => {
-    if (selectedIds.length > 0) {
-      setElements(prev => {
-        const toDelete = prev.filter(el => selectedIds.includes(el.id));
-        // Mark views of deleted elements as dirty
-        toDelete.forEach(el => {
-          if (el.view) {
-            setDirtyViewsForDesign(prevDirty => new Set([...prevDirty, el.view!]));
-          } else {
-            // Element without view appears on all views - mark all views dirty
-            if (product?.design?.views) {
-              const allViewKeys = product.design.views.map((v: ProductView) => v.key);
-              setDirtyViewsForDesign(prevDirty => new Set([...prevDirty, ...allViewKeys]));
-            }
-          }
-        });
-        return prev.filter(el => !selectedIds.includes(el.id));
-      });
-      setSelectedIds([]);
-      setHasUnsavedChanges(true); // Mark as having unsaved changes
-      setTimeout(() => saveToHistory(true), 0); // Immediate save for delete
-    }
-  };
+  const {
+    addElement,
+    updateElement,
+    deleteSelected,
+    duplicateSelected,
+    selectAll,
+    nudgeSelected,
+    bringToFront,
+    sendToBack,
+  } = useCanvasElements({
+    elements,
+    setElements,
+    selectedIds,
+    setSelectedIds,
+    placeholders,
+    currentView,
+    product,
+    saveToHistory,
+    registerEditActivity,
+    setHasUnsavedChanges,
+    setDirtyViewsForDesign,
+    setPlacementForView,
+    transformerRef,
+    stageRef,
+  });
 
   const copySelected = () => {
     // Implementation for copy
@@ -1841,23 +1551,6 @@ const DesignEditor: React.FC = () => {
     toast.info('Paste functionality');
   };
 
-  const duplicateSelected = () => {
-    const selected = elements.filter(el => selectedIds.includes(el.id));
-    const newElements = selected.map(el => ({
-      ...el,
-      id: Math.random().toString(36).substr(2, 9),
-      x: el.x + 20,
-      y: el.y + 20,
-      zIndex: elements.length
-    }));
-    setElements(prev => [...prev, ...newElements]);
-    setSelectedIds(newElements.map(el => el.id));
-    setTimeout(() => saveToHistory(true), 0); // Immediate save for duplicate
-  };
-
-  const selectAll = () => {
-    setSelectedIds(elements.map(el => el.id));
-  };
 
   const groupSelected = () => {
     if (selectedIds.length > 1) {
@@ -1871,34 +1564,6 @@ const DesignEditor: React.FC = () => {
     toast.info('Ungroup functionality');
   };
 
-  const nudgeSelected = (direction: string) => {
-    const delta = 1;
-    const updates: { x?: number; y?: number } = {};
-    if (direction === 'ArrowLeft') updates.x = -delta;
-    if (direction === 'ArrowRight') updates.x = delta;
-    if (direction === 'ArrowUp') updates.y = -delta;
-    if (direction === 'ArrowDown') updates.y = delta;
-
-    selectedIds.forEach(id => {
-      const element = elements.find(el => el.id === id);
-      if (element) {
-        updateElement(id, {
-          x: (element.x || 0) + (updates.x || 0),
-          y: (element.y || 0) + (updates.y || 0)
-        });
-      }
-    });
-  };
-
-  const bringToFront = (id: string) => {
-    const maxZ = Math.max(...elements.map(el => el.zIndex));
-    updateElement(id, { zIndex: maxZ + 1 });
-  };
-
-  const sendToBack = (id: string) => {
-    const minZ = Math.min(...elements.map(el => el.zIndex));
-    updateElement(id, { zIndex: minZ - 1 });
-  };
 
   const fitToScreen = () => {
     // Better fit to screen logic
@@ -3522,7 +3187,8 @@ const DesignEditor: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-hidden h-full flex flex-col">
+                  <Suspense fallback={<PanelFallback />}>
+                    <div className="flex-1 overflow-hidden h-full flex flex-col">
                     {activeTool === 'upload' && (
                       <UploadPanel
                         onFileUpload={handleFileUpload}
@@ -3615,7 +3281,8 @@ const DesignEditor: React.FC = () => {
                       />
                     )}
 
-                  </div>
+                    </div>
+                  </Suspense>
                 </div>
               )}
             </DrawerContent>
@@ -3626,6 +3293,7 @@ const DesignEditor: React.FC = () => {
         {!isMobile && !previewMode && showLeftPanel && (
           <div className="w-[250px] border-r bg-background flex flex-col">
             <ScrollArea className="flex-1">
+              <Suspense fallback={<PanelFallback />}>
               {activeTool === 'upload' && (
                 <UploadPanel
                   onFileUpload={handleFileUpload}
@@ -3718,6 +3386,7 @@ const DesignEditor: React.FC = () => {
               {activeTool === 'templates' && (
                 <TemplatesPanel />
               )}
+              </Suspense>
             </ScrollArea>
           </div>
         )}
@@ -7142,686 +6811,5 @@ const LayersPanel: React.FC<{
 
 
 // Panel Components - UploadPanel is now imported from shared component
-
-const ShapesPanel: React.FC<{
-  onAddShape: (shapeType: CanvasElement['shapeType']) => void;
-  onAddAsset?: (assetUrl: string, assetName?: string) => void;
-  selectedPlaceholderId: string | null;
-  selectedPlaceholderName?: string | null;
-  placeholders: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number }>;
-  isMobile?: boolean;
-}> = ({ onAddShape, onAddAsset, selectedPlaceholderId, selectedPlaceholderName, placeholders, isMobile = false }) => {
-  const [shapeAssets, setShapeAssets] = useState<any[]>([]);
-  const [loadingAssets, setLoadingAssets] = useState(false);
-
-  // Fetch shape assets from API
-  useEffect(() => {
-    const fetchShapeAssets = async () => {
-      setLoadingAssets(true);
-      try {
-        const params = new URLSearchParams();
-        params.append('category', 'shapes');
-        params.append('limit', '20');
-
-        const response = await fetch(`${API_BASE_URL}/assets?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setShapeAssets(data.data || []);
-        } else {
-          console.error('Failed to fetch shape assets:', data.message);
-        }
-      } catch (error) {
-        console.error('Failed to fetch shape assets:', error);
-        toast.error('Failed to load shape assets');
-      } finally {
-        setLoadingAssets(false);
-      }
-    };
-
-    fetchShapeAssets();
-  }, []);
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Static top section — placeholder indicator + Basic Shapes */}
-      <div className="p-4 pb-2 space-y-3 flex-shrink-0">
-        {placeholders.length > 1 && (
-          <div className="p-3 bg-muted rounded-lg border">
-            <Label className="text-xs font-semibold text-foreground mb-1 block">
-              {selectedPlaceholderId
-                ? `Selected: ${selectedPlaceholderName || selectedPlaceholderId.slice(0, 8)}`
-                : 'Select a placeholder on canvas first'}
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              {selectedPlaceholderId
-                ? 'Click a shape below to add it to the selected placeholder'
-                : 'Click a placeholder on the canvas, then select a shape'}
-            </p>
-          </div>
-        )}
-        <Label className="text-xs font-semibold uppercase text-muted-foreground block">
-          Basic Shapes
-        </Label>
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddShape('rect')}
-            className="h-14 flex flex-col gap-1"
-          >
-            <Square className="w-5 h-5" />
-            <span className="text-xs">Rectangle</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddShape('circle')}
-            className="h-14 flex flex-col gap-1"
-          >
-            <CircleIcon className="w-5 h-5" />
-            <span className="text-xs">Circle</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddShape('triangle')}
-            className="h-14 flex flex-col gap-1"
-          >
-            <Triangle className="w-5 h-5" />
-            <span className="text-xs">Triangle</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddShape('star')}
-            className="h-14 flex flex-col gap-1"
-          >
-            <StarIcon className="w-5 h-5" />
-            <span className="text-xs">Star</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAddShape('heart')}
-            className="h-14 flex flex-col gap-1"
-          >
-            <Heart className="w-5 h-5" />
-            <span className="text-xs">Heart</span>
-          </Button>
-        </div>
-
-        <Label className="text-xs font-semibold uppercase text-muted-foreground block pt-1">
-          Uploaded Shapes
-        </Label>
-      </div>
-
-      {/* Scrollable uploaded shapes grid */}
-      {loadingAssets ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-        </div>
-      ) : shapeAssets.length > 0 ? (
-        <ScrollArea className="flex-1 min-h-0 px-4 pb-4">
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            {shapeAssets.map((asset) => (
-              <div
-                key={asset._id}
-                className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-colors group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (asset.fileUrl && onAddAsset) {
-                    onAddAsset(asset.fileUrl, asset.title);
-                  } else if (asset.fileUrl) {
-                    toast.error('Asset handler not available');
-                  }
-                }}
-                title={asset.title}
-              >
-                {asset.previewUrl ? (
-                  <img
-                    src={asset.previewUrl}
-                    alt={asset.title}
-                    className="w-full h-full object-contain p-1.5"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Folder className="w-6 h-6 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end justify-center pb-1">
-                  <span className="text-white text-[9px] font-medium opacity-0 group-hover:opacity-100 transition-opacity text-center px-1 leading-tight truncate w-full">
-                    {asset.title}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-          No shape assets found
-        </div>
-      )}
-    </div>
-  );
-};
-
-
-const GraphicsPanel: React.FC<{
-  onAddAsset: (assetUrl: string, assetName?: string) => void;
-  selectedPlaceholderId: string | null;
-  selectedPlaceholderName?: string | null;
-  placeholders: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number }>;
-  isMobile?: boolean;
-}> = ({ onAddAsset, selectedPlaceholderId, selectedPlaceholderName, placeholders, isMobile = false }) => {
-  const [graphics, setGraphics] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Fetch graphics from API
-  useEffect(() => {
-    const fetchGraphics = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.append('category', 'graphics');
-        if (searchTerm) params.append('search', searchTerm);
-        params.append('limit', '50');
-
-        const response = await fetch(`${API_BASE_URL}/assets?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setGraphics(data.data || []);
-        } else {
-          console.error('Failed to fetch graphics:', data.message);
-        }
-      } catch (error) {
-        console.error('Failed to fetch graphics:', error);
-        toast.error('Failed to load graphics');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGraphics();
-  }, [searchTerm]);
-
-
-  const cols = isMobile ? 'grid-cols-3' : 'grid-cols-2';
-  const imgPad = isMobile ? 'p-1.5' : 'p-2';
-  const folderSz = isMobile ? 'w-6 h-6' : 'w-8 h-8';
-
-  const assetGrid = (
-    <div className={`grid ${cols} gap-2 ${isMobile ? 'pt-1' : ''}`}>
-      {graphics.map((asset) => (
-        <div key={asset._id} className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-colors group"
-          onClick={(e) => { e.stopPropagation(); if (asset.fileUrl) { onAddAsset(asset.fileUrl, asset.title); } else { toast.error('Asset file URL not available'); } }}
-          title={asset.title}>
-          {asset.previewUrl ? (<img src={asset.previewUrl} alt={asset.title} className={`w-full h-full object-contain ${imgPad}`} />) : (<div className="w-full h-full flex items-center justify-center"><Folder className={`${folderSz} text-muted-foreground`} /></div>)}
-          <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex ${isMobile ? 'items-end justify-center pb-1' : 'items-center justify-center'}`}>
-            <span className={`text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity ${isMobile ? 'text-[9px] text-center px-1 leading-tight truncate w-full' : 'text-xs'}`}>{asset.title}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const placeholderNotice = placeholders.length > 1 ? (
-    <div className="p-3 bg-muted rounded-lg border">
-      <Label className="text-xs font-semibold text-foreground mb-1 block">{selectedPlaceholderId ? `Selected: ${selectedPlaceholderName || selectedPlaceholderId.slice(0, 8)}` : 'Select a placeholder on canvas first'}</Label>
-      <p className="text-xs text-muted-foreground">{selectedPlaceholderId ? 'Click a graphic below to add it to the selected placeholder' : 'Click a placeholder on the canvas, then select a graphic'}</p>
-    </div>
-  ) : null;
-
-  if (isMobile) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 pb-2 space-y-3 flex-shrink-0">
-          {placeholderNotice}
-          <Label className="text-xs font-semibold uppercase text-muted-foreground block">Graphics</Label>
-          <Input placeholder="Search graphics..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        {loading ? (<div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-          : graphics.length === 0 ? (<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">No graphics found</div>)
-            : (<ScrollArea className="flex-1 min-h-0 px-4 pb-4">{assetGrid}</ScrollArea>)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-4">
-      {placeholderNotice}
-      <Label className="text-xs font-semibold uppercase text-muted-foreground mb-2 block">Graphics</Label>
-      <Input placeholder="Search graphics..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-2" />
-      {loading ? (<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-        : graphics.length === 0 ? (<div className="flex-1 flex items-center justify-center py-20 text-muted-foreground text-sm h-[300px]">No graphics found</div>)
-          : (<ScrollArea className="flex-1 min-h-[300px]">{assetGrid}</ScrollArea>)}
-    </div>
-  );
-};
-
-const LogosPanel: React.FC<{
-  onAddAsset: (assetUrl: string, assetName?: string) => void;
-  selectedPlaceholderId: string | null;
-  selectedPlaceholderName?: string | null;
-  placeholders: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number }>;
-  isMobile?: boolean;
-}> = ({ onAddAsset, selectedPlaceholderId, selectedPlaceholderName, placeholders, isMobile = false }) => {
-  const [logos, setLogos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Fetch logos from API
-  useEffect(() => {
-    const fetchLogos = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.append('category', 'logos');
-        if (searchTerm) params.append('search', searchTerm);
-        params.append('limit', '50');
-
-        const response = await fetch(`${API_BASE_URL}/assets?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setLogos(data.data || []);
-        } else {
-          console.error('Failed to fetch logos:', data.message);
-        }
-      } catch (error) {
-        console.error('Failed to fetch logos:', error);
-        toast.error('Failed to load logos');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLogos();
-  }, [searchTerm]);
-
-  const cols = isMobile ? 'grid-cols-3' : 'grid-cols-2';
-  const imgPad = isMobile ? 'p-1.5' : 'p-2';
-  const folderSz = isMobile ? 'w-6 h-6' : 'w-8 h-8';
-
-  const logoGrid = (
-    <div className={`grid ${cols} gap-2 ${isMobile ? 'pt-1' : ''}`}>
-      {logos.map((asset) => (
-        <div key={asset._id} className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-colors group"
-          onClick={(e) => { e.stopPropagation(); if (asset.fileUrl) { onAddAsset(asset.fileUrl, asset.title); } else { toast.error('Asset file URL not available'); } }}
-          title={asset.title}>
-          {asset.previewUrl ? (<img src={asset.previewUrl} alt={asset.title} className={`w-full h-full object-contain ${imgPad}`} />) : (<div className="w-full h-full flex items-center justify-center"><Folder className={`${folderSz} text-muted-foreground`} /></div>)}
-          <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex ${isMobile ? 'items-end justify-center pb-1' : 'items-center justify-center'}`}>
-            <span className={`text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity ${isMobile ? 'text-[9px] text-center px-1 leading-tight truncate w-full' : 'text-xs'}`}>{asset.title}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const placeholderNotice = placeholders.length > 1 ? (
-    <div className="p-3 bg-muted rounded-lg border">
-      <Label className="text-xs font-semibold text-foreground mb-1 block">{selectedPlaceholderId ? `Selected: ${selectedPlaceholderName || selectedPlaceholderId.slice(0, 8)}` : 'Select a placeholder on canvas first'}</Label>
-      <p className="text-xs text-muted-foreground">{selectedPlaceholderId ? 'Click a logo below to add it to the selected placeholder' : 'Click a placeholder on the canvas, then select a logo'}</p>
-    </div>
-  ) : null;
-
-  if (isMobile) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 pb-2 space-y-3 flex-shrink-0">
-          {placeholderNotice}
-          <Label className="text-xs font-semibold uppercase text-muted-foreground block">Logos</Label>
-          <Input placeholder="Search logos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        {loading ? (<div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-          : logos.length === 0 ? (<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">No logos found</div>)
-            : (<ScrollArea className="flex-1 min-h-0 px-4 pb-4">{logoGrid}</ScrollArea>)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-4">
-      {placeholderNotice}
-      <Label className="text-xs font-semibold uppercase text-muted-foreground mb-2 block">Logos</Label>
-      <Input placeholder="Search logos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-2" />
-      {loading ? (<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-        : logos.length === 0 ? (<div className="flex-1 flex items-center justify-center py-20 text-muted-foreground text-sm h-[300px]">No logos found</div>)
-          : (<ScrollArea className="flex-1 min-h-[300px]">{logoGrid}</ScrollArea>)}
-    </div>
-  );
-};
-
-interface LibraryPanelProps {
-  onAddAsset: (assetUrl: string, assetName?: string) => void;
-  selectedPlaceholderId?: string | null;
-  selectedPlaceholderName?: string | null;
-  placeholders?: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number }>;
-  isMobile?: boolean;
-}
-
-const LibraryPanel: React.FC<LibraryPanelProps> = ({ onAddAsset, selectedPlaceholderId, selectedPlaceholderName, placeholders = [], isMobile = false }) => {
-  const [assets, setAssets] = useState<any[]>([]);
-  const [allAssets, setAllAssets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('graphics');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const categories = [
-    { value: 'graphics', label: 'Graphics' },
-    { value: 'patterns', label: 'Patterns' },
-    { value: 'icons', label: 'Icons' },
-    { value: 'shapes', label: 'Shapes' },
-    { value: 'logos', label: 'Logos' },
-    { value: 'all', label: 'All' }
-  ];
-
-  // Fetch assets from API
-  useEffect(() => {
-    const fetchAssets = async () => {
-      // If "All" is selected, don't fetch - use allAssets instead
-      if (selectedCategory === 'all') {
-        setAssets([]); // Clear assets, we'll use allAssets for display
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (selectedCategory) params.append('category', selectedCategory);
-        if (searchTerm) params.append('search', searchTerm);
-        params.append('limit', '20');
-
-        const response = await fetch(`${API_BASE_URL}/assets?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setAssets(data.data || []);
-        } else {
-          console.error('Failed to fetch assets:', data.message);
-        }
-      } catch (error) {
-        console.error('Failed to fetch assets:', error);
-        toast.error('Failed to load assets');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAssets();
-  }, [selectedCategory, searchTerm]);
-
-  useEffect(() => {
-    const fetchAllAssets = async () => {
-      try {
-        // Fetch all assets without category filter - use higher limit for "All" view
-        const response = await fetch(`${API_BASE_URL}/assets?limit=200`);
-        const data = await response.json();
-
-        if (data.success) {
-          setAllAssets(data.data || []);
-          console.log(`[LibraryPanel] Fetched ${data.data?.length || 0} total assets`);
-        } else {
-          console.error('[LibraryPanel] Failed to fetch all assets:', data.message);
-          setAllAssets([]);
-        }
-      } catch (error) {
-        console.error('[LibraryPanel] Failed to fetch all assets:', error);
-        // Don't show toast for initial load, only show if user explicitly selects "All"
-        setAllAssets([]);
-      }
-    };
-
-    fetchAllAssets();
-  }, []);
-
-  const cols = isMobile ? 'grid-cols-3' : 'grid-cols-2';
-  const imgPad = isMobile ? 'p-1.5' : 'p-2';
-  const folderSz = isMobile ? 'w-6 h-6' : 'w-8 h-8';
-
-  const assetsToDisplay = selectedCategory === 'all' ? allAssets : assets;
-  const filteredAssets = searchTerm
-    ? assetsToDisplay.filter((a) => a.title?.toLowerCase().includes(searchTerm.toLowerCase()))
-    : assetsToDisplay;
-
-  const placeholderNotice = placeholders.length > 1 ? (
-    <div className="p-3 bg-muted rounded-lg border">
-      <Label className="text-xs font-semibold text-foreground mb-1 block">{selectedPlaceholderId ? `Selected: ${selectedPlaceholderName || selectedPlaceholderId.slice(0, 8)}` : 'Select a placeholder on canvas first'}</Label>
-      <p className="text-xs text-muted-foreground">{selectedPlaceholderId ? 'Click an asset below to add it to the selected placeholder' : 'Click a placeholder on the canvas, then select an asset'}</p>
-    </div>
-  ) : null;
-
-  const categoryTabs = (
-    <div className="flex gap-1 flex-wrap">
-      {categories.map((cat) => (<Button key={cat.value} variant={selectedCategory === cat.value ? 'default' : 'outline'} size="sm" onClick={() => setSelectedCategory(cat.value)} className="text-xs h-7 px-2">{cat.label}</Button>))}
-    </div>
-  );
-
-  const assetGrid = (
-    <div className={`grid ${cols} gap-2 ${isMobile ? 'pt-1' : ''}`}>
-      {filteredAssets.map((asset) => (
-        <div key={asset._id} className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-colors group"
-          onClick={(e) => { e.stopPropagation(); if (asset.fileUrl) { onAddAsset(asset.fileUrl, asset.title); } else { toast.error('Asset file URL not available'); } }}
-          title={asset.title}>
-          {asset.previewUrl ? (<img src={asset.previewUrl} alt={asset.title} className={`w-full h-full object-contain ${imgPad}`} />) : (<div className="w-full h-full flex items-center justify-center"><Folder className={`${folderSz} text-muted-foreground`} /></div>)}
-          <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex ${isMobile ? 'items-end justify-center pb-1' : 'items-center justify-center'}`}>
-            <span className={`text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity ${isMobile ? 'text-[9px] text-center px-1 leading-tight truncate w-full' : 'text-xs'}`}>{asset.title}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const emptyMsg = <div className={`flex items-center justify-center text-muted-foreground text-sm ${isMobile ? 'flex-1' : 'py-20 min-h-[300px]'}`}>No assets found</div>;
-  const spinner = <div className={`flex items-center justify-center ${isMobile ? 'flex-1' : 'py-8'}`}><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
-
-  if (isMobile) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 pb-2 space-y-3 flex-shrink-0">
-          {placeholderNotice}
-          <Label className="text-xs font-semibold uppercase text-muted-foreground block">Asset Library</Label>
-          <Input placeholder="Search assets..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          {categoryTabs}
-        </div>
-        {loading ? spinner : filteredAssets.length === 0 ? emptyMsg : (<ScrollArea className="flex-1 min-h-0 px-4 pb-4">{assetGrid}</ScrollArea>)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-4">
-      {placeholderNotice}
-      <Label className="text-xs font-semibold uppercase text-muted-foreground mb-2 block">Asset Library</Label>
-      <Input placeholder="Search assets..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-2" />
-      {categoryTabs}
-      {loading ? spinner : filteredAssets.length === 0 ? emptyMsg : (<ScrollArea className="flex-1 min-h-[300px]">{assetGrid}</ScrollArea>)}
-    </div>
-  );
-};
-
-interface AssetPanelProps {
-  onAddAsset: (assetUrl: string, assetName?: string) => void;
-  category: string;
-  title: string;
-  selectedPlaceholderId: string | null;
-  selectedPlaceholderName?: string | null;
-  placeholders: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number }>;
-  isMobile?: boolean;
-}
-
-const AssetPanel: React.FC<AssetPanelProps> = ({ onAddAsset, category, title, selectedPlaceholderId, selectedPlaceholderName, placeholders, isMobile = false }) => {
-  const [assets, setAssets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Fetch assets from API
-  useEffect(() => {
-    const fetchAssets = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.append('category', category);
-        if (searchTerm) params.append('search', searchTerm);
-        params.append('limit', '50');
-
-        const response = await fetch(`${API_BASE_URL}/assets?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setAssets(data.data || []);
-        } else {
-          console.error(`Failed to fetch ${category} assets:`, data.message);
-        }
-      } catch (error) {
-        console.error(`Failed to fetch ${category} assets:`, error);
-        toast.error(`Failed to load ${title.toLowerCase()}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAssets();
-  }, [category, searchTerm, title]);
-
-  const cols = isMobile ? 'grid-cols-3' : 'grid-cols-2';
-  const imgPad = isMobile ? 'p-1.5' : 'p-2';
-  const folderSz = isMobile ? 'w-6 h-6' : 'w-8 h-8';
-
-  const placeholderNotice = placeholders.length > 1 ? (
-    <div className="p-3 bg-muted rounded-lg border">
-      <Label className="text-xs font-semibold text-foreground mb-1 block">{selectedPlaceholderId ? `Selected: ${selectedPlaceholderName || selectedPlaceholderId.slice(0, 8)}` : 'Select a placeholder on canvas first'}</Label>
-      <p className="text-xs text-muted-foreground">{selectedPlaceholderId ? `Click a ${title.toLowerCase()} below to add it to the selected placeholder` : 'Click a placeholder on the canvas, then select a resource'}</p>
-    </div>
-  ) : null;
-
-  const renderGrid = () => (
-    <div className={`grid ${cols} gap-2 ${isMobile ? 'pt-1' : ''}`}>
-      {assets.map((asset) => (
-        <div key={asset._id} className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-colors group"
-          onClick={(e) => { e.stopPropagation(); if (asset.fileUrl) { onAddAsset(asset.fileUrl, asset.title); } else { toast.error('Asset file URL not available'); } }}
-          title={asset.title}>
-          {asset.previewUrl ? (<img src={asset.previewUrl} alt={asset.title} className={`w-full h-full object-contain ${imgPad}`} />) : (<div className="w-full h-full flex items-center justify-center"><Folder className={`${folderSz} text-muted-foreground`} /></div>)}
-          <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex ${isMobile ? 'items-end justify-center pb-1' : 'items-center justify-center'}`}>
-            <span className={`text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity ${isMobile ? 'text-[9px] text-center px-1 leading-tight truncate w-full' : 'text-xs'}`}>{asset.title}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  if (isMobile) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 pb-2 space-y-3 flex-shrink-0">
-          {placeholderNotice}
-          <Label className="text-xs font-semibold uppercase text-muted-foreground block">{title}</Label>
-          <Input placeholder={`Search ${title.toLowerCase()}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        {loading ? (<div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-          : assets.length === 0 ? (<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">No {title.toLowerCase()} found</div>)
-            : (<ScrollArea className="flex-1 min-h-0 px-4 pb-4">{renderGrid()}</ScrollArea>)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-4">
-      {placeholderNotice}
-      <Label className="text-xs font-semibold uppercase text-muted-foreground mb-2 block">{title}</Label>
-      <Input placeholder={`Search ${title.toLowerCase()}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="mb-2" />
-      {loading ? (<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-        : assets.length === 0 ? (<div className="flex-1 flex items-center justify-center py-20 text-muted-foreground text-sm h-[300px]">No {title.toLowerCase()} found</div>)
-          : (<ScrollArea className="flex-1 min-h-[300px]">{renderGrid()}</ScrollArea>)}
-    </div>
-  );
-};
-
-const TemplatesPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => {
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch text templates from API
-  useEffect(() => {
-    const fetchTemplates = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/assets?category=textTemplates&limit=20`
-        );
-        const data = await response.json();
-
-        if (data.success) {
-          setTemplates(data.data || []);
-        } else {
-          console.error('Failed to fetch templates:', data.message);
-        }
-      } catch (error) {
-        console.error('Failed to fetch templates:', error);
-        toast.error('Failed to load templates');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTemplates();
-  }, []);
-
-  const cols = isMobile ? 'grid-cols-3' : 'grid-cols-2';
-  const imgPad = isMobile ? 'p-1.5' : 'p-2';
-  const layoutIconSz = isMobile ? 'w-5 h-5' : 'w-6 h-6';
-  const layoutIconSzLarge = isMobile ? 'w-6 h-6' : 'w-8 h-8';
-
-  const templateGrid = (
-    <div className={`grid ${cols} gap-2 ${isMobile ? 'pt-1' : ''}`}>
-      {templates.map((template) => (
-        <div key={template._id} className="relative aspect-square bg-muted rounded-lg overflow-hidden border-2 border-border hover:border-primary cursor-pointer transition-colors group"
-          onClick={() => toast.info(`Add ${template.title} template functionality coming soon`)}
-          title={template.title}>
-          {template.previewUrl ? (<img src={template.previewUrl} alt={template.title} className={`w-full h-full object-contain ${imgPad}`} />) : (<div className="w-full h-full flex items-center justify-center"><Layout className={`${layoutIconSzLarge} text-muted-foreground`} /></div>)}
-          <div className={`absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex ${isMobile ? 'items-end justify-center pb-1' : 'items-center justify-center'}`}>
-            <span className={`text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity ${isMobile ? 'text-[9px] text-center px-1 leading-tight truncate w-full' : 'text-xs'}`}>{template.title}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const emptyState = (
-    <div className={`flex flex-col items-center justify-center space-y-3 ${isMobile ? 'flex-1' : 'py-10 min-h-[300px]'}`}>
-      <div className={`grid ${cols} gap-2 w-full max-w-[240px]`}>
-        {[0, 1].map((i) => (<div key={i} className="aspect-square bg-muted rounded-lg border-2 border-dashed flex items-center justify-center"><Layout className={`${layoutIconSz} text-muted-foreground`} /></div>))}
-      </div>
-      <p className="text-center text-xs text-muted-foreground">No templates available. Upload some in Admin panel.</p>
-    </div>
-  );
-
-  if (isMobile) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 pb-2 flex-shrink-0">
-          <Label className="text-xs font-semibold uppercase text-muted-foreground block">Templates</Label>
-        </div>
-        {loading ? (<div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-          : templates.length === 0 ? emptyState
-            : (<ScrollArea className="flex-1 min-h-0 px-4 pb-4">{templateGrid}</ScrollArea>)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 space-y-4">
-      <Label className="text-xs font-semibold uppercase text-muted-foreground mb-2 block">Templates</Label>
-      {loading ? (<div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>)
-        : templates.length === 0 ? emptyState
-          : (<ScrollArea className="flex-1 min-h-[300px]">{templateGrid}</ScrollArea>)}
-    </div>
-  );
-};
-
 
 export default DesignEditor;
