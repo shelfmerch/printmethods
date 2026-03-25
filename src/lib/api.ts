@@ -1,5 +1,4 @@
 import { API_BASE_URL } from '@/config';
-import { getSessionToken } from '@shopify/app-bridge-utils';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -27,33 +26,6 @@ export class ApiError extends Error {
 // Get token from localStorage
 const getToken = (): string | null => {
   return localStorage.getItem('token');
-};
-
-const isEmbeddedInShopify = (): boolean => {
-  try {
-    return window.top !== window.self;
-  } catch {
-    return true;
-  }
-};
-
-const getAuthHeaderValue = async (): Promise<string | null> => {
-  if (isEmbeddedInShopify()) {
-    try {
-      const app = (window as any).__SHOPIFY_APP_BRIDGE__;
-      if (app) {
-        const sessionToken = await getSessionToken(app);
-        if (sessionToken) {
-          return `Bearer ${sessionToken}`;
-        }
-      }
-    } catch (error) {
-      console.error('Session token retrieval failed:', error);
-    }
-  }
-
-  const token = getToken();
-  return token ? `Bearer ${token}` : null;
 };
 
 // Store Products API
@@ -1264,15 +1236,15 @@ const apiRequest = async <T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
-  const authorizationHeader = await getAuthHeaderValue();
+  const token = getToken();
 
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true',
   };
 
-  if (authorizationHeader) {
-    defaultHeaders['Authorization'] = authorizationHeader;
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
   }
 
   const config: RequestInit = {
@@ -1288,7 +1260,7 @@ const apiRequest = async <T = any>(
   let refreshAttempted = false;
 
   // If unauthorized, try to refresh token (only once)
-  if (response.status === 401 && authorizationHeader && !refreshAttempted) {
+  if (response.status === 401 && token && !refreshAttempted) {
     refreshAttempted = true;
     const newToken = await refreshAccessToken();
     if (newToken) {
@@ -1333,7 +1305,7 @@ const apiRequest = async <T = any>(
       if (refreshAttempted) {
         // Refresh was attempted but still got 401 - token is truly invalid
         removeTokens();
-      } else if (authorizationHeader) {
+      } else if (token) {
         // First 401 - check if error message indicates invalid token
         // Only remove if backend explicitly says token is invalid
         const errorMsg = (data.message || '').toLowerCase();
