@@ -40,21 +40,23 @@ const categorySlugToSubcategory: Record<string, string> = {
 
   // Accessories
   'tote-bag': 'Tote Bags',
+  'hand-fans':'Hand Fans',
   'caps': 'Caps',
-  'gaming-pads': 'Gaming Pads',
+  // 'gaming-pads': 'Gaming Pads',
   'beanies': 'Beanies',
-  'socks': 'Socks',
+  // 'socks': 'Socks',
   'backpacks': 'Backpacks',
 
   // Home & Living
-  'cans': 'Cans',
+  'kitchen-accessories': 'Kitchen Accessories',
+  'kitchen': 'Kitchen Accessories',
   'mugs': 'Mugs',
   'drinkware': 'Mugs',
   'cushions': 'Cushions',
   'frames': 'Frames',
   'coasters': 'Coasters',
   'bottles': 'Bottles',
-  'wall-art': 'Wall Art',
+  // 'wall-art': 'Wall Art',
 
   // Print Products
   'business-cards': 'Business Cards',
@@ -82,6 +84,8 @@ const categorySlugToSubcategory: Record<string, string> = {
 
   // Tech
   'phone-cases': 'Phone Covers',
+  'mouse-pad': 'Mouse Pad',
+  'mouse-pads': 'Mouse Pad',
   'cable-cards': 'Cable Card',
   'bluetooth-speakers': 'Bluetooth Speaker',
   'wireless-chargers': 'Wireless Charger',
@@ -112,7 +116,7 @@ const categorySlugToParentCategory: Record<string, any> = {
   'beanies': 'accessories',
 
   // Home & Living
-  'cans': 'home',
+  'Kitchen Accessories': 'home',
   'mugs': 'home',
   'drinkware': 'home',
   'cushions': 'home',

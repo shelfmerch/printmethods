@@ -27,10 +27,11 @@ export const CATEGORIES = {
     name: 'Accessories',
     subcategories: [
       'Tote Bags',
+      'Hand Fans',
       'Caps',
-      'Gaming Pads',
+      // 'Gaming Pads',
       'Beanies',
-      'Socks',
+      // 'Socks',
       'Backpacks'
     ]
   },
@@ -38,13 +39,13 @@ export const CATEGORIES = {
     id: 'home',
     name: 'Home & Living',
     subcategories: [
-      'Cans',
+      'Kitchen Accessories',
       'Mugs',
       'Cushions',
       'Frames',
       'Coasters',
       'Bottles',
-      'Wall Art' 
+      // 'Wall Art' 
     ]
   },
   print: {
@@ -83,6 +84,7 @@ export const CATEGORIES = {
     name: 'Tech',
     subcategories: [
       'Phone Covers',
+      'Mouse Pad',
       'Cable Card',
       'Bluetooth Speaker',
       'Wireless Charger' 

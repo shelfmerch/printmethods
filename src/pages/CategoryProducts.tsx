@@ -33,22 +33,24 @@ const categorySlugToSubcategory: Record<string, string> = {
 
   // Accessories
   'tote-bags': 'Tote Bags',
+  'hand-fans':'Hand Fans',
   'caps': 'Caps',
   'phone-covers': 'Phone Covers',
-  'gaming-pads': 'Gaming Pads',
+  // 'gaming-pads': 'Gaming Pads',
   'beanies': 'Beanies',
-  'socks': 'Socks',
+  // 'socks': 'Socks',
   'backpacks': 'Backpacks',
 
   // Home & Living
-  'cans': 'Cans',
+  'kitchen-accessories': 'Kitchen Accessories',
+  'kitchen': 'Kitchen Accessories',
   'mugs': 'Mugs',
   'drinkware': 'Mugs',
   'cushions': 'Cushions',
   'frames': 'Frames',
   'coasters': 'Coasters',
   'bottles': 'Bottles',
-  'wall-art': 'Wall Art',
+  // 'wall-art': 'Wall Art',
 
   // Print Products
   'notebooks': 'Notebook',
@@ -62,6 +64,8 @@ const categorySlugToSubcategory: Record<string, string> = {
 
   // Tech
   'phone-cases': 'Phone Covers',
+  'mouse-pad': 'Mouse Pad',
+  'mouse-pads': 'Mouse Pad',
   'cable-cards': 'Cable Card',
   'bluetooth-speakers': 'Bluetooth Speaker',
   'wireless-chargers': 'Wireless Charger',
@@ -86,14 +90,17 @@ const categorySlugToParentCategory: Record<string, any> = {
   // Accessories
   'tote-bag': 'accessories',
   'tote-bags': 'accessories',
-  'tote bags': 'accessories', // Handle plural slug
+  'tote bags': 'accessories',
+  'hand-fans':'Hand Fans',
+  'hand-fan':'Hand Fans', // Handle plural slug
   'caps': 'accessories',
   'phone-covers': 'accessories',
   'gaming-pads': 'accessories',
   'beanies': 'accessories',
 
   // Home & Living
-  'cans': 'home',
+  'kitchen-accessories': 'home',
+  'kitchen ': 'home',
   'mugs': 'home',
   'drinkware': 'home',
   'cushions': 'home',
@@ -182,15 +189,15 @@ const CategoryProducts = () => {
     // Apparel
     "T-shirts", "Hoodies", "Sweatshirts", "Jackets","Oversized",
     // Accessories
-    "Tote Bags", "Caps", "Gaming Pads", "Beanies","Socks","Backpacks",
+    "Tote Bags", "Hand Fans","Caps", "Beanies","Backpacks",
     // Home & Living
-    "Mugs", "Cushions", "Cans", "Bottles", "Frames", "Coasters","Wall Art",
+    "Mugs", "Cushions", "Kitchen Accessories", "Bottles", "Frames", "Coasters",
     // Print Products
     "Business Cards", "Stickers", "Posters", "Notebook",
     // Packaging
     "Boxes", "Pouch",
     // Tech
-    "Phone Covers", "Cable Card", "Bluetooth Speaker", "Wireless Charger",
+    "Phone Covers","Mouse Pad", "Cable Card", "Bluetooth Speaker", "Wireless Charger",
     // Jewelry
     // "Rings", "Necklaces", "Earrings", "Bracelets",
   ];

@@ -12,11 +12,11 @@ const categories: CategoryItem[] = [
     name: "Apparel",
     children: ["T-Shirt", "Hoodies", "Sweatshirts", "Jackets", "Oversized"],
   },
-  { name: "Accessories", children: ["Tote Bags", "Caps", "Gaming Pads", "Beanies","Socks","Backpacks"] },
-  { name: "Home & Living", children: ["Mugs", "Cushions", "Cans", "Bottles", "Frames", "Coasters"] }, 
+  { name: "Accessories", children: ["Tote Bags", "Hand Fans","Caps", "Beanies", "Backpacks"] },
+  { name: "Home & Living", children: ["Mugs", "Cushions", "Kitchen Accessories", "Bottles", "Frames", "Coasters"] }, 
   { name: "Print Products", children: ["Business Cards", "Stickers","Posters", "Notebook"] },
   { name: "Packaging", children: ["Box", "Pouch"] },
-  { name: "Tech", children: ["Phone Covers","Cable Card", "Bluetooth Speaker","Wireless Charger"] },
+  { name: "Tech", children: ["Phone Covers","Mouse Pad","Cable Card", "Bluetooth Speaker","Wireless Charger"] },
 
   // { name: "Jewelry", children: ["Rings", "Necklaces", "Earrings", "Bracelets"] },
 ];

@@ -23,15 +23,17 @@ import subTanktops from "@/assets/sub-tanktops.jpg";
 import subLongsleeves from "@/assets/sub-longsleeves.jpg";
 import subOversized from "@/assets/sub-oversized.jpg";
 import subTotebags from "@/assets/sub-totebags.jpg";
+import subHandfans from "@/assets/sub-handfans.png";
 import subCaps from "@/assets/sub-caps.jpg";
 import subPhonecovers from "@/assets/sub-phonecovers.jpg";
+import subMousepad from "@/assets/sub-mousepad.png";
 import subGamingpads from "@/assets/sub-gamingpads.jpg";
 import subBeanies from "@/assets/sub-beanies.jpg";
 import subSocks from "@/assets/sub-socks.jpg";
 import subBackpacks from "@/assets/sub-backpacks.jpg";
 import subMugs from "@/assets/sub-mugs.jpg";
 import subCushions from "@/assets/sub-cushions.jpg";
-import subCans from "@/assets/sub-cans.jpg";
+import subKitchen from "@/assets/sub-kitchen.png";
 import subFrames from "@/assets/sub-frames.jpg";
 import subCoasters from "@/assets/sub-coasters.jpg";
 import subBlankets from "@/assets/sub-blankets.jpg";
@@ -84,9 +86,10 @@ const categories: Category[] = [
     subcategories: [
       { name: "Tote Bags", image: subTotebags },
       { name: "Caps", image: subCaps },
-      { name: "Gaming Pads", image: subGamingpads },
+      { name: "Hand Fans", image: subHandfans },
+      // { name: "Gaming Pads", image: subGamingpads },
       { name: "Beanies", image: subBeanies },
-      { name: "Socks", image: subSocks },
+      // { name: "Socks", image: subSocks },
       { name: "Backpacks", image: subBackpacks },
     ],
   },
@@ -97,11 +100,11 @@ const categories: Category[] = [
     subcategories: [
       { name: "Mugs", image: subMugs },
       { name: "Cushions", image: subCushions },
-      { name: "Cans", image: subCans },
+      { name: "Kitchen Accessories", image: subKitchen },
       { name: "Frames", image: subFrames },
       { name: "Coasters", image: subCoasters },
       // { name: "Blankets", image: subBlankets },
-      { name: "Wall Art", image: subWallart },
+      // { name: "Wall Art", image: subWallart },
       { name: "Bottles", image: subBottles },
     ],
   },
@@ -138,6 +141,7 @@ const categories: Category[] = [
       // { name: "iPhone Cases", image: subIphonecases },
       // { name: "Laptop Cases", image: subLaptopcases },
       { name: "Phone Covers", image: subPhonecovers },
+      {name: "Mouse Pad", image: subMousepad},
       {name: "Cable Card", image: subCablecard},
       // {name: "Power Bank", image: subPowerbank},
       {name: "Bluetooth Speaker", image: subBluetoothspeaker},

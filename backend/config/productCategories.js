@@ -24,9 +24,10 @@ const CATEGORIES = {
     subcategories: [
       'Tote Bags',
       'Caps',
-      'Gaming Pads',
+      'Hand Fans',
+      // 'Gaming Pads',
       'Beanies',
-      'Socks',
+      // 'Socks',
       'Backpacks'
     ]
   },
@@ -34,13 +35,12 @@ const CATEGORIES = {
     id: 'home',
     name: 'Home & Living',
     subcategories: [
-      'Cans',
+      'Kitchen Accessories',
       'Mugs',
       'Cushions',
       'Frames',
       'Coasters',
       'Bottles',
-      'Wall Art'
     ]
   },
   print: {
@@ -70,7 +70,8 @@ const CATEGORIES = {
       'Phone Covers',
       'Cable Card',
       'Bluetooth Speaker',
-      'Wireless Charger'
+      'Wireless Charger',
+      'Mouse Pad'
     ]
   },
   jewelry: {

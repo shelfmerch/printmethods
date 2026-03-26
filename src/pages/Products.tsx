@@ -54,15 +54,15 @@ const Products = () => {
     // Apparel
     "T-Shirt", "Hoodies", "Sweatshirts", "Jackets","Oversized",
     // Accessories
-    "Tote Bags", "Caps", "Gaming Pads", "Beanies","Socks","Backpacks",
+    "Tote Bags", "Hand Fans", "Caps", "Beanies","Backpacks",
     // Home & Living
-    "Mugs", "Cushions", "Cans", "Bottles", "Frames", "Coasters","Wall Art",
+    "Mugs", "Cushions", "Kitchen Accessories", "Bottles", "Frames", "Coasters",
     // Print Products
     "Business Cards", "Stickers", "Posters", "Notebook",
     // Packaging
     "Boxes", "Pouch",
     // Tech
-    "Phone Covers", "Cable Card", "Bluetooth Speaker", "Wireless Charger",
+    "Phone Covers","Mouse Pad", "Cable Card", "Bluetooth Speaker", "Wireless Charger",
     // Jewelry
     // "Rings", "Necklaces", "Earrings", "Bracelets",
   ];
