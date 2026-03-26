@@ -312,7 +312,7 @@ const AdminProductCreation = () => {
 
   const handleCreateProduct = async () => {
     // Validation - Section A
-    if (!catalogueData.name || !catalogueData.description || !catalogueData.categoryId || catalogueData.basePrice === 0) {
+    if (!catalogueData.name || !catalogueData.categoryId || catalogueData.basePrice === 0) {
       toast.error('Please fill in all required catalogue fields');
       return;
     }

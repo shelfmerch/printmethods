@@ -150,8 +150,7 @@ const CatalogProductSchema = new mongoose.Schema({
     trim: true
   },
   description: {
-    type: String,
-    required: true
+    type: String
   },
   shortDescription: {
     type: String,

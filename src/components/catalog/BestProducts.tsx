@@ -45,7 +45,7 @@ const categorySlugToParentCategory: Record<string, string> = {
   'business-cards': 'accessories',
 
   // Home & Living
-  'cans': 'home',
+  'Kitchen Accessories': 'home',
   'mugs': 'home',
   'drinkware': 'home',
   'cushions': 'home',

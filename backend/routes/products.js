@@ -49,10 +49,10 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     // Note: pricing, stocks, and options are optional fields
 
     // Validate catalogue data
-    if (!catalogue.name || !catalogue.description || !catalogue.categoryId || !catalogue.basePrice) {
+    if (!catalogue.name || !catalogue.categoryId || !catalogue.basePrice) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required catalogue fields: name, description, categoryId, basePrice'
+        message: 'Missing required catalogue fields: name, categoryId, basePrice'
       });
     }
 
