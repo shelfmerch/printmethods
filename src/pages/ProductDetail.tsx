@@ -38,10 +38,11 @@ import {
   Check, Package, Palette, Ruler, Droplets, Wind,
   Thermometer, X, Heart, Share2, Truck, Shield, FileText, Droplet, Archive,
   Award, Sparkles, ShieldCheck, TrendingUp, Star, ZoomIn,
-  ChevronRight, Home, Minus, Plus, Maximize2, Info
+  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Home, Minus, Plus, Maximize2, Info
 } from "lucide-react";
 
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // Color name to hex mapping
 const colorMap: Record<string, string> = {
@@ -358,40 +359,78 @@ const ProductDetail = () => {
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
-        </Breadcrumb>
-
-        <div className="grid lg:grid-cols-8 gap-8 lg:gap-12">
-
-          {/* Product Images */}
-          {/* Product Images */}
-          <div className="grid lg:col-span-5 grid-cols-1 lg:grid-cols-5 gap-5">
-            {/* Thumbnails - Left Column */}
-            {galleryImages.length > 0 && (
-              <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible order-2 lg:order-1">
-                {galleryImages.slice(0, 4).map((img: any, index: number) => (
-                  <div
-                    key={img.id || index}
-                    className={`aspect-square w-20 lg:w-full bg-muted rounded-lg overflow-hidden cursor-pointer border-2 flex-shrink-0 transition-all ${selectedImageIndex === index
-                      ? 'border-primary ring-2 ring-primary ring-offset-2'
-                      : 'border-transparent hover:border-primary/50'
-                      }`}
-                    onClick={() => setSelectedImageIndex(index)}
+        </Breadcrumb>        <div className="grid lg:grid-cols-8 gap-8 lg:gap-12">
+          {/* Product Gallery Section */}
+          <div className="lg:col-span-5 flex flex-col md:flex-row gap-4">
+            {/* Vertical Thumbnails List - shown only if > 1 image */}
+            {galleryImages.length > 1 && (
+              <div className="order-2 md:order-1 flex md:flex-col items-center gap-2 w-full md:w-28 lg:w-32">
+                {/* Scroll Up Arrow - Rectangular */}
+                {galleryImages.length > 4 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hidden md:flex h-7 w-7 rounded border-muted-foreground/30 hover:bg-muted mb-1 flex-shrink-0"
+                    onClick={() => {
+                      const newIndex = (selectedImageIndex - 1 + galleryImages.length) % galleryImages.length;
+                      setSelectedImageIndex(newIndex);
+                    }}
                   >
-                    <img
-                      src={img.url}
-                      alt={img.altText || `Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+
+                {/* Scrollable Container */}
+                <div
+                  className={cn(
+                    "flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar py-0.5 w-full scroll-smooth",
+                    galleryImages.length > 4 ? "md:max-h-[500px]" : "md:h-auto"
+                  )}
+                >
+                  {galleryImages.map((img: any, index: number) => (
+                    <button
+                      key={img.id || index}
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={cn(
+                        "relative aspect-square w-16 md:w-full rounded-lg overflow-hidden border-2 transition-all flex-shrink-0",
+                        selectedImageIndex === index
+                          ? 'border-primary ring-2 ring-primary/10 scale-[1.02]'
+                          : 'border-border hover:border-primary/50'
+                      )}
+                    >
+                      <img
+                        src={img.url}
+                        alt={img.altText || `Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                {/* Scroll Down Arrow - Circular */}
+                {galleryImages.length > 4 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="hidden md:flex h-7 w-7 border-muted-foreground/30 hover:bg-muted mt-1 flex-shrink-0"
+                    onClick={() => {
+                      const newIndex = (selectedImageIndex + 1) % galleryImages.length;
+                      setSelectedImageIndex(newIndex);
+                    }}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             )}
 
-            {/* Main Image - Right Columns */}
+            {/* Main Image View */}
             <div
               ref={imageRef}
-              className={`relative aspect-square bg-muted rounded-xl overflow-hidden group cursor-zoom-in order-1 lg:order-2 ${galleryImages.length > 0 ? 'lg:col-span-4' : 'lg:col-span-5'
-                }`}
+              className={cn(
+                "relative flex-1 aspect-square bg-muted rounded-xl overflow-hidden group cursor-zoom-in order-1 md:order-2 border",
+                galleryImages.length === 0 && "col-span-full"
+              )}
               onMouseMove={handleImageMouseMove}
               onMouseEnter={() => setIsZoomed(true)}
               onMouseLeave={() => setIsZoomed(false)}
@@ -408,12 +447,52 @@ const ProductDetail = () => {
                       transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
                     }}
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-black/50 backdrop-blur-sm rounded-full p-2">
-                      <Maximize2 className="h-5 w-5 text-white" />
+
+                  {/* Desktop Hover Navigation */}
+                  {galleryImages.length > 1 && (
+                    <div className="absolute inset-0 flex items-center justify-between p-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+                        }}
+                        className="p-2 bg-background/80 backdrop-blur-sm rounded-full shadow-lg pointer-events-auto border"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImageIndex((prev) => (prev + 1) % galleryImages.length);
+                        }}
+                        className="p-2 bg-background/80 backdrop-blur-sm rounded-full shadow-lg pointer-events-auto border"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
                     </div>
+                  )}
+
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+                    <div className="bg-black/50 backdrop-blur-sm rounded-full p-2 text-white">
+                      <Maximize2 className="h-5 w-5" />
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare();
+                      }}
+                      className="bg-white/90 backdrop-blur-sm rounded-full p-2 text-foreground border shadow-sm hover:scale-105 transition-transform"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </button>
                   </div>
+
+                  {/* Image Counter Overlay */}
+                  {galleryImages.length > 1 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-1.5 rounded-full text-[10px] font-bold text-white tracking-widest uppercase shadow-lg">
+                      {selectedImageIndex + 1} / {galleryImages.length}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -423,7 +502,7 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          {/* Product Info */}
+          {/* Product Info Section */}
           <div className="space-y-6 lg:col-span-3">
             {/* Brand & Tags */}
             <div>
@@ -896,3 +975,5 @@ const ProductDetail = () => {
 };
 
 export default ProductDetail;
+
+

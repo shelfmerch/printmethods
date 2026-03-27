@@ -29,10 +29,20 @@ export const getProductImageGroups = (product: any, selectedColor?: string) => {
     const flatMockups = designData.flatMockups || {};
     // const previewImagesByView = designData.previewImagesByView || {};
     const previewImagesUrl = product.previewImagesUrl || [];
+    const galleryImages = product.galleryImages || [];
 
     // Group A: Designed Images
 
     // 1. Process previewImagesUrl (metadata-rich objects from backend)
+    // ... we will add gallery images processing after previewImagesUrl or before.
+    // Let's add gallery images first as they are usually the main ones the user uploaded.
+    if (Array.isArray(galleryImages) && galleryImages.length > 0) {
+        galleryImages.forEach((img: any) => {
+            if (img.url) addUrl(img.url, designedImages);
+        });
+    }
+
+    // 2. Process previewImagesUrl (metadata-rich objects from backend)
     if (Array.isArray(previewImagesUrl) && previewImagesUrl.length > 0) {
         previewImagesUrl.forEach((img: any) => {
             if (!img.url) return;

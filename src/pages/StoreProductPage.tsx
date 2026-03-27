@@ -25,6 +25,7 @@ import {
   Award,
   ChevronRight,
   ChevronLeft,
+  ChevronUp,
   ChevronDown,
   Minus,
   Plus,
@@ -376,6 +377,7 @@ const StoreProductPage = () => {
               sizes: sizes.length ? sizes : ['One Size'],
             },
             previewImagesUrl: sp.previewImagesUrl,
+            galleryImages: sp.galleryImages,
             createdAt: sp.createdAt || new Date().toISOString(),
             updatedAt: sp.updatedAt || new Date().toISOString(),
           };
@@ -685,14 +687,70 @@ const StoreProductPage = () => {
     <>
       <div className="grid gap-8 lg:gap-12 lg:grid-cols-2 mb-16">
         {/* Image Gallery */}
-        <div className="space-y-4">
-          {/* Main Image */}
-          <div className="relative aspect-square bg-gradient-to-br from-muted/50 to-muted rounded-2xl border overflow-hidden group">
+        <div className="flex flex-col md:flex-row gap-4">          {/* Vertical Thumbnails List - shown only if > 1 image */}
+          {galleryImages.length > 1 && (
+            <div className="order-2 md:order-1 flex md:flex-col items-center gap-2 w-full md:w-28 lg:w-32">
+              {/* Scroll Up Arrow - Rectangular */}
+              {galleryImages.length > 4 && (
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="hidden md:flex h-7 w-7 rounded border-muted-foreground/30 hover:bg-muted mb-1 flex-shrink-0"
+                  onClick={prevImage}
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+              )}
+
+              {/* Scrollable Container */}
+              <div 
+                className={cn(
+                  "flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar py-0.5 w-full scroll-smooth",
+                  galleryImages.length > 4 ? "md:max-h-[500px]" : "md:h-auto"
+                )}
+              >
+                {galleryImages.map((image, index) => (
+                  <button
+                    key={`thumb-${index}`}
+                    onClick={() => setActiveImageIndex(index)}
+                    className={cn(
+                      "relative aspect-square w-16 md:w-full rounded-lg overflow-hidden border-2 transition-all flex-shrink-0",
+                      activeImageIndex === index
+                        ? 'border-primary ring-2 ring-primary/10 scale-[1.02]'
+                        : 'border-border hover:border-primary/50'
+                    )}
+                  >
+                    <img
+                      src={image}
+                      alt={`${product.name} view ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Scroll Down Arrow - Circular */}
+              {galleryImages.length > 4 && (
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="hidden md:flex h-7 w-7 rounded-full border-muted-foreground/30 hover:bg-muted mt-1 flex-shrink-0"
+                  onClick={nextImage}
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Main Image View */}
+          <div className="order-1 md:order-2 flex-1 relative aspect-square bg-muted/30 rounded-2xl border overflow-hidden group">
             {galleryImages.length > 0 ? (
               <>
                 <ImageMagnifier src={galleryImages[activeImageIndex] || galleryImages[0]} alt={product.name} />
 
-                {/* Navigation Arrows */}
+                {/* Mobile/Group Hover Navigation Arrows */}
                 {galleryImages.length > 1 && (
                   <>
                     <button
@@ -712,8 +770,8 @@ const StoreProductPage = () => {
                   </>
                 )}
 
-                {/* Badges */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2">
+                {/* Badges Overlay */}
+                <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
                   {discountPercentage > 0 && (
                     <Badge className="bg-destructive text-destructive-foreground shadow-lg">
                       -{discountPercentage}% OFF
@@ -725,20 +783,8 @@ const StoreProductPage = () => {
                   </Badge>
                 </div>
 
-                {/* Actions */}
+                {/* Quick Action Buttons */}
                 <div className="absolute top-4 right-4 flex flex-col gap-2">
-                  {/* <button
-                  onClick={() => setIsWishlisted(!isWishlisted)}
-                  className={cn(
-                    "p-2.5 rounded-full shadow-lg transition-all hover:scale-105 border",
-                    isWishlisted
-                      ? 'bg-red-500 text-white border-red-500'
-                      : 'bg-background/90 backdrop-blur-sm hover:bg-background'
-                  )}
-                  aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                >
-                  <Heart className={cn("w-5 h-5", isWishlisted && 'fill-current')} />
-                </button> */}
                   <button
                     onClick={handleShare}
                     className="p-2.5 bg-background/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-background transition-all hover:scale-105 border"
@@ -748,7 +794,7 @@ const StoreProductPage = () => {
                   </button>
                 </div>
 
-                {/* Image Counter */}
+                {/* Image Index Overlay */}
                 {galleryImages.length > 1 && (
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium shadow-lg border">
                     {activeImageIndex + 1} / {galleryImages.length}
@@ -761,34 +807,6 @@ const StoreProductPage = () => {
               </div>
             )}
           </div>
-
-          {/* Thumbnails */}
-          {galleryImages.length > 1 && (
-            <div className="grid grid-cols-5 gap-2">
-              {galleryImages.map((image, index) => (
-                <button
-                  key={`thumb-${index}`}
-                  onClick={() => setActiveImageIndex(index)}
-                  className={cn(
-                    "relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                    activeImageIndex === index
-                      ? 'border-primary ring-2 ring-primary/20'
-                      : 'border-border hover:border-primary/50'
-                  )}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name} view ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  {activeImageIndex === index && (
-                    <div className="absolute inset-0 bg-primary/10" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Product Info */}

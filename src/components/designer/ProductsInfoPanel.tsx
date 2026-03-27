@@ -346,7 +346,7 @@ export const ProductInfoPanel: React.FC<{
 
                           <div className="flex items-center gap-2 pb-2 border-b border-border">
                             <Checkbox
-                              checked={allSizesSelected ? true : someSizesSelected ? "indeterminate" : false}
+                              checked={allSizesSelected}
                               onCheckedChange={() => {
                                 if (!onSizeToggleForColor) return;
 

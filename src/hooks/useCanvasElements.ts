@@ -106,8 +106,9 @@ export const useCanvasElements = ({
       height: placeholder.height,
     };
 
-    // Always enforce width equal to the print area width so Konva text wraps
-    const constrainedWidth = printArea.width;
+    // Allow width to be smaller than print area, but clamped to print area width
+    const currentWidth = updates.width !== undefined ? updates.width : (element.width || printArea.width);
+    const constrainedWidth = Math.min(currentWidth, printArea.width);
 
     const fontSize = updates.fontSize !== undefined
       ? updates.fontSize
@@ -116,7 +117,7 @@ export const useCanvasElements = ({
     const currentX = updates.x !== undefined ? updates.x : element.x;
     const currentY = updates.y !== undefined ? updates.y : element.y;
 
-    // Clamp X so the text box stays fully inside the placeholder horizontally
+    // Clamp X so the text box stays within the print area
     const constrainedX = Math.max(
       printArea.x,
       Math.min(currentX, printArea.x + printArea.width - constrainedWidth),

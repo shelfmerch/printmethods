@@ -34,8 +34,25 @@ import {
   Lock, Unlock, AlignLeft, AlignCenter, AlignRight, Bold, Italic,
   Underline, Palette, Grid, Ruler, Download, Settings, Settings2, ChevronRight,
   ChevronLeft, Maximize2, Minimize2, RotateCw, Square, Circle as CircleIcon, Triangle, Sparkles as SparklesIcon, Wand2,
-  Heart, Star as StarIcon, ArrowRight, Search, Filter, SortAsc, FolderOpen, ArrowLeft, ArrowUp, ArrowDown, Pen, Camera, Layout, Hand, Eraser
+  Heart, Star as StarIcon, ArrowRight, Search, Filter, SortAsc, FolderOpen, ArrowLeft, ArrowUp, ArrowDown, Pen, Camera, Layout, Hand, Eraser, GripVertical
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/contexts/StoreContext';
 import { productApi, storeApi, storeProductsApi } from '@/lib/api';
@@ -4229,17 +4246,18 @@ const DesignEditor: React.FC = () => {
               </div>
 
               {!isMobile && availableViews.length > 0 && (
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1 bg-white rounded-2xl p-2 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-10 transition-all overflow-hidden items-center">
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1 bg-white rounded-2xl p-2 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-20 items-center">
                   {availableViews.map((viewKey) => {
                     const isActive = currentView === viewKey;
                     return (
                       <button
                         key={viewKey}
                         onClick={() => handleViewSwitch(viewKey)}
-                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px]
-                          ? 'bg-[#22c55e] text-white rounded-xl shadow-[0_4px_12px_rgba(34,197,94,0.3)]'
-                          : 'text-[#334155] hover:text-[#22c55e] bg-transparent'
-                          }`}
+                        className={`px-6 py-2.5 transition-all duration-200 font-bold text-[13px] tracking-wide focus:outline-none min-w-[80px] ${
+                          isActive
+                            ? 'bg-[#22c55e] text-white rounded-xl shadow-[0_4px_12px_rgba(34,197,94,0.3)]'
+                            : 'text-[#334155] hover:text-[#22c55e] bg-transparent'
+                        }`}
                       >
                         {viewKey.charAt(0).toUpperCase() + viewKey.slice(1)}
                       </button>
@@ -5456,6 +5474,90 @@ const ShapeElement: React.FC<{
     />
   );
 };
+// Reusable Input component for positioning that allows free text entry without jumping
+const PositionInput = ({ 
+  label, 
+  value, 
+  onChange 
+}: { 
+  label: string; 
+  value: number; 
+  onChange: (val: number) => void 
+}) => {
+  const [localValue, setLocalValue] = useState(value.toFixed(2));
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Update local value when external value changes, but NOT while user is typing
+  useEffect(() => {
+    if (!isFocused) {
+      const formattedValue = value.toFixed(2);
+      if (parseFloat(localValue) !== value) {
+        setLocalValue(formattedValue);
+      }
+    }
+  }, [value, isFocused]);
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{label}</Label>
+      <div className="relative group">
+        <Input
+          type="text"
+          inputMode="decimal"
+          value={localValue}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => {
+            setIsFocused(false);
+            const val = parseFloat(localValue) || 0;
+            onChange(val);
+            setLocalValue(val.toFixed(2)); // Re-format on blur
+          }}
+          onChange={(e) => {
+            const newVal = e.target.value;
+            setLocalValue(newVal);
+            
+            // Apply value immediately but don't re-format the string until blur
+            const numVal = parseFloat(newVal);
+            if (!isNaN(numVal)) {
+              onChange(numVal);
+            }
+          }}
+          className="h-10 pr-8 font-medium transition-all group-hover:border-primary/40 focus:border-primary ring-0 focus-visible:ring-1 focus-visible:ring-primary/20"
+        />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground/60 select-none">
+          %
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// Custom Layout Icons matching requested design
+const AlignTopIcon = ({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 4h16" />
+    <path d="m8 12 4-4 4 4" />
+    <path d="M12 20V8" />
+  </svg>
+);
+
+const AlignMiddleIcon = ({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 12h16" />
+    <path d="m8 6 4 4 4-4" />
+    <path d="m8 18 4-4 4 4" />
+  </svg>
+);
+
+const AlignBottomIcon = ({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 20h16" />
+    <path d="M12 4v12" />
+    <path d="m8 12 4 4 4-4" />
+  </svg>
+);
+
 
 const PropertiesPanel: React.FC<{
   selectedPlaceholderId: string | null;
@@ -5590,9 +5692,9 @@ const PropertiesPanel: React.FC<{
       const element = selectedElement;
       const onUpdate = onElementUpdate;
 
-      // Calculate position percentages for text elements
+      // Calculate position percentages for elements
       const getPositionPercent = (element: CanvasElement, axis: 'x' | 'y') => {
-        if (element.type !== 'text' || !element.placeholderId) return 0;
+        if (!element.placeholderId) return 0;
         const placeholder = placeholders.find(p => p.id === element.placeholderId);
         if (!placeholder) return 0;
         const value = axis === 'x' ? element.x : element.y;
@@ -5602,7 +5704,7 @@ const PropertiesPanel: React.FC<{
       };
 
       const updatePositionPercent = (axis: 'x' | 'y', percent: number) => {
-        if (element.type !== 'text' || !element.placeholderId) return;
+        if (!element.placeholderId) return;
         const placeholder = placeholders.find(p => p.id === element.placeholderId);
         if (!placeholder) return;
         const size = axis === 'x' ? placeholder.width : placeholder.height;
@@ -5716,64 +5818,41 @@ const PropertiesPanel: React.FC<{
                 </Button>
               </div>
 
-              {/* Indentation Controls */}
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Indentation</Label>
+                <Label className="text-sm">Alignment</Label>
                 <div className="flex items-center gap-1 ml-auto">
                   <Button
-                    variant="outline"
+                    variant={element.align === 'left' ? 'secondary' : 'outline'}
                     size="sm"
-                    onClick={() => {
-                      // Shift text left (decrease x position)
-                      const currentX = element.x;
-                      const shiftAmount = (element.fontSize || 24) * 0.5; // Shift by half font size
-                      onUpdate({ x: currentX - shiftAmount });
-                    }}
+                    className="h-8 w-8 p-0"
+                    onClick={() => onUpdate({ align: 'left' })}
+                    title="Align Left"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    <AlignLeft className="w-4 h-4" />
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={element.align === 'center' || !element.align ? 'secondary' : 'outline'}
                     size="sm"
-                    onClick={() => {
-                      // Shift text right (increase x position)
-                      const currentX = element.x;
-                      const shiftAmount = (element.fontSize || 24) * 0.5; // Shift by half font size
-                      onUpdate({ x: currentX + shiftAmount });
-                    }}
+                    className="h-8 w-8 p-0"
+                    onClick={() => onUpdate({ align: 'center' })}
+                    title="Align Center"
                   >
-                    <ArrowRight className="w-4 h-4" />
+                    <AlignCenter className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={element.align === 'right' ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => onUpdate({ align: 'right' })}
+                    title="Align Right"
+                  >
+                    <AlignRight className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
 
-              {/* Text Alignment */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={element.align === 'left' ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => onUpdate({ align: 'left' })}
-                >
-                  <AlignLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={element.align === 'center' || !element.align ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => onUpdate({ align: 'center' })}
-                >
-                  <AlignCenter className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={element.align === 'right' ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => onUpdate({ align: 'right' })}
-                >
-                  <AlignRight className="w-4 h-4" />
-                </Button>
-              </div>
+
+
 
               {/* Color */}
               <div>
@@ -5908,98 +5987,124 @@ const PropertiesPanel: React.FC<{
                 />
               </div>
 
-              {/* Position */}
-              <div className="space-y-3 border-t pt-3">
-                <Label className="text-sm">Position</Label>
+            </>
+          )}
 
-                {/* Position Left */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs">Position left</Label>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => {
-                          const current = getPositionPercent(element, 'x');
-                          updatePositionPercent('x', Math.max(0, current - 0.1));
-                        }}
-                      >
-                        <ArrowLeft className="w-3 h-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        value={getPositionPercent(element, 'x').toFixed(2)}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
-                          updatePositionPercent('x', value);
-                        }}
-                        className="w-20 h-7 text-xs text-center"
-                        step="0.1"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => {
-                          const current = getPositionPercent(element, 'x');
-                          updatePositionPercent('x', Math.min(100, current + 0.1));
-                        }}
-                      >
-                        <ArrowRight className="w-3 h-3" />
-                      </Button>
-                      <span className="text-xs text-muted-foreground">%</span>
-                    </div>
-                  </div>
-                </div>
+          <div className="space-y-4 border-t pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <PositionInput 
+                label="POSITION LEFT" 
+                value={getPositionPercent(element, 'x')} 
+                onChange={(val) => updatePositionPercent('x', val)} 
+              />
+              <PositionInput 
+                label="POSITION TOP" 
+                value={getPositionPercent(element, 'y')} 
+                onChange={(val) => updatePositionPercent('y', val)} 
+              />
+            </div>
 
-                {/* Position Top */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs">Position top</Label>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => {
-                          const current = getPositionPercent(element, 'y');
-                          updatePositionPercent('y', Math.max(0, current - 0.1));
-                        }}
-                      >
-                        <ArrowUp className="w-3 h-3" />
-                      </Button>
-                      <Input
-                        type="number"
-                        value={getPositionPercent(element, 'y').toFixed(2)}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
-                          updatePositionPercent('y', value);
-                        }}
-                        className="w-20 h-7 text-xs text-center"
-                        step="0.1"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => {
-                          const current = getPositionPercent(element, 'y');
-                          updatePositionPercent('y', Math.min(100, current + 0.1));
-                        }}
-                      >
-                        <ArrowDown className="w-3 h-3" />
-                      </Button>
-                      <span className="text-xs text-muted-foreground">%</span>
-                    </div>
-                  </div>
-                </div>
+            {/* Alignment Edge Controls */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex rounded-lg border bg-muted/30 p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-8 px-0 rounded hover:bg-white hover:shadow-sm"
+                  onClick={() => {
+                    const placeholder = placeholders.find(p => p.id === element.placeholderId);
+                    if (placeholder) onUpdate({ x: placeholder.x });
+                  }}
+                  title="Align to print area left"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </Button>
+                <div className="w-px h-4 bg-border self-center" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-8 px-0 rounded hover:bg-white hover:shadow-sm"
+                  onClick={() => {
+                    const placeholder = placeholders.find(p => p.id === element.placeholderId);
+                    if (placeholder) {
+                      const elementWidth = element.width || 0;
+                      onUpdate({ x: placeholder.x + (placeholder.width - elementWidth) / 2 });
+                    }
+                  }}
+                  title="Center horizontally"
+                >
+                  <AlignCenter className="w-4 h-4" />
+                </Button>
+                <div className="w-px h-4 bg-border self-center" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-8 px-0 rounded hover:bg-white hover:shadow-sm"
+                  onClick={() => {
+                    const placeholder = placeholders.find(p => p.id === element.placeholderId);
+                    if (placeholder) {
+                      const elementWidth = element.width || 0;
+                      onUpdate({ x: placeholder.x + placeholder.width - elementWidth });
+                    }
+                  }}
+                  title="Align to print area right"
+                >
+                  <AlignRight className="w-4 h-4" />
+                </Button>
               </div>
 
-            </>
-          )
-          }
+              <div className="flex rounded-lg border bg-muted/30 p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-8 px-0 rounded hover:bg-white hover:shadow-sm"
+                  onClick={() => {
+                    const placeholder = placeholders.find(p => p.id === element.placeholderId);
+                    if (placeholder) onUpdate({ y: placeholder.y });
+                  }}
+                  title="Align to print area top"
+                >
+                  <AlignTopIcon className="w-4 h-4" strokeWidth={2.5} />
+                </Button>
+                <div className="w-px h-4 bg-border self-center" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-8 px-0 rounded hover:bg-white hover:shadow-sm"
+                  onClick={() => {
+                    const placeholder = placeholders.find(p => p.id === element.placeholderId);
+                    if (placeholder) {
+                      const elementHeight = element.type === 'text' 
+                        ? (element.fontSize || 24) * 1.2 
+                        : (element.height || 0);
+                      onUpdate({ y: placeholder.y + (placeholder.height - elementHeight) / 2 });
+                    }
+                  }}
+                  title="Center vertically"
+                >
+                  <AlignMiddleIcon className="w-4 h-4" strokeWidth={2.5} />
+                </Button>
+                <div className="w-px h-4 bg-border self-center" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-8 px-0 rounded hover:bg-white hover:shadow-sm"
+                  onClick={() => {
+                    const placeholder = placeholders.find(p => p.id === element.placeholderId);
+                    if (placeholder) {
+                      const elementHeight = element.type === 'text' 
+                        ? (element.fontSize || 24) * 1.2 
+                        : (element.height || 0);
+                      onUpdate({ y: placeholder.y + placeholder.height - elementHeight });
+                    }
+                  }}
+                  title="Align to print area bottom"
+                >
+                  <AlignBottomIcon className="w-4 h-4" strokeWidth={2.5} />
+                </Button>
+              </div>
+            </div>
+          </div>
 
           {/* Graphics/Image/Shape Elements - Unified Controls */}
           {
@@ -6488,6 +6593,86 @@ const PropertiesPanel: React.FC<{
     );
   };
 
+const SortableLayerItem: React.FC<{
+  element: CanvasElement;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  getDpiInfo: (el: CanvasElement) => React.ReactNode;
+  isMobile: boolean;
+}> = ({ element, isSelected, onSelect, onDelete, getDpiInfo, isMobile }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: element.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-primary/10 border-primary/20 border-2 shadow-sm' : 'bg-muted/30 border border-transparent shadow-none hover:bg-muted/50'}`}
+      onClick={() => onSelect(element.id)}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
+
+      <div className="w-12 h-12 rounded-lg border bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+        {element.type === 'image' && element.imageUrl ? (
+          <img
+            src={element.imageUrl}
+            alt="Thumbnail"
+            className="w-full h-full object-contain"
+            style={{ imageRendering: 'auto' }}
+          />
+        ) : element.type === 'text' ? (
+          <div className="flex flex-col items-center justify-center w-full h-full bg-white">
+            <span className="text-sm font-bold text-primary leading-none">T</span>
+            <div className="w-full h-[2px] bg-primary/20 mt-1" />
+          </div>
+        ) : (
+          <Square className="w-5 h-5 text-muted-foreground" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0 ml-1">
+        <p className="text-xs font-bold truncate">
+          {element.type === 'text' ? (element.text || 'Text') : (element.name || (element.type === 'image' ? 'Image' : element.shapeType || 'Shape'))}
+        </p>
+        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+          {getDpiInfo(element)}
+        </p>
+      </div>
+
+      <button
+        className="flex-shrink-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-95"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(element.id);
+        }}
+        aria-label="Delete element"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
 const LayersPanel: React.FC<{
   placeholders: Array<{ id: string; x: number; y: number; width: number; height: number; rotation: number; original: Placeholder }>;
   selectedPlaceholderId: string | null;
@@ -6500,7 +6685,6 @@ const LayersPanel: React.FC<{
   onUpdate: (id: string, updates: Partial<CanvasElement>) => void;
   onDelete: (id: string) => void;
   onReorder: (newOrder: CanvasElement[]) => void;
-  // Props for Mobile Properties Integration
   isMobile?: boolean;
   displacementSettings?: DisplacementSettings;
   onDisplacementSettingsChange?: (settings: DisplacementSettings) => void;
@@ -6518,15 +6702,26 @@ const LayersPanel: React.FC<{
   onSelectElement,
   onUpdate,
   onDelete,
-  onReorder,
   isMobile = false,
   displacementSettings,
   onDisplacementSettingsChange,
   onDesignUpload,
   PX_PER_INCH = 96,
   canvasPadding = 0,
+  onReorder
 }) => {
     const { calculateDpi } = useDpiCalculation();
+
+    const sensors = useSensors(
+      useSensor(PointerSensor, {
+        activationConstraint: {
+          distance: 8,
+        },
+      }),
+      useSensor(KeyboardSensor, {
+        coordinateGetter: sortableKeyboardCoordinates,
+      })
+    );
 
     const getDpiInfo = (el: CanvasElement) => {
       if (el.type !== 'image' || !el.naturalWidth || !el.naturalHeight) {
@@ -6534,7 +6729,6 @@ const LayersPanel: React.FC<{
         return <span>{el.width ? `${(el.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(el.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}</span>;
       }
 
-      // Find the placeholder it belongs to
       const placeholder = placeholders.find(p => p.id === (el.placeholderId || (placeholders.length > 0 ? placeholders[0].id : null)));
       if (!placeholder) return <span>{el.width ? `${(el.width / (PX_PER_INCH || 96)).toFixed(1)}" × ${(el.height / (PX_PER_INCH || 96)).toFixed(1)}"` : 'Asset'}</span>;
 
@@ -6551,8 +6745,6 @@ const LayersPanel: React.FC<{
         }
       );
 
-      // Only show DPI for user uploads or AI images, not for library assets/graphics/logos/shapes
-      // Library assets contain '/assets/' or '/api/assets/' in their URL
       const isLibraryAsset = el.imageUrl?.includes('/assets/') || el.imageUrl?.includes('/api/assets/');
 
       if (isLibraryAsset) {
@@ -6590,71 +6782,73 @@ const LayersPanel: React.FC<{
       return grouped;
     }, [elements]);
 
-    const displayedElements = selectedPlaceholderId
-      ? elements.filter(e => e.placeholderId === selectedPlaceholderId)
-      : isMobile
-        ? elements.filter(e => !e.placeholderId) // On mobile, only show unassigned elements in the main list
-        : elements;
+    const handleDragEnd = (event: DragEndEvent, placeholderId: string) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-    const renderElementRow = (element: CanvasElement) => {
-      const isSelected = selectedIds.includes(element.id);
+      const currentPlaceholderElements = elementsByPlaceholder[placeholderId]
+        ? [...elementsByPlaceholder[placeholderId]].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
+        : [];
+
+      const oldIndex = currentPlaceholderElements.findIndex((el) => el.id === active.id);
+      const newIndex = currentPlaceholderElements.findIndex((el) => el.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(currentPlaceholderElements, oldIndex, newIndex);
+        
+        const newElements = elements.map((el) => {
+          const matchIndex = reordered.findIndex((r) => r.id === el.id);
+          if (matchIndex !== -1) {
+            return { ...el, zIndex: reordered.length - 1 - matchIndex };
+          }
+          return el;
+        });
+
+        onReorder(newElements);
+      }
+    };
+
+    const renderSortableList = (placeholderId: string) => {
+      const sortedElements = (elementsByPlaceholder[placeholderId] || [])
+        .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+
+      if (sortedElements.length === 0) return null;
+
       return (
-        <div
-          key={element.id}
-          className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-primary/10 border-primary/20 border-2 shadow-sm' : 'bg-muted/30 border border-transparent shadow-none hover:bg-muted/50'}`}
-          onClick={() => onSelectElement(element.id)}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => handleDragEnd(event, placeholderId)}
         >
-          <div className="w-16 h-16 rounded-lg border bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
-            {element.type === 'image' && element.imageUrl ? (
-              <img
-                src={element.imageUrl}
-                alt="Thumbnail"
-                className="w-full h-full object-contain"
-                style={{ imageRendering: 'auto' }}
-              />
-            ) : element.type === 'text' ? (
-              <div className="flex flex-col items-center justify-center w-full h-full bg-white">
-                <span className="text-sm font-bold text-primary leading-none">T</span>
-                <div className="w-full h-[2px] bg-primary/20 mt-1" />
-              </div>
-            ) : (
-              <Square className="w-6 h-6 text-muted-foreground" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold truncate">
-              {element.type === 'text' ? (element.text || 'Text') : (element.name || (element.type === 'image' ? 'Image' : element.shapeType || 'Shape'))}
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
-              {getDpiInfo(element)}
-            </p>
-          </div>
-          {isMobile && (
-            <button
-              className="flex-shrink-0 p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors active:scale-95 ml-auto"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(element.id);
-              }}
-              aria-label="Delete element"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+          <SortableContext
+            items={sortedElements.map(el => el.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {sortedElements.map((element) => (
+                <SortableLayerItem
+                  key={element.id}
+                  element={element}
+                  isSelected={selectedIds.includes(element.id)}
+                  onSelect={onSelectElement}
+                  onDelete={onDelete}
+                  getDpiInfo={getDpiInfo}
+                  isMobile={isMobile}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       );
     };
 
     return (
       <div className="space-y-4">
-        {/* Placeholders Section */}
         {placeholders.length === 1 && (
           <div className="space-y-3">
             <Label className="text-sm font-semibold uppercase text-muted-foreground">Layers</Label>
             <div className="space-y-2">
-              {elementsByPlaceholder[placeholders[0].id]
-                ?.sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-                .map((element) => renderElementRow(element))}
+              {renderSortableList(placeholders[0].id)}
 
               {(!elementsByPlaceholder[placeholders[0].id] || elementsByPlaceholder[placeholders[0].id].length === 0) && (
                 <div className="pt-2">
@@ -6763,32 +6957,27 @@ const LayersPanel: React.FC<{
 
                       <AccordionContent className="pt-2 border-t mt-1 pb-4">
                         <div className="space-y-2">
-                          <>
-                            {(elementsByPlaceholder[placeholder.id] || [])
-                              .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
-                              .map((element) => renderElementRow(element))}
+                          {renderSortableList(placeholder.id)}
 
-                            {/* Design Upload for Placeholder Section when no elements */}
-                            {(!elementsByPlaceholder[placeholder.id] || elementsByPlaceholder[placeholder.id].length === 0) && (
-                              <div className="pt-2">
-                                <PropertiesPanel
-                                  selectedPlaceholderId={placeholder.id}
-                                  placeholders={placeholders}
-                                  designUrlsByPlaceholder={designUrlsByPlaceholder}
-                                  onDesignUpload={onDesignUpload || (() => { })}
-                                  onDesignRemove={onDesignRemove}
-                                  displacementSettings={displacementSettings || { scaleX: 10, scaleY: 10, contrastBoost: 1.5 }}
-                                  onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
-                                  selectedElementIds={[]}
-                                  elements={elements}
-                                  onElementUpdate={() => { }}
-                                  onElementDelete={() => { }}
-                                  PX_PER_INCH={PX_PER_INCH}
-                                  canvasPadding={canvasPadding}
-                                />
-                              </div>
-                            )}
-                          </>
+                          {(!elementsByPlaceholder[placeholder.id] || elementsByPlaceholder[placeholder.id].length === 0) && (
+                            <div className="pt-2">
+                              <PropertiesPanel
+                                selectedPlaceholderId={placeholder.id}
+                                placeholders={placeholders}
+                                designUrlsByPlaceholder={designUrlsByPlaceholder}
+                                onDesignUpload={onDesignUpload || (() => { })}
+                                onDesignRemove={onDesignRemove}
+                                displacementSettings={displacementSettings || { scaleX: 10, scaleY: 10, contrastBoost: 1.5 }}
+                                onDisplacementSettingsChange={onDisplacementSettingsChange || (() => { })}
+                                selectedElementIds={[]}
+                                elements={elements}
+                                onElementUpdate={() => { }}
+                                onElementDelete={() => { }}
+                                PX_PER_INCH={PX_PER_INCH}
+                                canvasPadding={canvasPadding}
+                              />
+                            </div>
+                          )}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -6799,7 +6988,6 @@ const LayersPanel: React.FC<{
           </div>
         )}
 
-        {/* Empty State */}
         {placeholders.length === 0 && elements.length === 0 && (
           <div className="text-center text-muted-foreground py-8">
             <p className="text-sm">No placeholders or elements</p>

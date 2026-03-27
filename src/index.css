@@ -453,4 +453,12 @@
   .scroll-mt-24 {
     scroll-margin-top: 6rem;
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
