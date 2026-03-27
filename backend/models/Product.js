@@ -82,6 +82,15 @@ const ProductCatalogueSchema = new mongoose.Schema({
     rows: { type: Number, default: 0 },
     cols: { type: Number, default: 0 },
     data: { type: [[String]], default: [] }
+  },
+  careInstructions: {
+    icons: [{
+      type: { type: String, enum: ['predefined', 'custom'], default: 'predefined' },
+      iconKey: String,
+      iconUrl: String,
+      label: String,
+    }],
+    text: { type: String, default: '' }
   }
 }, { _id: false });
 

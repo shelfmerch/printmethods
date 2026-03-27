@@ -256,6 +256,15 @@ const CatalogProductSchema = new mongoose.Schema({
     lowStockThreshold: { type: Number, default: 10 },
     outOfStockBehavior: { type: String, enum: ['deny', 'allow', 'default'], default: 'default' },
     currentStock: { type: Number }
+  },
+  careInstructions: {
+    icons: [{
+      type: { type: String, enum: ['predefined', 'custom'], default: 'predefined' },
+      iconKey: String,
+      iconUrl: String,
+      label: String,
+    }],
+    text: { type: String, default: '' }
   }
 }, {
   timestamps: true

@@ -48,6 +48,10 @@ const AdminProductCreation = () => {
     tags: [],
     productTypeCode: '',
     attributes: {},
+    careInstructions: {
+      icons: [],
+      text: '',
+    },
   });
 
   // SECTION B: Product Details (Barcode and Identification)
@@ -175,6 +179,10 @@ const AdminProductCreation = () => {
                 rows: 3,
                 cols: 3,
                 data: Array(3).fill(null).map(() => Array(3).fill(''))
+              },
+              careInstructions: product.catalogue.careInstructions || {
+                icons: [],
+                text: '',
               },
             });
           }

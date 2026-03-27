@@ -107,6 +107,18 @@ export interface SizeChartData {
   data: string[][];
 }
 
+export interface CareInstructionIcon {
+  type: 'predefined' | 'custom';
+  iconKey?: string;
+  iconUrl?: string; // S3 URL for custom icons
+  label?: string; // Text to display beside the icon
+}
+
+export interface CareInstructionsData {
+  icons: CareInstructionIcon[];
+  text: string;
+}
+
 // SECTION A: Product Catalogue Info (Store Data)
 export interface ProductCatalogueData {
   name: string;
@@ -120,6 +132,7 @@ export interface ProductCatalogueData {
   productTypeCode: string; // e.g., "TSHIRT", "MUG", "CAP", "NOTEBOOK"
   attributes: Record<string, any>; // Dynamic attributes based on category/subcategory
   sizeChart?: SizeChartData;
+  careInstructions?: CareInstructionsData;
 }
 
 // Sample Mockup Image (for multiple mockups per view)

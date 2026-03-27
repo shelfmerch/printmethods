@@ -128,6 +128,15 @@ const StoreProductSchema = new mongoose.Schema({
   // Last sync with external platform
   lastSyncAt: {
     type: Date
+  },
+  careInstructions: {
+    icons: [{
+      type: { type: String, enum: ['predefined', 'custom'], default: 'predefined' },
+      iconKey: String,
+      iconUrl: String,
+      label: String,
+    }],
+    text: { type: String, default: '' }
   }
 }, {
   timestamps: true

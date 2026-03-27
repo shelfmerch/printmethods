@@ -412,7 +412,7 @@ const ProductDetail = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="hidden md:flex h-7 w-7 border-muted-foreground/30 hover:bg-muted mt-1 flex-shrink-0"
+                    className="hidden md:flex h-7 w-7 rounded-full border-muted-foreground/30 hover:bg-muted mt-1 flex-shrink-0"
                     onClick={() => {
                       const newIndex = (selectedImageIndex + 1) % galleryImages.length;
                       setSelectedImageIndex(newIndex);
@@ -818,7 +818,7 @@ const ProductDetail = () => {
           <KeyFeatures attributes={product.catalogue?.attributes} />
 
           {/* Care Instructions Section */}
-          <CareInstructions />
+          <CareInstructions data={product.catalogue?.careInstructions} />
 
           {/* Print Areas Section */}
           {/* <PrintAreas 

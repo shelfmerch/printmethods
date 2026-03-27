@@ -298,7 +298,7 @@ router.get('/public/:storeId/:productId', async (req, res) => {
     })
       .populate({
         path: 'catalogProductId',
-        select: '_id name description categoryId subcategoryIds productTypeCode gst stocks',
+        select: '_id name description categoryId subcategoryIds productTypeCode gst stocks careInstructions',
         lean: true
       })
       .lean();

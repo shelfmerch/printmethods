@@ -414,16 +414,17 @@ const StoreProductPage = () => {
                   // Only update if it's the same product
                   if (prev.id !== currentProduct.id) return prev;
 
-                  const updatedCatalogProduct = {
-                    ...prev.catalogProduct,
-                    attributes: catData.catalogue?.attributes || catData.attributes,
-                    categoryId: catData.catalogue?.categoryId || catData.categoryId,
-                    subcategoryIds: catData.catalogue?.subcategoryIds || catData.subcategoryIds,
-                    description: catData.catalogue?.description || catData.description,
-                    name: catData.catalogue?.name || catData.name,
-                    sampleMockups: catData.sampleMockups || [],
-                    sizeChart: catData.catalogue?.sizeChart || catData.sizeChart,
-                  };
+                    const updatedCatalogProduct = {
+                      ...prev.catalogProduct,
+                      attributes: catData.catalogue?.attributes || catData.attributes,
+                      categoryId: catData.catalogue?.categoryId || catData.categoryId,
+                      subcategoryIds: catData.catalogue?.subcategoryIds || catData.subcategoryIds,
+                      description: catData.catalogue?.description || catData.description,
+                      name: catData.catalogue?.name || catData.name,
+                      careInstructions: catData.catalogue?.careInstructions || catData.careInstructions,
+                      sampleMockups: catData.sampleMockups || [],
+                      sizeChart: catData.catalogue?.sizeChart || catData.sizeChart,
+                    };
 
                   return {
                     ...prev,
@@ -1166,7 +1167,7 @@ const StoreProductPage = () => {
 
       {/* 4. CARE INSTRUCTIONS - Full Width Section */}
       <div className="mb-12">
-        <CareInstructions />
+        <CareInstructions data={product.catalogProduct?.careInstructions} />
       </div>
     </>
   );

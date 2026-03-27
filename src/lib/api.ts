@@ -2824,6 +2824,44 @@ export const uploadApi = {
   },
 };
 
+// Care Icons API
+export const careIconApi = {
+  // Get all global care icons
+  list: async () => {
+    return apiRequest<{ success: boolean; data: any[] }>('/care-icons');
+  },
+  // Add a new global care icon (handles file upload)
+  create: async (formData: FormData) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/care-icons`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        'ngrok-skip-browser-warning': 'true',
+      },
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || 'Failed to create care icon',
+        response.status,
+        errorData.errors
+      );
+    }
+
+    return await response.json() as { success: boolean; data: any };
+  },
+  // Delete a global care icon
+  delete: async (id: string) => {
+    return apiRequest<{ success: boolean; message: string }>(`/care-icons/${id}`, {
+      method: 'DELETE',
+    });
+  }
+};
+
 // Assets API
 export const assetsApi = {
   // Get all published assets (public)

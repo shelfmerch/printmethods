@@ -150,6 +150,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       tags: Array.isArray(catalogue.tags) ? catalogue.tags : [],
       attributes: catalogue.attributes || new Map(),
       basePrice: catalogue.basePrice,
+      careInstructions: catalogue.careInstructions || { icons: [], text: '' },
       design: {
         views: filteredViews,
         sampleMockups: Array.isArray(design.sampleMockups) ? design.sampleMockups : [],
@@ -247,7 +248,8 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       productTypeCode: product.productTypeCode,
       tags: product.tags,
       attributes: product.attributes,
-      basePrice: product.basePrice
+      basePrice: product.basePrice,
+      careInstructions: product.careInstructions || { icons: [], text: '' }
     };
     // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
     productResponse.variants = createdVariants.map(v => {
@@ -406,7 +408,8 @@ router.get('/', protect, async (req, res) => {
           productTypeCode: p.productTypeCode,
           tags: p.tags,
           attributes: p.attributes,
-          basePrice: p.basePrice
+          basePrice: p.basePrice,
+          careInstructions: p.careInstructions || { icons: [], text: '' }
         },
         pricing: {
           ...(p.pricing ? (p.pricing.toObject ? p.pricing.toObject() : p.pricing) : {}),
@@ -598,7 +601,8 @@ router.get('/catalog/active', async (req, res) => {
           productTypeCode: p.productTypeCode,
           tags: p.tags,
           attributes: p.attributes,
-          basePrice: p.basePrice
+          basePrice: p.basePrice,
+          careInstructions: p.careInstructions || { icons: [], text: '' }
         },
         pricing: {
           ...(p.pricing ? (p.pricing.toObject ? p.pricing.toObject() : p.pricing) : {}),
@@ -668,7 +672,8 @@ router.get('/:id', async (req, res) => {
       productTypeCode: product.productTypeCode,
       tags: product.tags,
       attributes: product.attributes,
-      basePrice: product.basePrice
+      basePrice: product.basePrice,
+      careInstructions: product.careInstructions || { icons: [], text: '' }
     };
     // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
     productResponse.variants = variants.map(v => {
@@ -743,6 +748,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       if (catalogue.tags !== undefined) product.tags = catalogue.tags;
       if (catalogue.attributes !== undefined) product.attributes = catalogue.attributes;
       if (catalogue.basePrice !== undefined) product.basePrice = catalogue.basePrice;
+      if (catalogue.careInstructions !== undefined) product.careInstructions = catalogue.careInstructions;
     }
     if (details !== undefined) product.details = details;
     if (design) product.design = design;

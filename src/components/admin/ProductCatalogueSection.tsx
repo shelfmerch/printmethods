@@ -22,6 +22,7 @@ import { CATEGORIES, CategoryId, getSubcategories, generateProductTypeCode } fro
 import { getFieldDefinitions, FieldDefinition } from '@/config/productFieldDefinitions';
 import { catalogueFieldsApi } from '@/lib/api';
 import { useEffect, useMemo, useState } from 'react';
+import { CareInstructionsSection } from './CareInstructionsSection';
 
 interface ProductCatalogueSectionProps {
   data: ProductCatalogueData;
@@ -429,6 +430,17 @@ export const ProductCatalogueSection = ({ data, onChange }: ProductCatalogueSect
             <p className="text-xs text-muted-foreground">First row is treated as the header.</p>
           </div>
         )}
+      </div>
+
+      <Separator />
+
+      {/* Care Instructions Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold mb-1">Care Instructions</h2>
+        <CareInstructionsSection
+          data={data.careInstructions}
+          onChange={(careInstructions) => onChange({ ...data, careInstructions })}
+        />
       </div>
 
       {/* Category */}

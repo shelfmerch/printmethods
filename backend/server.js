@@ -46,6 +46,7 @@ const razorpayWebhookRoutes = require('./routes/razorpayWebhook');
 const merchantWithdrawalsRoutes = require('./routes/merchantWithdrawals');
 const adminWithdrawalsRoutes = require('./routes/adminWithdrawals');
 const reviewsRoutes = require('./routes/reviews');
+const careIconsRoutes = require('./routes/careIcons');
 const { tenantResolver } = require('./middleware/tenantResolver');
 const storeRedirect = require('./middleware/storeRedirect');
 const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
@@ -287,6 +288,7 @@ app.use('/api/store-auth', tenantResolver, require('./routes/storeAuth'));
 app.use('/api/store-customer/orders', tenantResolver, storeCustomerOrdersRoutes);
 app.use('/api/store-customers', tenantResolver, storeCustomersRoutes);
 app.use('/api/reviews', tenantResolver, reviewsRoutes);
+app.use('/api/care-icons', careIconsRoutes);
 
 // Routes that may use tenant but don't require it (legacy support)
 app.use('/api/stores', tenantResolver, storeRoutes);
