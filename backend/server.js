@@ -282,6 +282,9 @@ app.use('/api/v1', publicApiV1Router);
 // API Routes
 // Store-scoped routes that need tenant resolution
 app.use('/api/store-products', tenantResolver, storeProductsRoutes);
+// Alias without hyphen: TenantResolver treats `store-*` path segments as tenant-scoped and
+// mis-reads `/api/store-products/:id/...` — `/api/storeproducts/...` avoids that pattern.
+app.use('/api/storeproducts', tenantResolver, storeProductsRoutes);
 app.use('/api/store-checkout', tenantResolver, storeCheckoutRoutes);
 app.use('/api/store-orders', tenantResolver, storeOrdersRoutes);
 app.use('/api/store-auth', tenantResolver, require('./routes/storeAuth'));

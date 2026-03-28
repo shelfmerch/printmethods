@@ -944,13 +944,51 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
       ? designData.designUrlsByPlaceholder
       : {};
 
-    // Build design image map: viewKey → first visible image element URL
+    // Accept design-only image URLs from client (includes text elements)
+    const clientDesignOnlyImages = (req.body?.designOnlyImages && typeof req.body.designOnlyImages === 'object')
+      ? req.body.designOnlyImages
+      : {};
+
+    // Fall back to DB-stored designOnlyImages (for regeneration from MockupsLibrary)
+    const storedDesignOnlyImages = (designData.designOnlyImages && typeof designData.designOnlyImages === 'object')
+      ? designData.designOnlyImages
+      : {};
+
+    const normalizeViewKeyEarly = (view) => (view || 'front').toLowerCase().trim();
+
+    // Merge: client (fresh capture) takes priority over stored, stored takes priority over raw elements
     const designImagesByView = {};
+    // Apply stored first, then client overwrites
+    for (const k of Object.keys(storedDesignOnlyImages)) {
+      const nk = normalizeViewKeyEarly(k);
+      const u = storedDesignOnlyImages[k];
+      if (typeof u === 'string' && u) designImagesByView[nk] = u;
+    }
+    for (const k of Object.keys(clientDesignOnlyImages)) {
+      const nk = normalizeViewKeyEarly(k);
+      const u = clientDesignOnlyImages[k];
+      if (typeof u === 'string' && u) designImagesByView[nk] = u;
+    }
+
+    /** True if this view has a full-canvas design-only PNG (text + all artwork), not just a single image URL */
+    const hasDesignOnlyCaptureForView = (vk) => {
+      const check = (obj) => {
+        if (!obj || typeof obj !== 'object') return false;
+        return Object.keys(obj).some(
+          (key) => normalizeViewKeyEarly(key) === vk && typeof obj[key] === 'string' && obj[key]
+        );
+      };
+      return check(storedDesignOnlyImages) || check(clientDesignOnlyImages);
+    };
+
+    // Only fill missing views from elements array (backward compat, no text)
     if (Array.isArray(designData.elements)) {
       for (const el of designData.elements) {
-        if (el && el.type === 'image' && el.imageUrl && el.visible !== false) {
+        if (el?.type === 'image' && el?.imageUrl && el?.visible !== false) {
           const vk = (el.view || 'front').toLowerCase();
-          if (!designImagesByView[vk]) designImagesByView[vk] = el.imageUrl;
+          if (!designImagesByView[vk]) {
+            designImagesByView[vk] = el.imageUrl;
+          }
         }
       }
     }
@@ -976,11 +1014,11 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
     const normalizeColorKey = (color) => (color || '').toLowerCase().trim().replace(/\s+/g, '-');
     const normalizeViewKey = (view) => (view || 'front').toLowerCase().trim();
 
-    const BATCH_SIZE = 3;
-    const tasks = [];
+    // Optional: restrict generation to a single color (sent by MockupsLibrary for lazy sequential loading)
+    const colorFilter = req.body?.colorFilter || null;
 
     // Fallback color discovery for older drafts where selectedColors wasn't persisted
-    const colorsToProcess = (() => {
+    const allColors = (() => {
       if (selectedColors.length > 0) return selectedColors;
 
       const byColor = designData.selectedSizesByColor;
@@ -996,13 +1034,18 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
       return Array.from(unique);
     })();
 
+    const colorsToProcess = colorFilter
+      ? allColors.filter(c => normalizeColorKey(c) === colorFilter)
+      : allColors;
+
+    // Process each color sequentially; save intermediate results after each color
+    // so the client polling can pick up completed rows before the full job finishes.
     for (const color of colorsToProcess) {
       const colorKey = normalizeColorKey(color);
       if (!modelMockups[colorKey]) modelMockups[colorKey] = {};
 
       const variant = variantsByColor[(color || '').toLowerCase()] || null;
 
-      // Build mockup list: shared sampleMockups + variant-specific view images
       const colorMockups = [
         ...sampleMockups.filter((m) => !m.colorKey || m.colorKey === color),
       ];
@@ -1026,68 +1069,121 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
         }
       }
 
+      // Process all views for this color sequentially
       for (const mockup of colorMockups) {
         const viewKey = normalizeViewKey(mockup.viewKey);
         const designUrl = designImagesByView[viewKey];
         const placeholder = Array.isArray(mockup.placeholders) ? mockup.placeholders[0] : null;
 
-        tasks.push(async () => {
-          try {
-            let imageBuffer;
+        // Reject if realistic composite takes longer than 5 s → Konva fallback
+        const realisticWithTimeout = (compositePromise) =>
+          Promise.race([
+            compositePromise,
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error(`Composite timeout (>5 s) for ${colorKey}/${viewKey}`)),
+                5000
+              )
+            ),
+          ]);
 
-            if (designUrl && placeholder) {
-              // Look up saved normalized placement by placeholder ID directly
-              const viewPlacements = placementsByView[viewKey] || {};
-              const placementForPh = placeholder.id
-                ? (viewPlacements[placeholder.id] ?? null)
-                : null;
+        try {
+          let imageBuffer;
 
-              // Prefer design URL mapped to this placeholder ID, fall back to per-view first design element
-              const viewDesignUrls = designUrlsByPlaceholder[viewKey] || {};
-              const resolvedDesignUrl = placeholder.id && viewDesignUrls[placeholder.id]
-                ? viewDesignUrls[placeholder.id]
-                : designUrl;
+          if (designUrl && placeholder) {
+            const viewPlacements = placementsByView[viewKey] || {};
+            const placementForPh = placeholder.id
+              ? (viewPlacements[placeholder.id] ?? null)
+              : null;
 
-              imageBuffer = await compositeMockup(
-                mockup.imageUrl,
-                resolvedDesignUrl,
-                placeholder,
-                physicalDimensions,
-                placementForPh
+            const viewDesignUrls = designUrlsByPlaceholder[viewKey] || {};
+            // Prefer full-view design-only PNG (includes text/shapes) over per-placeholder
+            // image URLs — placeholder URLs are raw uploads and omit Konva text.
+            const resolvedDesignUrl =
+              hasDesignOnlyCaptureForView(viewKey)
+                ? designUrl
+                : (placeholder.id && viewDesignUrls[placeholder.id]
+                  ? viewDesignUrls[placeholder.id]
+                  : designUrl);
+
+            try {
+              // Realistic two-pass WebGL-style composite (fabric texture multiply).
+              // compositeMockup already falls back to flat 'over' composite internally
+              // if Pass 2 (fabric texture) fails.
+              // eslint-disable-next-line no-await-in-loop
+              imageBuffer = await realisticWithTimeout(
+                compositeMockup(
+                  mockup.imageUrl,
+                  resolvedDesignUrl,
+                  placeholder,
+                  physicalDimensions,
+                  placementForPh
+                )
               );
-            } else {
+              console.log(`[generate-mockups] realistic composite ok for ${colorKey}/${viewKey}`);
+            } catch (compositeErr) {
+              // compositeMockup itself failed entirely (e.g. design URL unreachable).
+              // Konva-style fallback: download the bare garment image.
+              console.warn(
+                `[generate-mockups] realistic composite failed for ${colorKey}/${viewKey}, using bare garment fallback:`,
+                compositeErr.message
+              );
               const axios = require('axios');
-              const resp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
-              imageBuffer = Buffer.from(resp.data);
+              // eslint-disable-next-line no-await-in-loop
+              const fallbackResp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
+              imageBuffer = Buffer.from(fallbackResp.data);
             }
-
-            const filename = `generated-${uuidv4()}.png`;
-            const folder = 'mockups/generated';
-            const s3Url = await uploadToS3(imageBuffer, filename, folder);
-            modelMockups[colorKey][viewKey] = s3Url;
-
-            console.log(`[generate-mockups] ✓ ${colorKey}/${viewKey}:`, s3Url);
-          } catch (e) {
-            const message = e && e.message ? e.message : String(e);
-            console.error(`[generate-mockups] ✗ ${colorKey}/${viewKey}:`, message);
-            errors.push(`${colorKey}/${viewKey}: ${message}`);
+          } else {
+            const axios = require('axios');
+            // eslint-disable-next-line no-await-in-loop
+            const resp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
+            imageBuffer = Buffer.from(resp.data);
           }
-        });
+
+          const filename = `generated-${uuidv4()}.png`;
+          const folder = 'mockups/generated';
+          // eslint-disable-next-line no-await-in-loop
+          const s3Url = await uploadToS3(imageBuffer, filename, folder);
+          modelMockups[colorKey][viewKey] = s3Url;
+          console.log(`[generate-mockups] ✓ ${colorKey}/${viewKey}:`, s3Url);
+        } catch (e) {
+          const message = e && e.message ? e.message : String(e);
+          console.error(`[generate-mockups] ✗ ${colorKey}/${viewKey}:`, message);
+          errors.push(`${colorKey}/${viewKey}: ${message}`);
+        }
       }
-    }
 
-    for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+      // Save this color's results immediately so polling clients see it before the next color starts
       // eslint-disable-next-line no-await-in-loop
-      await Promise.all(tasks.slice(i, i + BATCH_SIZE).map(t => t()));
+      await StoreProduct.findByIdAndUpdate(id, {
+        $set: { [`designData.modelMockups.${colorKey}`]: modelMockups[colorKey] },
+      });
+      console.log(`[generate-mockups] saved intermediate results for color "${colorKey}"`);
     }
 
-    await StoreProduct.findByIdAndUpdate(id, {
-      $set: { 'designData.modelMockups': modelMockups },
-    });
+    if (Object.keys(clientDesignOnlyImages).length > 0) {
+      const existingDesignOnly = (designData.designOnlyImages && typeof designData.designOnlyImages === 'object')
+        ? designData.designOnlyImages
+        : {};
+      const mergedDesignOnlyImages = { ...existingDesignOnly };
+      for (const k of Object.keys(clientDesignOnlyImages)) {
+        const nk = normalizeViewKeyEarly(k);
+        const u = clientDesignOnlyImages[k];
+        if (typeof u === 'string' && u) mergedDesignOnlyImages[nk] = u;
+      }
+      await StoreProduct.findByIdAndUpdate(id, {
+        $set: { 'designData.designOnlyImages': mergedDesignOnlyImages },
+      });
+    }
+
+    // Re-fetch the full modelMockups so the response reflects all colors, not just
+    // what was processed in this call (important when colorFilter is active).
+    const refreshed = await StoreProduct.findById(id).lean();
+    const finalModelMockups = refreshed?.designData?.modelMockups || modelMockups;
 
     return res.json({
       success: true,
-      modelMockups,
+      modelMockups: finalModelMockups,
       ...(errors.length > 0 ? { errors } : {}),
     });
   } catch (e) {

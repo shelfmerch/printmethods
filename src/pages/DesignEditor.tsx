@@ -2146,6 +2146,70 @@ const DesignEditor: React.FC = () => {
     }
   }, []);
 
+  const captureDesignOnlyImage = useCallback(async (viewKey: string): Promise<string | null> => {
+    if (!stageRef.current) return null;
+
+    try {
+      // Layer layout (must match JSX order):
+      //   0 = garment background
+      //   1 = grid / rulers
+      //   2 = placeholders
+      //   3 = design elements  ← only one we want
+      //   4 = selection box
+      //   5 = print-area dark overlay
+      // Hide every layer except index 3 so the exported PNG contains only the
+      // design graphics on a transparent canvas.
+      const layers = stageRef.current.getLayers();
+      const designLayerIndex = 3;
+      const originalVisibility = layers.map((l: any) => l.visible());
+
+      layers.forEach((l: any, i: number) => {
+        if (i !== designLayerIndex) {
+          l.visible(false);
+          l.draw();
+        }
+      });
+
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+
+      // Flush only the design layer
+      if (layers[designLayerIndex]) layers[designLayerIndex].draw();
+
+      const blob: Blob | null = await new Promise(resolve => {
+        stageRef.current!.toBlob(
+          (b: Blob | null) => resolve(b),
+          { mimeType: 'image/png', pixelRatio: 2 }
+        );
+      });
+
+      // Restore all layers to their original visibility
+      layers.forEach((l: any, i: number) => {
+        l.visible(originalVisibility[i]);
+        l.draw();
+      });
+
+      if (!blob) return null;
+
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('image', blob, `design-only-${viewKey}.png`);
+
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await fetch(`${RAW_API_URL}/api/upload/image`, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+      const data = await resp.json().catch(() => ({}));
+      return (resp.ok && data?.success && data?.url) ? data.url : null;
+    } catch (e) {
+      console.error('[captureDesignOnlyImage] Error:', e);
+      return null;
+    }
+  }, []);
+
   // Capture preview images for all views
   const captureAllViewPreviews = useCallback(async (): Promise<Record<string, string>> => {
     const previewsByView: Record<string, string> = {};
@@ -2585,21 +2649,66 @@ const DesignEditor: React.FC = () => {
 
       // Fire server-side mockup generation in the background — do not block navigation.
       const generateMockupsOnServer = async (draftStoreProductId: string): Promise<void> => {
+        const views = product?.design?.views || [];
+        const designOnlyImages: Record<string, string> = {};
+
+        const originalView = currentView;
+        // End text editing so Konva Text is visible (opacity 0 while editing).
+        setEditingTextId(null);
+        setIsCapturingMockup(true);
+        setSelectedIds([]);
+
         try {
+          for (const view of views) {
+            const vk = view.key;
+            setCurrentView(vk as any);
+            await new Promise(resolve => setTimeout(resolve, 400));
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+
+            const url = await captureDesignOnlyImage(vk);
+            if (url) {
+              designOnlyImages[vk] = url;
+              console.log(`[generateMockupsOnServer] design-only captured for "${vk}":`, url);
+            }
+          }
+        } catch (e) {
+          console.error('[generateMockupsOnServer] Capture failed:', e);
+        } finally {
+          setCurrentView(originalView as any);
+          setIsCapturingMockup(false);
+        }
+
+        try {
+          await new Promise(requestAnimationFrame);
+
+          // Persist designOnlyImages to MongoDB so MockupsLibrary can reuse on regeneration
+          if (Object.keys(designOnlyImages).length > 0) {
+            try {
+              await storeProductsApi.update(draftStoreProductId, {
+                designData: { designOnlyImages },
+              });
+              console.log('[generateMockupsOnServer] designOnlyImages saved to DB');
+            } catch (e) {
+              console.warn('[generateMockupsOnServer] Failed to save designOnlyImages:', e);
+            }
+          }
+
           const token = localStorage.getItem('token');
-          const resp = await fetch(`${RAW_API_URL}/api/store-products/${draftStoreProductId}/generate-mockups`, {
+          const resp = await fetch(`${RAW_API_URL}/api/storeproducts/${draftStoreProductId}/generate-mockups`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             credentials: 'include',
+            body: JSON.stringify({ designOnlyImages }),
           });
           const data = await resp.json().catch(() => ({}));
-          if (!resp.ok || !data?.success) {
-            console.warn('[generateMockupsOnServer] Server errors:', data?.errors || data?.message);
+          if (!resp.ok || !data.success) {
+            console.warn('[generateMockupsOnServer] Server errors:', data.errors || data.message);
           } else {
-            console.log('[generateMockupsOnServer] Generated:', Object.keys(data?.modelMockups || {}));
+            console.log('[generateMockupsOnServer] Done:', Object.keys(data.modelMockups || {}));
           }
         } catch (e) {
           console.error('[generateMockupsOnServer] Failed:', e);
@@ -2728,7 +2837,7 @@ const DesignEditor: React.FC = () => {
     } finally {
       setIsPublishing(false);
     }
-  }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings, storeProductId]);
+  }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings, storeProductId, captureDesignOnlyImage]);
 
   const handleSave = async () => {
     if (!stageRef.current || !id) {
@@ -4023,39 +4132,84 @@ const DesignEditor: React.FC = () => {
                     )}
 
 
-                    {/* Fabric texture overlay — preview mode only */}
-                    {previewMode && printArea && (
+                    {/* Fabric integration — preview only; skipped during capture (clean PNGs).
+                        Three passes mirror server compositeMockup.js: subtle embed + weave + edge depth. */}
+                    {previewMode && !isCapturingMockup && (
                       <Layer listening={false}>
-                        <Shape
-                          sceneFunc={(ctx, shape) => {
-                            const { x, y, width, height } = printArea;
-                            ctx.save();
-                            ctx.beginPath();
-                            ctx.rect(x, y, width, height);
-                            ctx.clip();
-                            // Subtle crosshatch weave to simulate fabric texture
-                            ctx.globalAlpha = 0.045;
-                            ctx.strokeStyle = '#000000';
-                            ctx.lineWidth = 0.5;
-                            for (let i = x; i < x + width; i += 3) {
-                              ctx.beginPath();
-                              ctx.moveTo(i, y);
-                              ctx.lineTo(i, y + height);
-                              ctx.stroke();
-                            }
-                            for (let j = y; j < y + height; j += 3) {
-                              ctx.beginPath();
-                              ctx.moveTo(x, j);
-                              ctx.lineTo(x + width, j);
-                              ctx.stroke();
-                            }
-                            ctx.restore();
-                            // Required: fill the shape (transparent)
-                            ctx.fillStrokeShape(shape);
-                          }}
-                          fill="transparent"
-                          perfectDrawEnabled={false}
-                        />
+                        {elements
+                          .filter(el => el.view === currentView && el.type === 'image' && el.visible !== false)
+                          .map(el => {
+                            const elPlaceholder = el.placeholderId
+                              ? placeholders.find(p => p.id === el.placeholderId)
+                              : null;
+                            if (!el.width || !el.height) return null;
+
+                            const clipX = elPlaceholder ? elPlaceholder.x : printArea?.x ?? 0;
+                            const clipY = elPlaceholder ? elPlaceholder.y : printArea?.y ?? 0;
+                            const clipW = elPlaceholder ? elPlaceholder.width : printArea?.width ?? 0;
+                            const clipH = elPlaceholder ? elPlaceholder.height : printArea?.height ?? 0;
+
+                            return (
+                              <Group
+                                key={`fabric-${el.id}`}
+                                clipX={clipX}
+                                clipY={clipY}
+                                clipWidth={clipW}
+                                clipHeight={clipH}
+                              >
+                                <Shape
+                                  sceneFunc={(ctx, shape) => {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.rect(el.x, el.y, el.width, el.height);
+                                    ctx.clip();
+
+                                    // Pass A: very subtle multiply embed — takes a sliver of garment tone into design
+                                    ctx.globalCompositeOperation = 'multiply';
+                                    ctx.globalAlpha = 0.06;
+                                    ctx.fillStyle = 'rgb(180,180,180)';
+                                    ctx.fillRect(el.x, el.y, el.width, el.height);
+
+                                    // Pass B: soft-light weave — grey 100 & higher alpha = visible thread depth
+                                    ctx.globalCompositeOperation = 'soft-light';
+                                    ctx.globalAlpha = 0.35;
+                                    ctx.strokeStyle = 'rgb(100,100,100)';
+                                    ctx.lineWidth = 0.6;
+                                    for (let i = el.x; i < el.x + el.width; i += 3) {
+                                      ctx.beginPath();
+                                      ctx.moveTo(i, el.y);
+                                      ctx.lineTo(i, el.y + el.height);
+                                      ctx.stroke();
+                                    }
+                                    for (let j = el.y; j < el.y + el.height; j += 3) {
+                                      ctx.beginPath();
+                                      ctx.moveTo(el.x, j);
+                                      ctx.lineTo(el.x + el.width, j);
+                                      ctx.stroke();
+                                    }
+
+                                    // Pass C: edge vignette — design feels slightly recessed into fabric
+                                    ctx.globalCompositeOperation = 'multiply';
+                                    ctx.globalAlpha = 0.08;
+                                    const cx = el.x + el.width / 2;
+                                    const cy = el.y + el.height / 2;
+                                    const rIn = Math.min(el.width, el.height) * 0.3;
+                                    const rOut = Math.max(el.width, el.height) * 0.7;
+                                    const gradient = ctx.createRadialGradient(cx, cy, rIn, cx, cy, rOut);
+                                    gradient.addColorStop(0, 'rgba(255,255,255,0)');
+                                    gradient.addColorStop(1, 'rgba(0,0,0,1)');
+                                    ctx.fillStyle = gradient;
+                                    ctx.fillRect(el.x, el.y, el.width, el.height);
+
+                                    ctx.restore();
+                                    ctx.fillStrokeShape(shape);
+                                  }}
+                                  fill="transparent"
+                                  perfectDrawEnabled={false}
+                                />
+                              </Group>
+                            );
+                          })}
                       </Layer>
                     )}
                   </Stage>
@@ -4784,11 +4938,12 @@ const ImageElement: React.FC<{
     'luminosity': 'luminosity',
   };
 
-  // In preview mode: use multiply so design absorbs garment texture/shadows.
-  // Elements that already have a user-set blend mode keep it even in preview.
-  const compositeOperation = previewMode
-    ? (element.blendMode && element.blendMode !== 'normal' ? (blendModeMap[element.blendMode] || 'multiply') : 'multiply')
-    : (element.blendMode ? blendModeMap[element.blendMode] || 'source-over' : 'source-over');
+  // Always use source-over (normal paint-on-top) unless the user explicitly
+  // set a blend mode on the element. Forcing 'multiply' in preview mode makes
+  // designs invisible on dark garments (navy, black, etc.).
+  const compositeOperation = element.blendMode
+    ? (blendModeMap[element.blendMode] || 'source-over')
+    : 'source-over';
 
   // Enhanced shadow with realistic opacity
   // Calculate shadow opacity based on shadowOpacity property
@@ -4828,7 +4983,7 @@ const ImageElement: React.FC<{
     height: element.height,
     scaleX: flipScaleX,
     scaleY: flipScaleY,
-    opacity: previewMode ? (element.opacity !== undefined ? element.opacity * 0.95 : 0.95) : (element.opacity !== undefined ? element.opacity : 1),
+    opacity: element.opacity !== undefined ? element.opacity : 1,
     rotation: element.rotation,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
@@ -5048,9 +5203,9 @@ const TextElement: React.FC<{
     'luminosity': 'luminosity',
   };
 
-  const compositeOperation: CompositeOperation = previewMode
-    ? 'multiply'
-    : (element.blendMode ? (blendModeMap[element.blendMode] || 'source-over') : 'source-over');
+  const compositeOperation: CompositeOperation = element.blendMode
+    ? (blendModeMap[element.blendMode] || 'source-over')
+    : 'source-over';
 
   // Enhanced shadow with realistic opacity
   const shadowAlpha = element.shadowOpacity !== undefined
@@ -5091,7 +5246,7 @@ const TextElement: React.FC<{
     fontStyle: fontStyle,
     fontWeight: fontWeight,
     fill: element.fill || '#000000',
-    opacity: isEditing ? 0 : (previewMode ? (element.opacity !== undefined ? element.opacity * 0.95 : 0.95) : (element.opacity !== undefined ? element.opacity : 1)),
+    opacity: isEditing ? 0 : (element.opacity !== undefined ? element.opacity : 1),
     rotation: element.rotation || 0,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
@@ -5341,9 +5496,9 @@ const ShapeElement: React.FC<{
     'luminosity': 'luminosity',
   };
 
-  const compositeOperation: CompositeOperation = previewMode
-    ? 'multiply'
-    : (element.blendMode ? (blendModeMap[element.blendMode] || 'source-over') : 'source-over');
+  const compositeOperation: CompositeOperation = element.blendMode
+    ? (blendModeMap[element.blendMode] || 'source-over')
+    : 'source-over';
 
   // Enhanced shadow with realistic opacity
   const shadowAlpha = element.shadowOpacity !== undefined
@@ -5368,7 +5523,7 @@ const ShapeElement: React.FC<{
     fill: element.fillColor || '#000000',
     stroke: element.strokeColor || '#000000',
     strokeWidth: element.strokeWidth || 2,
-    opacity: previewMode ? (element.opacity !== undefined ? element.opacity * 0.95 : 0.95) : (element.opacity !== undefined ? element.opacity : 1),
+    opacity: element.opacity !== undefined ? element.opacity : 1,
     rotation: element.rotation || 0,
     draggable: isEditMode && !element.locked,
     onClick: isEditMode ? onSelect : undefined,
