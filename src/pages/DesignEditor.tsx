@@ -2146,55 +2146,250 @@ const DesignEditor: React.FC = () => {
     }
   }, []);
 
+  /**
+   * Draws all design elements for the given view onto an offscreen <canvas>
+   * with a TRANSPARENT background (no Konva stage interaction), then uploads
+   * the resulting PNG.  Avoids the Konva toBlob canvas-taint / hang issue.
+   */
   const captureDesignOnlyImage = useCallback(async (viewKey: string): Promise<string | null> => {
     if (!stageRef.current) return null;
 
     try {
-      // Layer layout (must match JSX order):
-      //   0 = garment background
-      //   1 = grid / rulers
-      //   2 = placeholders
-      //   3 = design elements  ← only one we want
-      //   4 = selection box
-      //   5 = print-area dark overlay
-      // Hide every layer except index 3 so the exported PNG contains only the
-      // design graphics on a transparent canvas.
-      const layers = stageRef.current.getLayers();
-      const designLayerIndex = 3;
-      const originalVisibility = layers.map((l: any) => l.visible());
+      const viewElements = elements.filter(
+        el => (el.view === viewKey || !el.view) && el.visible !== false
+      );
+      if (viewElements.length === 0) {
+        console.log(`[captureDesignOnlyImage] no elements for view "${viewKey}"`);
+        return null;
+      }
 
-      layers.forEach((l: any, i: number) => {
-        if (i !== designLayerIndex) {
-          l.visible(false);
-          l.draw();
+      const pixelRatio = 2;
+
+      // ── Compute placeholder bounds so we capture ONLY the print area ────
+      // Mirroring RealisticWebGLPreview / placementUtils: translate the drawing
+      // context by (-phStageX, -phStageY) so elements render relative to the
+      // placeholder origin.  The server then just scales and places this image
+      // at the mockup's placeholder position — no coordinate guesswork needed.
+      const CANVAS_PADDING_PX = 40;
+      const EFFECTIVE_W_PX = 800 - CANVAS_PADDING_PX * 2;
+      const EFFECTIVE_H_PX = 600 - CANVAS_PADDING_PX * 2;
+
+      const view = (product?.design?.views as ProductView[] | undefined)
+        ?.find((v: ProductView) => v.key === viewKey);
+      const ph = view?.placeholders?.[0] as any;
+      const physDims = product?.design?.physicalDimensions as { width: number; height: number } | undefined;
+
+      let phOffsetX = 0;
+      let phOffsetY = 0;
+      let canvasW = stageRef.current.width() * pixelRatio;
+      let canvasH = stageRef.current.height() * pixelRatio;
+
+      if (ph && physDims && physDims.width > 0 && physDims.height > 0) {
+        const pxPerInch = Math.min(EFFECTIVE_W_PX / physDims.width, EFFECTIVE_H_PX / physDims.height);
+        let phStageX: number, phStageY: number, phStageW: number, phStageH: number;
+
+        if (ph.xIn !== undefined) {
+          phStageX = CANVAS_PADDING_PX + (ph.xIn || 0) * pxPerInch;
+          phStageY = CANVAS_PADDING_PX + (ph.yIn || 0) * pxPerInch;
+          phStageW = (ph.widthIn  || 0) * pxPerInch;
+          phStageH = (ph.heightIn || 0) * pxPerInch;
+        } else {
+          phStageX = ph.x || 0;
+          phStageY = ph.y || 0;
+          phStageW = ph.width  || 0;
+          phStageH = ph.height || 0;
         }
-      });
 
-      await new Promise(requestAnimationFrame);
-      await new Promise(requestAnimationFrame);
+        if (phStageW > 0 && phStageH > 0) {
+          phOffsetX = phStageX;
+          phOffsetY = phStageY;
+          canvasW   = Math.round(phStageW * pixelRatio);
+          canvasH   = Math.round(phStageH * pixelRatio);
+          console.log(
+            `[captureDesignOnlyImage] placeholder capture ${canvasW}×${canvasH}` +
+            ` (stage offset ${phOffsetX.toFixed(1)},${phOffsetY.toFixed(1)})`
+          );
+        }
+      }
 
-      // Flush only the design layer
-      if (layers[designLayerIndex]) layers[designLayerIndex].draw();
+      const offscreen = document.createElement('canvas');
+      offscreen.width  = canvasW;
+      offscreen.height = canvasH;
+      const ctx = offscreen.getContext('2d');
+      if (!ctx) return null;
+
+      // Scale for pixel ratio; translate so the placeholder top-left is (0,0).
+      // Elements drawn at their stage coords will land at the correct position
+      // within the placeholder-sized canvas, and anything outside is clipped.
+      ctx.scale(pixelRatio, pixelRatio);
+      if (phOffsetX !== 0 || phOffsetY !== 0) {
+        ctx.translate(-phOffsetX, -phOffsetY);
+      }
+
+      const sorted = [...viewElements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+      for (const el of sorted) {
+        ctx.save();
+
+        if (el.blendMode && el.blendMode !== 'normal') {
+          ctx.globalCompositeOperation = el.blendMode as GlobalCompositeOperation;
+        }
+        ctx.globalAlpha = el.opacity !== undefined ? el.opacity : 1;
+
+        // Rotation around element centre
+        if (el.rotation) {
+          const cx = (el.x || 0) + (el.width  || 0) / 2;
+          const cy = (el.y || 0) + (el.height || 0) / 2;
+          ctx.translate(cx, cy);
+          ctx.rotate((el.rotation * Math.PI) / 180);
+          ctx.translate(-cx, -cy);
+        }
+
+        // Shadow
+        if (el.shadowBlur && el.shadowBlur > 0) {
+          const sA = el.shadowOpacity ?? 0.5;
+          ctx.shadowBlur    = el.shadowBlur;
+          ctx.shadowOffsetX = el.shadowOffsetX || 0;
+          ctx.shadowOffsetY = el.shadowOffsetY || 0;
+          ctx.shadowColor   = el.shadowColor
+            ? (el.shadowColor.startsWith('#')
+              ? el.shadowColor + Math.round(sA * 255).toString(16).padStart(2, '0')
+              : el.shadowColor)
+            : `rgba(0,0,0,${sA})`;
+        }
+
+        if (el.type === 'image' && el.imageUrl) {
+          try {
+            const img  = await getCachedImage(el.imageUrl);
+            const elX  = el.x || 0;
+            const elY  = el.y || 0;
+            const elW  = el.width  || 0;
+            const elH  = el.height || 0;
+
+            // CSS image filters
+            const filters: string[] = [];
+            if (el.brightness) filters.push(`brightness(${1 + el.brightness / 100})`);
+            if (el.contrast)   filters.push(`contrast(${1   + el.contrast   / 100})`);
+            if (el.saturation) filters.push(`saturate(${1   + el.saturation / 100})`);
+            if (el.hue)        filters.push(`hue-rotate(${el.hue}deg)`);
+            if (el.blur && el.blur > 0) filters.push(`blur(${el.blur}px)`);
+            if (filters.length) ctx.filter = filters.join(' ');
+
+            if (el.flipX || el.flipY) {
+              ctx.translate(el.flipX ? elX + elW : elX, el.flipY ? elY + elH : elY);
+              ctx.scale(el.flipX ? -1 : 1, el.flipY ? -1 : 1);
+              ctx.drawImage(img, 0, 0, elW, elH);
+            } else {
+              ctx.drawImage(img, elX, elY, elW, elH);
+            }
+            ctx.filter = 'none';
+          } catch (imgErr) {
+            console.warn(`[captureDesignOnlyImage] image ${el.id} skipped:`, imgErr);
+          }
+
+        } else if (el.type === 'text' && el.text) {
+          const fontSize   = el.fontSize   || 24;
+          const fontFamily = el.fontFamily || 'Arial';
+          const isBold     = el.fontStyle?.includes('bold');
+          const isItalic   = el.fontStyle?.includes('italic');
+          ctx.font         = `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}${fontSize}px "${fontFamily}"`;
+          ctx.fillStyle    = el.fill || '#000000';
+          ctx.textBaseline = 'top';
+
+          const elX   = el.x    || 0;
+          const elY   = el.y    || 0;
+          const elW   = el.width || 400;
+          const lsp   = el.letterSpacing || 0;
+          const align = el.align || 'left';
+          ctx.textAlign = align as CanvasTextAlign;
+
+          const drawX = align === 'center' ? elX + elW / 2
+                      : align === 'right'  ? elX + elW
+                      : elX;
+
+          if (lsp > 0 && align === 'left') {
+            let xPos = elX;
+            for (const char of el.text) {
+              ctx.fillText(char, xPos, elY);
+              xPos += ctx.measureText(char).width + lsp;
+            }
+          } else {
+            ctx.fillText(el.text, drawX, elY);
+          }
+
+        } else if (el.type === 'shape') {
+          ctx.fillStyle = el.fillColor || '#000000';
+          if (el.strokeWidth && el.strokeWidth > 0) {
+            ctx.strokeStyle = el.strokeColor || 'transparent';
+            ctx.lineWidth   = el.strokeWidth;
+          }
+
+          const x = el.x    || 0;
+          const y = el.y    || 0;
+          const w = el.width  || 50;
+          const h = el.height || 50;
+
+          ctx.beginPath();
+          switch (el.shapeType) {
+            case 'circle':
+              ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+              break;
+            case 'triangle':
+              ctx.moveTo(x + w / 2, y);
+              ctx.lineTo(x,     y + h);
+              ctx.lineTo(x + w, y + h);
+              ctx.closePath();
+              break;
+            case 'star': {
+              const outerR = w / 2, innerR = outerR * 0.4;
+              const scx = x + w / 2, scy = y + h / 2;
+              for (let i = 0; i < 10; i++) {
+                const r     = i % 2 === 0 ? outerR : innerR;
+                const angle = (i * Math.PI) / 5 - Math.PI / 2;
+                if (i === 0) ctx.moveTo(scx + r * Math.cos(angle), scy + r * Math.sin(angle));
+                else         ctx.lineTo(scx + r * Math.cos(angle), scy + r * Math.sin(angle));
+              }
+              ctx.closePath();
+              break;
+            }
+            case 'heart': {
+              const sc  = w / 100;
+              const hcx = x + w / 2, hcy = y + h / 2;
+              ctx.moveTo(hcx, hcy + 20 * sc);
+              ctx.bezierCurveTo(hcx, hcy + 10 * sc, hcx - 20 * sc, hcy - 10 * sc, hcx - 30 * sc, hcy);
+              ctx.bezierCurveTo(hcx - 40 * sc, hcy + 10 * sc, hcx - 30 * sc, hcy + 20 * sc, hcx - 20 * sc, hcy + 30 * sc);
+              ctx.lineTo(hcx, hcy + 50 * sc);
+              ctx.lineTo(hcx + 20 * sc, hcy + 30 * sc);
+              ctx.bezierCurveTo(hcx + 30 * sc, hcy + 20 * sc, hcx + 40 * sc, hcy + 10 * sc, hcx + 30 * sc, hcy);
+              ctx.bezierCurveTo(hcx + 20 * sc, hcy - 10 * sc, hcx, hcy + 10 * sc, hcx, hcy + 20 * sc);
+              ctx.closePath();
+              break;
+            }
+            default: // rect
+              if (el.cornerRadius) {
+                ctx.roundRect(x, y, w, h, el.cornerRadius);
+              } else {
+                ctx.rect(x, y, w, h);
+              }
+          }
+          ctx.fill();
+          if (el.strokeWidth && el.strokeWidth > 0) ctx.stroke();
+        }
+
+        ctx.restore();
+      }
 
       const blob: Blob | null = await new Promise(resolve => {
-        stageRef.current!.toBlob(
-          (b: Blob | null) => resolve(b),
-          { mimeType: 'image/png', pixelRatio: 2 }
-        );
+        offscreen.toBlob(b => resolve(b), 'image/png');
       });
-
-      // Restore all layers to their original visibility
-      layers.forEach((l: any, i: number) => {
-        l.visible(originalVisibility[i]);
-        l.draw();
-      });
-
-      if (!blob) return null;
+      if (!blob) {
+        console.error('[captureDesignOnlyImage] offscreen toBlob returned null');
+        return null;
+      }
 
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('image', blob, `design-only-${viewKey}.png`);
-
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
       const resp = await fetch(`${RAW_API_URL}/api/upload/image`, {
         method: 'POST',
@@ -2204,11 +2399,63 @@ const DesignEditor: React.FC = () => {
       });
       const data = await resp.json().catch(() => ({}));
       return (resp.ok && data?.success && data?.url) ? data.url : null;
+
     } catch (e) {
       console.error('[captureDesignOnlyImage] Error:', e);
       return null;
     }
-  }, []);
+  }, [elements, product]);
+
+  /**
+   * Captures design-only PNGs for all product views using the offscreen canvas
+   * approach (reads elements state directly — no Konva stage interaction needed).
+   * Also returns garmentBounds (from imageSizesByView) so the server can extract
+   * the correct garment-aligned region regardless of sampleMockup aspect ratio.
+   * Must finish BEFORE navigate() so stageRef.current is still available.
+   */
+  const captureDesignOnlyImagesAllViews = useCallback(
+    async (): Promise<{
+      images: Record<string, string>;
+      garmentBounds: Record<string, { x: number; y: number; width: number; height: number }>;
+    }> => {
+      const images: Record<string, string> = {};
+      const garmentBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};
+      if (!stageRef.current || !product?.design?.views?.length) return { images, garmentBounds };
+
+      const views = product.design.views as ProductView[];
+
+      setEditingTextId(null);
+      setSelectedIds([]);
+      setIsCapturingMockup(true);
+
+      try {
+        for (const view of views) {
+          if (!stageRef.current) break;
+          const vk = view.key;
+          const url = await captureDesignOnlyImage(vk);
+          if (url) {
+            images[vk] = url;
+            // Record where the garment sits on the 800×600 stage for this view so
+            // the server extracts the correct region (studio image bounds, not
+            // recomputed from the sampleMockup's aspect ratio).
+            const sz = imageSizesByView[vk];
+            if (sz && sz.width > 0 && sz.height > 0) {
+              garmentBounds[vk] = { x: sz.x, y: sz.y, width: sz.width, height: sz.height };
+            }
+            console.log(`[captureDesignOnlyImagesAllViews] ✓ ${vk}:`, url, 'bounds:', garmentBounds[vk]);
+          }
+        }
+      } catch (e) {
+        console.error('[captureDesignOnlyImagesAllViews] error:', e);
+      } finally {
+        setIsCapturingMockup(false);
+        toast.dismiss('design-capture-toast');
+      }
+
+      return { images, garmentBounds };
+    },
+    [product?.design?.views, captureDesignOnlyImage, imageSizesByView]
+  );
 
   // Capture preview images for all views
   const captureAllViewPreviews = useCallback(async (): Promise<Record<string, string>> => {
@@ -2647,76 +2894,53 @@ const DesignEditor: React.FC = () => {
 
       // --- NEW MOCKUP GENERATION FLOW ---
 
-      // Fire server-side mockup generation in the background — do not block navigation.
-      const generateMockupsOnServer = async (draftStoreProductId: string): Promise<void> => {
-        const views = product?.design?.views || [];
-        const designOnlyImages: Record<string, string> = {};
+      // Step 1: Capture all views BEFORE navigate() while stage is still mounted.
+      // The offscreen canvas approach reads elements state directly — no Konva wait needed.
+      toast.loading('Preparing mockup previews…', { id: 'design-capture-toast' });
+      const { images: capturedDesignImages, garmentBounds: capturedGarmentBounds } =
+        await captureDesignOnlyImagesAllViews();
+      toast.dismiss('design-capture-toast');
 
-        const originalView = currentView;
-        // End text editing so Konva Text is visible (opacity 0 while editing).
-        setEditingTextId(null);
-        setIsCapturingMockup(true);
-        setSelectedIds([]);
-
+      // Step 2: Persist to DB so MockupsLibrary can reuse on regeneration.
+      if (Object.keys(capturedDesignImages).length > 0) {
         try {
-          for (const view of views) {
-            const vk = view.key;
-            setCurrentView(vk as any);
-            await new Promise(resolve => setTimeout(resolve, 400));
-            await new Promise(requestAnimationFrame);
-            await new Promise(requestAnimationFrame);
-
-            const url = await captureDesignOnlyImage(vk);
-            if (url) {
-              designOnlyImages[vk] = url;
-              console.log(`[generateMockupsOnServer] design-only captured for "${vk}":`, url);
-            }
-          }
-        } catch (e) {
-          console.error('[generateMockupsOnServer] Capture failed:', e);
-        } finally {
-          setCurrentView(originalView as any);
-          setIsCapturingMockup(false);
-        }
-
-        try {
-          await new Promise(requestAnimationFrame);
-
-          // Persist designOnlyImages to MongoDB so MockupsLibrary can reuse on regeneration
-          if (Object.keys(designOnlyImages).length > 0) {
-            try {
-              await storeProductsApi.update(draftStoreProductId, {
-                designData: { designOnlyImages },
-              });
-              console.log('[generateMockupsOnServer] designOnlyImages saved to DB');
-            } catch (e) {
-              console.warn('[generateMockupsOnServer] Failed to save designOnlyImages:', e);
-            }
-          }
-
-          const token = localStorage.getItem('token');
-          const resp = await fetch(`${RAW_API_URL}/api/storeproducts/${draftStoreProductId}/generate-mockups`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          await storeProductsApi.update(draftId, {
+            designData: {
+              designOnlyImages: capturedDesignImages,
+              garmentBoundsByView: capturedGarmentBounds,
             },
-            credentials: 'include',
-            body: JSON.stringify({ designOnlyImages }),
           });
-          const data = await resp.json().catch(() => ({}));
-          if (!resp.ok || !data.success) {
-            console.warn('[generateMockupsOnServer] Server errors:', data.errors || data.message);
-          } else {
-            console.log('[generateMockupsOnServer] Done:', Object.keys(data.modelMockups || {}));
-          }
+          console.log('[handlePublishToStore] designOnlyImages + garmentBounds saved to DB');
         } catch (e) {
-          console.error('[generateMockupsOnServer] Failed:', e);
+          console.warn('[handlePublishToStore] Failed to save designOnlyImages:', e);
         }
-      };
+
+        // Step 3: Fire server generation as true fire-and-forget — canvas not needed.
+        const _token = localStorage.getItem('token');
+        fetch(`${RAW_API_URL}/api/storeproducts/${draftId}/generate-mockups`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            designOnlyImages: capturedDesignImages,
+            garmentBoundsByView: capturedGarmentBounds,
+          }),
+        })
+          .then(r => r.json().catch(() => ({})))
+          .then(data => {
+            if (data?.success) {
+              console.log('[generate-mockups] Done:', Object.keys(data.modelMockups || {}));
+            } else {
+              console.warn('[generate-mockups] Server errors:', data?.errors || data?.message);
+            }
+          })
+          .catch(e => console.error('[generate-mockups] background failed:', e));
+      }
 
       toast.info('Opening mockups — previews will generate in the background.');
-      void generateMockupsOnServer(draftId);
 
       // Helper to save state for restoration when coming back from Mockups/Listing
       const saveStateForReturn = () => {
@@ -2837,7 +3061,7 @@ const DesignEditor: React.FC = () => {
     } finally {
       setIsPublishing(false);
     }
-  }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings, storeProductId, captureDesignOnlyImage]);
+  }, [user, product, elements, currentView, selectedColors, selectedSizes, selectedSizesByColor, placeholders, PX_PER_INCH, stageSize, canvasPadding, navigate, savedPreviewImages, designUrlsByPlaceholder, placementsByView, displacementSettings, storeProductId, captureDesignOnlyImagesAllViews]);
 
   const handleSave = async () => {
     if (!stageRef.current || !id) {

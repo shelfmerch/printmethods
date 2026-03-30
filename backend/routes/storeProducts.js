@@ -8,7 +8,7 @@ const StoreProductVariant = require('../models/StoreProductVariant');
 const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const { uploadToS3 } = require('../utils/s3Upload');
-const { compositeMockup } = require('../utils/compositeMockup');
+const { compositeMockup, compositeMockupFromCanvas } = require('../utils/compositeMockup');
 const { v4: uuidv4 } = require('uuid');
 
 // @route   POST /api/store-products
@@ -954,6 +954,17 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
       ? designData.designOnlyImages
       : {};
 
+    // Garment bounds (stage px) from client — used to extract the correct region from
+    // the offscreen canvas PNG. Falls back to DB-stored bounds for regeneration.
+    const clientGarmentBounds = (req.body?.garmentBoundsByView && typeof req.body.garmentBoundsByView === 'object')
+      ? req.body.garmentBoundsByView
+      : {};
+    const storedGarmentBounds = (designData.garmentBoundsByView && typeof designData.garmentBoundsByView === 'object')
+      ? designData.garmentBoundsByView
+      : {};
+    // Client takes priority over stored
+    const garmentBoundsByView = { ...storedGarmentBounds, ...clientGarmentBounds };
+
     const normalizeViewKeyEarly = (view) => (view || 'front').toLowerCase().trim();
 
     // Merge: client (fresh capture) takes priority over stored, stored takes priority over raw elements
@@ -1090,42 +1101,59 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
         try {
           let imageBuffer;
 
-          if (designUrl && placeholder) {
+          const canvasUrl    = designImagesByView[viewKey];
+          const bounds       = garmentBoundsByView[viewKey];
+          const hasCanvasCapture = hasDesignOnlyCaptureForView(viewKey)
+            && typeof canvasUrl === 'string' && canvasUrl
+            && bounds && typeof bounds.x === 'number';
+
+          if (hasCanvasCapture) {
+            // ── Placeholder-sized canvas path ──────────────────────────────────
+            // canvasUrl is a PNG captured at the placeholder's exact dimensions
+            // (captureDesignOnlyImage translates the context so the placeholder
+            // top-left maps to canvas origin).  We scale it to the matching
+            // placeholder region in the mockup and composite.
+            // placeholder + physicalDimensions drive the target coordinates;
+            // bounds (garmentBounds) is kept as a legacy fallback.
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              imageBuffer = await realisticWithTimeout(
+                compositeMockupFromCanvas(
+                  mockup.imageUrl, canvasUrl, bounds, placeholder, physicalDimensions, 2
+                )
+              );
+              console.log(`[generate-mockups] canvas composite ok for ${colorKey}/${viewKey}`);
+            } catch (canvasErr) {
+              console.warn(
+                `[generate-mockups] canvas composite failed for ${colorKey}/${viewKey}, using bare fallback:`,
+                canvasErr.message
+              );
+              const axios = require('axios');
+              // eslint-disable-next-line no-await-in-loop
+              const fallbackResp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
+              imageBuffer = Buffer.from(fallbackResp.data);
+            }
+          } else if (designUrl && placeholder) {
+            // ── Legacy single-image placeholder path ──────────────────────────
             const viewPlacements = placementsByView[viewKey] || {};
             const placementForPh = placeholder.id
               ? (viewPlacements[placeholder.id] ?? null)
               : null;
 
             const viewDesignUrls = designUrlsByPlaceholder[viewKey] || {};
-            // Prefer full-view design-only PNG (includes text/shapes) over per-placeholder
-            // image URLs — placeholder URLs are raw uploads and omit Konva text.
-            const resolvedDesignUrl =
-              hasDesignOnlyCaptureForView(viewKey)
-                ? designUrl
-                : (placeholder.id && viewDesignUrls[placeholder.id]
-                  ? viewDesignUrls[placeholder.id]
-                  : designUrl);
+            const resolvedDesignUrl = (placeholder.id && viewDesignUrls[placeholder.id])
+              ? viewDesignUrls[placeholder.id]
+              : designUrl;
 
             try {
-              // Realistic two-pass WebGL-style composite (fabric texture multiply).
-              // compositeMockup already falls back to flat 'over' composite internally
-              // if Pass 2 (fabric texture) fails.
               // eslint-disable-next-line no-await-in-loop
               imageBuffer = await realisticWithTimeout(
-                compositeMockup(
-                  mockup.imageUrl,
-                  resolvedDesignUrl,
-                  placeholder,
-                  physicalDimensions,
-                  placementForPh
-                )
+                compositeMockup(mockup.imageUrl, resolvedDesignUrl, placeholder, physicalDimensions, placementForPh)
               );
               console.log(`[generate-mockups] realistic composite ok for ${colorKey}/${viewKey}`);
             } catch (compositeErr) {
-              // compositeMockup itself failed entirely (e.g. design URL unreachable).
-              // Konva-style fallback: download the bare garment image.
               console.warn(
-                `[generate-mockups] realistic composite failed for ${colorKey}/${viewKey}, using bare garment fallback:`,
+                `[generate-mockups] realistic composite failed for ${colorKey}/${viewKey}, using bare fallback:`,
                 compositeErr.message
               );
               const axios = require('axios');
@@ -1171,8 +1199,19 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
         const u = clientDesignOnlyImages[k];
         if (typeof u === 'string' && u) mergedDesignOnlyImages[nk] = u;
       }
+      // Also persist garmentBounds so regeneration from MockupsLibrary works correctly
+      const mergedGarmentBounds = { ...storedGarmentBounds };
+      for (const k of Object.keys(clientGarmentBounds)) {
+        const nk = normalizeViewKeyEarly(k);
+        if (clientGarmentBounds[k] && typeof clientGarmentBounds[k].x === 'number') {
+          mergedGarmentBounds[nk] = clientGarmentBounds[k];
+        }
+      }
       await StoreProduct.findByIdAndUpdate(id, {
-        $set: { 'designData.designOnlyImages': mergedDesignOnlyImages },
+        $set: {
+          'designData.designOnlyImages': mergedDesignOnlyImages,
+          'designData.garmentBoundsByView': mergedGarmentBounds,
+        },
       });
     }
 

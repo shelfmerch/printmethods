@@ -223,16 +223,26 @@ async function compositeMockup(
         .toBuffer({ resolveWithObject: true });
 
       const pixels = Buffer.from(rawPixels); // mutable copy
-      // Only remove if corners actually look white (not a solid-colour design)
-      const isCornerWhite = (px) => px[0] > 235 && px[1] > 235 && px[2] > 235;
-      const tlIdx = 0; // top-left pixel bytes start at 0
-      const tlPixel = pixels.slice(tlIdx, tlIdx + 4);
+      // A pixel is "white opaque background" only if alpha > 200 AND near-white RGB.
+      // Offscreen canvas PNGs from the editor have alpha=0 at empty corners → skip safely.
+      const isCornerWhiteOpaque = (px) =>
+        px[3] > 200 && px[0] > 235 && px[1] > 235 && px[2] > 235;
+      const w = rawInfo.width, h = rawInfo.height;
+      const corners = [
+        pixels.slice(0, 4),                                                  // top-left
+        pixels.slice((w - 1) * 4, (w - 1) * 4 + 4),                       // top-right
+        pixels.slice((h - 1) * w * 4, (h - 1) * w * 4 + 4),               // bottom-left
+        pixels.slice(((h - 1) * w + w - 1) * 4, ((h - 1) * w + w - 1) * 4 + 4), // bottom-right
+      ];
 
-      if (isCornerWhite(tlPixel)) {
-        removeWhiteBackground(pixels, rawInfo.width, rawInfo.height, 25);
+      if (corners.every(isCornerWhiteOpaque)) {
+        console.log('[compositeMockup] all-white-opaque corners → flood-fill background removal');
+        removeWhiteBackground(pixels, rawInfo.width, rawInfo.height, 20);
         designForComposite = await sharp(pixels, {
           raw: { width: rawInfo.width, height: rawInfo.height, channels: 4 },
         }).png().toBuffer();
+      } else {
+        console.log('[compositeMockup] transparent/non-white corners → skipping flood-fill');
       }
     } catch (bgErr) {
       console.warn('[compositeMockup] background removal skipped:', bgErr.message);
@@ -401,4 +411,135 @@ async function compositeMockup(
   }
 }
 
-module.exports = { compositeMockup, convertPlaceholderToPixels };
+/**
+ * Composites an offscreen-canvas PNG (design-only, transparent background) onto
+ * a sampleMockup image.
+ *
+ * Matches the RealisticWebGLPreview / placementUtils coordinate system:
+ *   - captureDesignOnlyImage now captures ONLY the placeholder (print area) region
+ *     by translating its drawing context so the placeholder top-left = (0,0).
+ *   - This function scales that placeholder-sized canvas to fill the matching
+ *     placeholder region in the mockup image, then composites it.
+ *
+ * Primary path  (placeholder + physicalDimensions available):
+ *   1. Compute placeholder position/size in mockup pixels via convertPlaceholderToPixels.
+ *   2. Scale the canvas to those dimensions (fit:'fill' — both share the same
+ *      inch-based aspect ratio so distortion is negligible).
+ *   3. Embed at the placeholder position and composite over the mockup.
+ *
+ * Fallback path (no placeholder data):
+ *   Scale the entire canvas so the garment region maps to the full mockup, then
+ *   extract (legacy behaviour kept for old captures / missing placeholder data).
+ *
+ * @param {string} mockupUrl           - URL of the sampleMockup photo
+ * @param {string} canvasUrl           - URL of the placeholder-sized canvas PNG
+ * @param {{ x,y,width,height }|null} garmentBounds - Garment stage bounds (fallback only)
+ * @param {object|null} placeholder    - View's first placeholder (inch-based coords)
+ * @param {{ width,height }|null} physicalDimensions - Product physical dimensions in inches
+ * @param {number} [pixelRatio=2]
+ */
+async function compositeMockupFromCanvas(
+  mockupUrl, canvasUrl, garmentBounds, placeholder, physicalDimensions, pixelRatio = 2
+) {
+  const [mockupBuffer, canvasBuffer] = await Promise.all([
+    fetchBuffer(mockupUrl),
+    fetchBuffer(canvasUrl),
+  ]);
+
+  const mockupMeta = await sharp(mockupBuffer).metadata();
+  const mockupW = mockupMeta.width  || 0;
+  const mockupH = mockupMeta.height || 0;
+  if (!mockupW || !mockupH) return mockupBuffer;
+
+  const canvasMeta = await sharp(canvasBuffer).metadata();
+  const canvasPixelW = canvasMeta.width  || 0;
+  const canvasPixelH = canvasMeta.height || 0;
+  if (!canvasPixelW || !canvasPixelH) return mockupBuffer;
+
+  // ── Primary path: placeholder-sized canvas → scale + place ──────────────
+  if (placeholder && physicalDimensions?.width > 0 && physicalDimensions?.height > 0) {
+    try {
+      // Get the placeholder's position and size within the mockup image
+      const phMockup = convertPlaceholderToPixels(placeholder, mockupW, mockupH, physicalDimensions);
+      const phMX = Math.max(0, phMockup.x);
+      const phMY = Math.max(0, phMockup.y);
+      const phMW = Math.min(phMockup.width,  mockupW - phMX);
+      const phMH = Math.min(phMockup.height, mockupH - phMY);
+
+      if (phMW > 0 && phMH > 0) {
+        // Scale the placeholder-sized canvas to mockup placeholder dimensions
+        const scaled = await sharp(canvasBuffer)
+          .resize(phMW, phMH, { fit: 'fill', kernel: 'lanczos3' })
+          .ensureAlpha()
+          .toBuffer();
+
+        // Embed on a transparent mockup-sized canvas, then composite
+        const designOverlay = await sharp({
+          create: { width: mockupW, height: mockupH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+        })
+          .composite([{ input: scaled, left: phMX, top: phMY }])
+          .png()
+          .toBuffer();
+
+        console.log(
+          `[compositeMockupFromCanvas] placeholder path:` +
+          ` canvas(${canvasPixelW}×${canvasPixelH}) → mockup(${phMX},${phMY},${phMW}×${phMH})`
+        );
+
+        return sharp(mockupBuffer)
+          .composite([{ input: designOverlay, left: 0, top: 0, blend: 'over' }])
+          .png()
+          .toBuffer();
+      }
+    } catch (phErr) {
+      console.warn('[compositeMockupFromCanvas] placeholder path failed, using garment fallback:', phErr.message);
+    }
+  }
+
+  // ── Fallback: garment-based extraction (legacy / no placeholder data) ────
+  const pr = pixelRatio;
+  const gw = garmentBounds?.width  || 0;
+  const gh = garmentBounds?.height || 0;
+  if (gw <= 0 || gh <= 0) {
+    console.warn('[compositeMockupFromCanvas] no usable bounds, returning bare mockup');
+    return mockupBuffer;
+  }
+
+  const scaleX = mockupW  / (gw * pr);
+  const scaleY = mockupH / (gh * pr);
+  const scaledW = Math.round(canvasPixelW * scaleX);
+  const scaledH = Math.round(canvasPixelH * scaleY);
+
+  const extractLeft = Math.max(0, Math.round((garmentBounds.x || 0) * pr * scaleX));
+  const extractTop  = Math.max(0, Math.round((garmentBounds.y || 0) * pr * scaleY));
+  const extractW    = Math.min(mockupW, scaledW - extractLeft);
+  const extractH    = Math.min(mockupH, scaledH - extractTop);
+
+  if (extractW <= 0 || extractH <= 0) {
+    console.warn('[compositeMockupFromCanvas] garment fallback: extract region empty');
+    return mockupBuffer;
+  }
+
+  let designOverlay = await sharp(canvasBuffer)
+    .resize(scaledW, scaledH, { fit: 'fill', kernel: 'lanczos3' })
+    .extract({ left: extractLeft, top: extractTop, width: extractW, height: extractH })
+    .ensureAlpha()
+    .toBuffer();
+
+  if (extractW < mockupW || extractH < mockupH) {
+    designOverlay = await sharp({
+      create: { width: mockupW, height: mockupH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .composite([{ input: designOverlay, left: 0, top: 0 }])
+      .png()
+      .toBuffer();
+  }
+
+  console.log('[compositeMockupFromCanvas] garment fallback used');
+  return sharp(mockupBuffer)
+    .composite([{ input: designOverlay, left: 0, top: 0, blend: 'over' }])
+    .png()
+    .toBuffer();
+}
+
+module.exports = { compositeMockup, compositeMockupFromCanvas, convertPlaceholderToPixels };
