@@ -69,6 +69,45 @@ import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
 import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
 
+/** Canvas 2d word-wrap to mirror Konva Text with wrap="word" and a bounded width. */
+function wrapTextLinesForCanvasExport(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  if (!text.trim()) return [''];
+  const words = text.trim().split(/\s+/);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const trial = line ? `${line} ${word}` : word;
+    if (ctx.measureText(trial).width <= maxWidth) {
+      line = trial;
+      continue;
+    }
+    if (line) {
+      lines.push(line);
+    }
+    if (ctx.measureText(word).width <= maxWidth) {
+      line = word;
+      continue;
+    }
+    let chunk = '';
+    for (const ch of word) {
+      const t = chunk + ch;
+      if (ctx.measureText(t).width > maxWidth && chunk) {
+        lines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = t;
+      }
+    }
+    line = chunk;
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
 const UploadPanel = lazy(() => import('@/components/designer/UploadPanel').then(m => ({ default: m.UploadPanel })));
 const TextPanel = lazy(() => import('@/components/designer/TextPanel'));
 const ShapesPanel = lazy(() => import('@/components/designer/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
@@ -2296,25 +2335,47 @@ const DesignEditor: React.FC = () => {
           ctx.fillStyle    = el.fill || '#000000';
           ctx.textBaseline = 'top';
 
-          const elX   = el.x    || 0;
-          const elY   = el.y    || 0;
-          const elW   = el.width || 400;
-          const lsp   = el.letterSpacing || 0;
-          const align = el.align || 'left';
-          ctx.textAlign = align as CanvasTextAlign;
+          const elX = el.x || 0;
+          const elY = el.y || 0;
+          const lsp = el.letterSpacing || 0;
 
-          const drawX = align === 'center' ? elX + elW / 2
-                      : align === 'right'  ? elX + elW
-                      : elX;
+          // Same wrap width as Konva Text: placeholder width (inches → px), not element.width
+          const phEl = el.placeholderId && view?.placeholders
+            ? (view.placeholders as Placeholder[]).find((p) => p.id === el.placeholderId)
+            : undefined;
+          let wrapW = el.width || 400;
+          if (phEl && physDims && physDims.width > 0 && physDims.height > 0) {
+            const pxPerInchCap = Math.min(EFFECTIVE_W_PX / physDims.width, EFFECTIVE_H_PX / physDims.height);
+            const scalePh = phEl.scale ?? 1;
+            wrapW = (phEl.widthIn || 0) * pxPerInchCap * scalePh;
+          }
+          if (wrapW <= 0) wrapW = el.width || 400;
 
-          if (lsp > 0 && align === 'left') {
+          const align = el.align || 'center';
+          const lineHeight = fontSize * 1.2;
+          const lines = wrapTextLinesForCanvasExport(ctx, el.text, wrapW);
+
+          if (lsp > 0 && align === 'left' && lines.length === 1) {
             let xPos = elX;
-            for (const char of el.text) {
+            for (const char of lines[0]) {
+              ctx.textAlign = 'left';
               ctx.fillText(char, xPos, elY);
               xPos += ctx.measureText(char).width + lsp;
             }
           } else {
-            ctx.fillText(el.text, drawX, elY);
+            lines.forEach((ln, i) => {
+              const drawY = elY + i * lineHeight;
+              if (align === 'center') {
+                ctx.textAlign = 'center';
+                ctx.fillText(ln, elX + wrapW / 2, drawY);
+              } else if (align === 'right') {
+                ctx.textAlign = 'right';
+                ctx.fillText(ln, elX + wrapW, drawY);
+              } else {
+                ctx.textAlign = 'left';
+                ctx.fillText(ln, elX, drawY);
+              }
+            });
           }
 
         } else if (el.type === 'shape') {
@@ -5459,6 +5520,10 @@ const TextElement: React.FC<{
   const minWidth = element.fontSize ? element.fontSize * 0.5 : 24;
   const minHeight = element.fontSize || 24;
 
+  // Bind wrap width to the placeholder print area (same as textarea maxWidth) so Konva
+  // performs real word-wrap — not just clip — matching export and mockups.
+  const textWrapWidth = printArea?.width ?? element.width ?? 400;
+
   const commonTextProps: any = {
     id: element.id,
     type: 'text',
@@ -5485,8 +5550,9 @@ const TextElement: React.FC<{
     shadowColor: shadowColorWithAlpha,
     shadowOpacity: shadowAlpha,
     globalCompositeOperation: compositeOperation as any,
-    // Width constraint + word wrapping to keep text within placeholder
-    width: element.width,
+    align: element.align || 'center',
+    // Width = placeholder print width (printArea) so wrapping is real, not visual-only
+    width: textWrapWidth,
     wrap: 'word',
     ellipsis: false,
   };
@@ -5558,7 +5624,6 @@ const TextElement: React.FC<{
         <TextPath
           {...commonTextProps}
           data={pathData}
-          align={element.align || 'center'}
           letterSpacing={element.letterSpacing}
           x={element.x}
           y={element.y}
@@ -5579,7 +5644,6 @@ const TextElement: React.FC<{
           <Text
             {...commonTextProps}
             text=" " // Space to maintain cursor position and bounding box
-            align={element.align || 'left'}
             letterSpacing={element.letterSpacing}
             fill={element.fill || '#000000'}
             opacity={0.3} // Semi-transparent to show it's a placeholder
@@ -5599,7 +5663,6 @@ const TextElement: React.FC<{
     return (
       <Text
         {...commonTextProps}
-        align={element.align}
         letterSpacing={element.letterSpacing}
       />
     );
