@@ -23,6 +23,7 @@ const ShopifyApp: React.FC = () => {
     const { user, isLoading: authLoading } = useAuth();
 
     const shop = searchParams.get('shop');
+    const hasAuthToken = typeof window !== 'undefined' && !!localStorage.getItem('token');
 
     // Status states
     const [statusLoading, setStatusLoading] = useState(true);
@@ -131,7 +132,9 @@ const ShopifyApp: React.FC = () => {
             );
         }
 
-        if (authLoading) {
+        // If there's no token, don't block the embedded flow on the global auth loader.
+        // This avoids getting stuck on "Loading context..." when the stored token is missing/cleared/expired.
+        if (authLoading && hasAuthToken) {
             return <div className="text-muted-foreground text-center py-12">Loading ShelfMerch context...</div>;
         }
 
