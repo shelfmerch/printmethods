@@ -1365,6 +1365,23 @@ router.post('/signup/otp/complete', async (req, res) => {
     }
 
     const user = await User.create(userData);
+
+    // Link any pending BrandEmployee records for this email
+    if (email) {
+      try {
+        const BrandEmployee = require('../models/BrandEmployee');
+        const Wallet = require('../models/Wallet');
+        let wallet = await Wallet.findOne({ userId: user._id });
+        if (!wallet) wallet = await Wallet.create({ userId: user._id, currency: 'INR', balancePaise: 0 });
+        await BrandEmployee.updateMany(
+          { email: email.toLowerCase(), inviteStatus: 'pending' },
+          { userId: user._id, walletId: wallet._id, inviteStatus: 'active' }
+        );
+      } catch (linkErr) {
+        console.error('BrandEmployee link-wallet error:', linkErr.message);
+      }
+    }
+
     await sendTokenResponse(user, 201, res);
   } catch (error) {
     console.error('Signup complete error:', error);

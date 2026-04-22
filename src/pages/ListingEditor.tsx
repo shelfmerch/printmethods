@@ -251,16 +251,12 @@ const ListingEditor = () => {
           const normalizedColor = norm(v.color || '');
           const key = `${normalizedSize}__${normalizedColor}`;
 
-          // Production cost: prefer basePrice (DB field), fallback to price (transformed)
-          const basePrice = typeof v.basePrice === 'number' && Number.isFinite(v.basePrice)
-            ? v.basePrice
-            : undefined;
-          const price = typeof v.price === 'number' && Number.isFinite(v.price)
-            ? v.price
-            : undefined;
+          // Production cost: variant basePrice → variant price → parent catalogBasePrice
+          const basePrice = typeof v.basePrice === 'number' && Number.isFinite(v.basePrice) ? v.basePrice : undefined;
+          const price = typeof v.price === 'number' && Number.isFinite(v.price) ? v.price : undefined;
+          const catalogBasePrice = typeof (v as any).catalogBasePrice === 'number' && Number.isFinite((v as any).catalogBasePrice) ? (v as any).catalogBasePrice : undefined;
 
-          // Use basePrice if available, otherwise price
-          const cost = basePrice !== undefined ? basePrice : (price !== undefined ? price : 0);
+          const cost = basePrice ?? price ?? catalogBasePrice ?? 0;
 
           const sku = v.sku || v.skuTemplate || '';
 
@@ -317,7 +313,11 @@ const ListingEditor = () => {
         : Number.isFinite(v.productionCost as number)
           ? (v.productionCost as number)
           : 0;
-      const cost = costSource || 0;
+      // Add print/decoration cost saved at design time
+      const printCost = Number.isFinite(draftData?.designData?.totalPrintCost)
+        ? (draftData.designData.totalPrintCost as number)
+        : 0;
+      const cost = (costSource || 0) + printCost;
 
       // Retail price priority:
       // 1. User-entered (preserved in ref)

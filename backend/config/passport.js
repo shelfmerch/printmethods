@@ -8,9 +8,7 @@ module.exports = function(passport) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     // Determine base URL based on environment
-    const BASE_URL = isProduction 
-      ? (process.env.BASE_URL || 'https://shelfmerch.com')
-      : 'http://localhost:5000';
+    const BASE_URL = process.env.BASE_URL || (isProduction ? 'https://shelfmerch.com' : 'http://localhost:5000');
     
     // The callback URL MUST match one of the authorized redirect URIs in Google Console
     const callbackURL = `${BASE_URL}/api/auth/google/callback`;

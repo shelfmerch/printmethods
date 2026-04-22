@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronRight, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronLeft, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -30,6 +30,7 @@ import {
   DisplacementSettings,
 } from '@/types/product';
 import { productApi } from '@/lib/api';
+import { RAW_API_URL } from '@/config';
 
 const AdminProductCreation = () => {
   const navigate = useNavigate();
@@ -149,6 +150,18 @@ const AdminProductCreation = () => {
     webOnly: false,
     suppliers: [],
   });
+
+  // SECTION J: Print Methods
+  const [allPrintMethods, setAllPrintMethods] = useState<{ _id: string; name: string; code: string; moq: number; active: boolean }[]>([]);
+  const [allowedPrintMethodIds, setAllowedPrintMethodIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    fetch(`${RAW_API_URL}/api/print-methods`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(res => { if (res.success) setAllPrintMethods(res.data); })
+      .catch(() => {});
+  }, []);
 
   // Fetch product data if in edit mode
   useEffect(() => {
@@ -301,6 +314,12 @@ const AdminProductCreation = () => {
           if (product.options) {
             setOptionsData(product.options);
           }
+
+          if (product.allowedPrintMethodIds) {
+            setAllowedPrintMethodIds(product.allowedPrintMethodIds.map((id: any) =>
+              typeof id === 'object' && id !== null ? String(id._id || id) : String(id)
+            ));
+          }
         } else {
           toast.error('Product not found');
           navigate('/admin?tab=products');
@@ -421,6 +440,7 @@ const AdminProductCreation = () => {
       availableSizes,
       availableColors,
       galleryImages,
+      allowedPrintMethodIds,
     };
 
     try {
@@ -510,7 +530,7 @@ const AdminProductCreation = () => {
         <Card>
           <CardContent className="pt-6">
             <Tabs value={activeStep} onValueChange={setActiveStep} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-10 mb-6">
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-11 mb-6">
                 <TabsTrigger value="catalogue" className="flex items-center gap-2">
                   <span className="hidden sm:inline">1.</span> Catalogue
                 </TabsTrigger>
@@ -540,6 +560,9 @@ const AdminProductCreation = () => {
                 </TabsTrigger>
                 <TabsTrigger value="shipping" className="flex items-center gap-2">
                   <span className="hidden sm:inline">10.</span> Shipping
+                </TabsTrigger>
+                <TabsTrigger value="print-methods" className="flex items-center gap-2">
+                  <span className="hidden sm:inline">11.</span> Print
                 </TabsTrigger>
               </TabsList>
 
@@ -861,6 +884,77 @@ const AdminProductCreation = () => {
                   <Button
                     variant="outline"
                     onClick={() => setActiveStep('options')}
+                    className="gap-2"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={() => setActiveStep('print-methods')}
+                    className="gap-2"
+                  >
+                    Next: Print Methods
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* Step 11: Print Methods */}
+              <TabsContent value="print-methods" className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold mb-1">Step 11: Print Methods</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Select which print methods are available for this product. Brands will choose from these when listing.
+                  </p>
+                </div>
+                {allPrintMethods.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                    No print methods configured yet.{' '}
+                    <a href="/admin/print-methods" className="underline text-primary">Add print methods</a> first.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {allPrintMethods.map(pm => {
+                      const checked = allowedPrintMethodIds.includes(pm._id);
+                      return (
+                        <label
+                          key={pm._id}
+                          className={`flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors ${
+                            checked ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
+                          } ${!pm.active ? 'opacity-50' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={checked}
+                            onChange={e => {
+                              setAllowedPrintMethodIds(prev =>
+                                e.target.checked
+                                  ? [...prev, pm._id]
+                                  : prev.filter(id => id !== pm._id)
+                              );
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Printer className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="font-medium">{pm.name}</span>
+                              <span className="text-xs text-muted-foreground uppercase">{pm.code}</span>
+                              {!pm.active && <span className="text-xs text-destructive">Inactive</span>}
+                            </div>
+                            {pm.moq > 1 && (
+                              <p className="text-xs text-muted-foreground mt-1">MOQ: {pm.moq} units</p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="flex justify-between pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setActiveStep('shipping')}
                     className="gap-2"
                   >
                     <ChevronLeft className="h-4 w-4" />

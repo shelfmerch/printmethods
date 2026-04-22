@@ -1,0 +1,9 @@
+[
+	"addons/admin/js/product_design_layout.js",
+	"addons/admin/language/product_design_layout.ini",
+	"addons/admin/product-fields/product_design_layout.php",
+	"addons/install/product_layout_design.json",
+	"addons/js/product_design_layout.js",
+	"addons/lang-js/product_layout_design.php",
+	"addons/remove/product_layout_design.json"
+]

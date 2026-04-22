@@ -1262,6 +1262,9 @@ const Auth = () => {
                   }}
                   className="animate-in fade-in slide-in-from-top-2 space-y-6"
                 >
+                  <div className="text-center mb-2">
+                    <p className="text-sm text-gray-500">One last step — we'll create your brand store next.</p>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-semibold text-gray-600 ml-1">Your name</Label>
                     <Input
@@ -1277,7 +1280,7 @@ const Auth = () => {
                     className="w-full h-12 bg-[#39b38e] hover:bg-[#32a17f] text-white font-bold text-lg rounded-xl shadow-lg shadow-[#39b38e]/20 transition-all active:scale-[0.98]"
                     disabled={isLoading}
                   >
-                    {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Complete Setup'}
+                    {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Get Started'}
                   </Button>
                 </form>
               )}

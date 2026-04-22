@@ -286,5 +286,7 @@ export interface ProductFormData {
   availableColors: string[];
   // Product Gallery Images (customer-facing display images)
   galleryImages: ProductGalleryImage[];
+  // Print methods allowed for this product
+  allowedPrintMethodIds?: string[];
 }
 

@@ -503,10 +503,10 @@ export const storeCustomerOrdersApi = {
 
 // Shipping API
 export const shippingApi = {
-  getQuote: async (destPincode: string, weightGrams: number) => {
+  getQuote: async (destPincode: string, weightGrams: number, destCountry?: string) => {
     return apiRequest<any>('/shipping-quote', {
       method: 'POST',
-      body: JSON.stringify({ destPincode, weightGrams }),
+      body: JSON.stringify({ destPincode, weightGrams, destCountry }),
     });
   },
 };
@@ -2125,7 +2125,23 @@ export const variantApi = {
 // Stores API
 export const storeApi = {
   // Create a new store for the current user
-  create: async (data: { name: string; theme?: string; description?: string }) => {
+  create: async (data: {
+    name: string;
+    theme?: string;
+    description?: string;
+    brandProfile?: {
+      companyName?: string;
+      website?: string;
+      emailDomain?: string;
+      industry?: string;
+      headcount?: number;
+      regions?: string[];
+      brandGuidelines?: {
+        primaryColor?: string;
+        secondaryColor?: string;
+      };
+    };
+  }) => {
     const token = getToken();
 
     const response = await fetch(`${API_BASE_URL}/stores`, {

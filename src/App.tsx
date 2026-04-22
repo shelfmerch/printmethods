@@ -469,7 +469,12 @@ import AdminInvoices from "./pages/AdminInvoices";
 import WalletTopUp from "./pages/WalletTopUp";
 import WalletTransactions from "./pages/WalletTransactions";
 import MerchantWallet from "./pages/MerchantWallet";
+import BrandTeam from "./pages/BrandTeam";
+import BrandEmployees from "./pages/BrandEmployees";
+import CreditAllocation from "./pages/CreditAllocation";
+import BrandBilling from "./pages/BrandBilling";
 import AdminWithdrawals from "./pages/AdminWithdrawals";
+import PrintMethods from "./pages/admin/PrintMethods";
 import SponsorWidgetPage from "./pages/SponsorWidgetPage";
 import ShopifyDashboard from "./pages/ShopifyDashboard";
 import ShopifyProducts from "./pages/ShopifyProducts";
@@ -779,6 +784,14 @@ const App = () => {
                       }
                     />
                     <Route
+                      path="/admin/print-methods"
+                      element={
+                        <ProtectedRoute requireAdmin>
+                          <PrintMethods />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/admin/variant-options"
                       element={
                         <ProtectedRoute requireAdmin>
@@ -815,6 +828,38 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <MerchantWallet />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/team"
+                      element={
+                        <ProtectedRoute>
+                          <BrandTeam />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/employees"
+                      element={
+                        <ProtectedRoute>
+                          <BrandEmployees />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/credits"
+                      element={
+                        <ProtectedRoute>
+                          <CreditAllocation />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/billing"
+                      element={
+                        <ProtectedRoute>
+                          <BrandBilling />
                         </ProtectedRoute>
                       }
                     />

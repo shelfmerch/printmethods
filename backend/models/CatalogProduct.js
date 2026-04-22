@@ -203,6 +203,12 @@ const CatalogProductSchema = new mongoose.Schema({
     hsn: { type: String, default: '' }
   },
 
+  // Print methods allowed for this product (superadmin assigns)
+  allowedPrintMethodIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PrintMethod',
+  }],
+
   // Design (mockups, placeholders)
   design: {
     type: CatalogProductDesignSchema,

@@ -199,19 +199,30 @@ const StoreCheckoutPage: React.FC = () => {
   // Check if Delhivery service is configured
   const isShippingServiceConfigured = !!import.meta.env.VITE_DELHIVERY_TOKEN;
 
-  // Calculate shipping using Delhivery API when zipCode is entered
+  // Calculate shipping when zipCode or country changes
   useEffect(() => {
     const calculateShipping = async () => {
       const zipCode = shippingInfo.zipCode?.trim() || '';
+      const country = shippingInfo.country || 'India';
+      const isIndia = country.toLowerCase() === 'india';
 
-      if (!zipCode || !/^\d{6}$/.test(zipCode)) {
+      if (cart.length === 0) {
         setShipping(0);
         setEstimatedDeliveryDays(undefined);
         setShippingLoading(false);
         return;
       }
 
-      if (cart.length === 0) {
+      // For India: require 6-digit pincode
+      if (isIndia && (!zipCode || !/^\d{6}$/.test(zipCode))) {
+        setShipping(0);
+        setEstimatedDeliveryDays(undefined);
+        setShippingLoading(false);
+        return;
+      }
+
+      // For international: fire immediately once country is selected
+      if (!isIndia && !zipCode && !['Taiwan', 'Australia', 'New Zealand'].includes(country)) {
         setShipping(0);
         setEstimatedDeliveryDays(undefined);
         setShippingLoading(false);
@@ -223,18 +234,19 @@ const StoreCheckoutPage: React.FC = () => {
         const weightKg = estimateCartWeight(cart);
         const weightGrams = Math.round(weightKg * 1000);
 
-        const result = await shippingApi.getQuote(zipCode, weightGrams);
+        const result = await shippingApi.getQuote(
+          isIndia ? zipCode : '000000',  // dummy pincode for intl
+          weightGrams,
+          isIndia ? undefined : country
+        );
 
         if (result && result.serviceable) {
           setShipping(result.shipping_charge);
           setEstimatedDeliveryDays(result.estimated_days);
-
-          // AUTOFILL DISABLED HERE to prevent India Post API overwrite
-          // We rely on fetchPincodeDetails for address population
         } else {
-          setShipping(150);
+          setShipping(isIndia ? 150 : 0);
           setEstimatedDeliveryDays(undefined);
-          if (result && result.message) {
+          if (result && result.message && !isIndia) {
             toast.error(result.message);
           }
         }
@@ -242,15 +254,15 @@ const StoreCheckoutPage: React.FC = () => {
         console.error('Error calculating shipping:', error);
         setShipping(0);
         setEstimatedDeliveryDays(undefined);
-        toast.error('Could not calculate shipping. Enter valid pin code.');
+        if (isIndia) toast.error('Could not calculate shipping. Enter valid pin code.');
       } finally {
         setShippingLoading(false);
       }
     };
 
-    const timeoutId = setTimeout(calculateShipping, 500);
+    const timeoutId = setTimeout(calculateShipping, 400);
     return () => clearTimeout(timeoutId);
-  }, [shippingInfo.zipCode, cart]);
+  }, [shippingInfo.zipCode, shippingInfo.country, cart]);
 
   const validateField = (name: string, value: string) => {
     let error = "";
@@ -1012,8 +1024,18 @@ const StoreCheckoutPage: React.FC = () => {
                 <div className="flex justify-between text-muted-foreground mt-2">
                   <span>
                     Shipping
-                    {(!shippingInfo.zipCode || !/^\d{6}$/.test(shippingInfo.zipCode.trim())) && !shippingLoading && (
-                      <span className="text-xs ml-1 text-muted-foreground">(Enter pin code)</span>
+                    {/* India: show pin code hint */}
+                    {(shippingInfo.country === 'India' || !shippingInfo.country) &&
+                      (!shippingInfo.zipCode || !/^\d{6}$/.test(shippingInfo.zipCode.trim())) &&
+                      !shippingLoading && (
+                        <span className="text-xs ml-1 text-muted-foreground">(Enter pin code)</span>
+                      )}
+                    {/* International: show country hint */}
+                    {shippingInfo.country && shippingInfo.country !== 'India' && !shippingLoading && shipping > 0 && estimatedDeliveryDays && (
+                      <span className="text-xs ml-1 text-muted-foreground">({estimatedDeliveryDays} days)</span>
+                    )}
+                    {shippingInfo.country && shippingInfo.country !== 'India' && !shippingLoading && !shipping && (
+                      <span className="text-xs ml-1 text-muted-foreground">(International rate)</span>
                     )}
                   </span>
                   <span>
@@ -1022,16 +1044,24 @@ const StoreCheckoutPage: React.FC = () => {
                         <Loader2 className="h-3 w-3 animate-spin" />
                         <span className="text-xs">Calculating...</span>
                       </span>
-                    ) : (
-                      (shippingInfo.zipCode && /^\d{6}$/.test(shippingInfo.zipCode.trim())) ? (
-                        `₹${shipping.toFixed(2)}`
-                      ) : (
-                        null
-                      )
-                    )}
+                    ) : shipping > 0 ? (
+                      `₹${shipping.toFixed(2)}`
+                    ) : null}
                   </span>
                 </div>
-                {/* Taxes hidden from user as per request */}
+                {/* India: estimated delivery days */}
+                {(shippingInfo.country === 'India' || !shippingInfo.country) &&
+                  estimatedDeliveryDays && !shippingLoading && (
+                    <p className="text-xs text-muted-foreground text-right">
+                      Est. delivery: {estimatedDeliveryDays} days
+                    </p>
+                  )}
+                {/* International: flat rate note */}
+                {shippingInfo.country && shippingInfo.country !== 'India' && shipping > 0 && (
+                  <p className="text-xs text-amber-600 text-right flex items-center justify-end gap-1">
+                    <Truck className="h-3 w-3" /> International flat rate
+                  </p>
+                )}
                 <Separator className="my-2" />
                 <div className="flex justify-between text-base font-semibold">
                   <span>Total</span>

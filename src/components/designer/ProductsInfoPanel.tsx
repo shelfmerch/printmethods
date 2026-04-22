@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Printer } from 'lucide-react';
 
 interface ProductView {
   key: string;
@@ -34,9 +34,23 @@ interface ProductVariant {
 // Store multiple sizes per color as Record<colorName, Set<size>>
 // But pass/receive as Record<colorName, string[]> for serialization
 
+interface PrintMethodOption {
+  _id: string;
+  name: string;
+  code: string;
+  moq: number;
+  baseRatePaisePerSqIn: number;
+  hasColors: boolean;
+  colorRatePaise: number;
+  minColors: number;
+  active: boolean;
+  description?: string;
+}
+
 interface Product {
   _id?: string;
   id?: string;
+  basePrice?: number;
   catalogue?: {
     name?: string;
     description?: string;
@@ -55,6 +69,7 @@ interface Product {
   availableColors?: string[];
   availableSizes?: string[];
   variants?: ProductVariant[];
+  allowedPrintMethodIds?: PrintMethodOption[];
 }
 
 // Helper function to convert color name to hex code
@@ -122,6 +137,12 @@ export const ProductInfoPanel: React.FC<{
   displacementSettings?: { scaleX: number; scaleY: number; contrastBoost: number };
   onDisplacementSettingsChange?: (settings: any) => void;
   PX_PER_INCH?: number;
+  selectedPrintMethodId?: string | null;
+  onPrintMethodChange?: (id: string | null) => void;
+  designAreaSqIn?: number;
+  selectedPrintMethodsByView?: Record<string, string | null>;
+  designAreaByView?: Record<string, number>;
+  currentView?: string;
 }> = ({
   product,
   isLoading,
@@ -138,6 +159,12 @@ export const ProductInfoPanel: React.FC<{
   displacementSettings,
   onDisplacementSettingsChange,
   PX_PER_INCH = 10,
+  selectedPrintMethodId = null,
+  onPrintMethodChange,
+  designAreaSqIn,
+  selectedPrintMethodsByView = {},
+  designAreaByView = {},
+  currentView = 'front',
 }) => {
     const [expandedColor, setExpandedColor] = React.useState<string | null>(null);
 
@@ -447,6 +474,152 @@ export const ProductInfoPanel: React.FC<{
 
 
 
+
+          {/* PRINT METHOD Section */}
+          {product.allowedPrintMethodIds && product.allowedPrintMethodIds.length > 0 && (() => {
+            const allMethods = product.allowedPrintMethodIds!;
+            const blankCost = product.basePrice ?? product.catalogue?.basePrice ?? 0;
+
+            // Helper: compute print cost for a method + area
+            const computePrintCost = (pm: PrintMethodOption, area: number) => {
+              const areaCharge = (pm.baseRatePaisePerSqIn ?? 0) * area;
+              const extraColors = pm.hasColors ? Math.max(0, 1 - (pm.minColors ?? 1)) : 0;
+              const colorCharge = pm.hasColors ? ((pm.colorRatePaise ?? 0) * extraColors) : 0;
+              return Math.round(areaCharge + colorCharge) / 100;
+            };
+
+            // Get placeholder area for a specific view key
+            const getPlaceholderArea = (viewKey: string) => {
+              const viewData = (product.design?.views ?? []).find(v => v.key === viewKey);
+              if (!viewData) return 0;
+              return (viewData.placeholders ?? []).reduce((s, ph) => s + ((ph.widthIn ?? 0) * (ph.heightIn ?? 0)), 0);
+            };
+
+            // Views that have a selected method
+            const configuredViews = Object.entries(selectedPrintMethodsByView)
+              .filter(([, methodId]) => methodId != null)
+              .map(([viewKey, methodId]) => {
+                const pm = allMethods.find(m => m._id === methodId);
+                if (!pm) return null;
+                const area = (designAreaByView[viewKey] ?? 0) > 0
+                  ? designAreaByView[viewKey]
+                  : getPlaceholderArea(viewKey);
+                const printCost = computePrintCost(pm, area);
+                return { viewKey, pm, area, printCost };
+              })
+              .filter(Boolean) as Array<{ viewKey: string; pm: PrintMethodOption; area: number; printCost: number }>;
+
+            const totalPrintCost = configuredViews.reduce((s, v) => s + v.printCost, 0);
+            const grandTotal = blankCost + totalPrintCost;
+
+            // Current view area
+            const currentAreaActual = designAreaSqIn ?? 0;
+            const currentAreaFallback = getPlaceholderArea(currentView);
+            const currentArea = currentAreaActual > 0 ? currentAreaActual : currentAreaFallback;
+            const currentAreaIsActual = currentAreaActual > 0;
+            const approxSide = Math.sqrt(currentArea);
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Printer className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-semibold uppercase text-foreground">PRINT METHOD</Label>
+                </div>
+
+                {/* Cost summary — shown when at least one view has a selection */}
+                {configuredViews.length > 0 && (
+                  <div className="rounded-lg border bg-muted/30 overflow-hidden text-xs">
+                    <div className="px-3 py-2 bg-muted/50 font-semibold text-[11px] uppercase tracking-wide text-muted-foreground">
+                      Cost Breakdown (per piece)
+                    </div>
+                    <div className="divide-y divide-border">
+                      <div className="flex justify-between px-3 py-2 text-muted-foreground">
+                        <span>Blank garment</span>
+                        <span className="font-medium text-foreground">₹{blankCost.toFixed(2)}</span>
+                      </div>
+                      {configuredViews.map(({ viewKey, pm, printCost }) => (
+                        <div key={viewKey} className="flex justify-between px-3 py-2">
+                          <span className="text-muted-foreground capitalize">
+                            {viewKey} <span className="text-foreground font-medium">· {pm.name}</span>
+                          </span>
+                          <span className="font-medium text-foreground">₹{printCost.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between px-3 py-2.5 bg-primary/5 font-semibold text-primary">
+                        <span>Total</span>
+                        <span>₹{grandTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Current view section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {currentView} side
+                    </span>
+                    {currentArea > 0 && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-mono ${
+                        currentAreaIsActual
+                          ? 'border-blue-200 bg-blue-50 text-blue-700'
+                          : 'border-muted bg-muted/40 text-muted-foreground'
+                      }`}>
+                        {approxSide.toFixed(1)}" × {approxSide.toFixed(1)}"
+                        {currentAreaIsActual ? ' · your design' : ' · max area'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    {allMethods.filter(pm => pm.active !== false && (selectedPrintMethodId === null || selectedPrintMethodId === pm._id)).map(pm => {
+                      const isSelected = selectedPrintMethodId === pm._id;
+                      const printCostRupees = computePrintCost(pm, currentArea);
+
+                      return (
+                        <button
+                          key={pm._id}
+                          type="button"
+                          onClick={() => onPrintMethodChange?.(isSelected ? null : pm._id)}
+                          className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors w-full ${
+                            isSelected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm">{pm.name}</span>
+                              <span className="text-xs bg-muted rounded px-1.5 py-0.5 uppercase font-mono">{pm.code}</span>
+                              {pm.moq > 1 && <span className="text-xs text-muted-foreground">MOQ: {pm.moq}</span>}
+                            </div>
+                            {pm.description && (
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{pm.description}</p>
+                            )}
+                            {printCostRupees > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1.5">
+                                Print cost: <span className={`font-semibold ${isSelected ? 'text-primary' : 'text-foreground'}`}>₹{printCostRupees.toFixed(2)}</span>
+                              </p>
+                            )}
+                          </div>
+                          {isSelected && (
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge className="text-xs">Selected</Badge>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onPrintMethodChange?.(null); }}
+                                className="text-[10px] text-muted-foreground underline hover:text-foreground"
+                              >
+                                Change
+                              </button>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
         </div>
       </div>

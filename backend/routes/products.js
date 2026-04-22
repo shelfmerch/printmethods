@@ -29,6 +29,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       availableSizes,
       availableColors,
       galleryImages,
+      allowedPrintMethodIds,
     } = req.body;
 
     console.log('Catalogue:', catalogue ? 'present' : 'missing');
@@ -163,6 +164,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       pricing: pricing || {}, // Preserve pricing object if sent from frontend
       gst: (pricing && pricing.gst) ? pricing.gst : { slab: 18, mode: 'EXCLUSIVE', hsn: '' },
       stocks: stocks || {},
+      allowedPrintMethodIds: Array.isArray(allowedPrintMethodIds) ? allowedPrintMethodIds : [],
       createdBy: req.user.id,
       isActive: true,
       isPublished: true // Auto-publish for now (can be changed later)
@@ -645,7 +647,8 @@ router.get('/catalog/active', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const product = await CatalogProduct.findById(req.params.id)
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email')
+      .populate('allowedPrintMethodIds', 'name code moq baseRatePaisePerSqIn hasColors colorRatePaise minColors maxColors active description');
 
     if (!product) {
       return res.status(404).json({
@@ -733,7 +736,8 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       galleryImages,
       stocks,
       isActive,
-      isPublished
+      isPublished,
+      allowedPrintMethodIds,
     } = req.body;
 
     // Update flat fields from catalogue object
@@ -758,6 +762,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (stocks !== undefined) product.stocks = stocks;
     if (isActive !== undefined) product.isActive = isActive;
     if (isPublished !== undefined) product.isPublished = isPublished;
+    if (allowedPrintMethodIds !== undefined) product.allowedPrintMethodIds = Array.isArray(allowedPrintMethodIds) ? allowedPrintMethodIds : [];
 
     // Handle GST update if nested in pricing
     if (pricing && pricing.gst) {

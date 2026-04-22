@@ -297,6 +297,9 @@ import {
   Menu,
   X,
   Wallet,
+  Gift,
+  CreditCard,
+  UserCog,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -438,30 +441,52 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </DropdownMenu>
           ) : (
             <p className="text-xs text-muted-foreground">
-              No stores yet. <Link to="/connect-store" className="underline">Create one</Link>.
+              No brand store yet. <Link to="/create-store" className="underline">Set one up</Link>.
             </p>
           )}
         </div>
 
-        <nav className="space-y-2 overflow-y-auto max-h-[calc(100vh-250px)] pb-4">
+        <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-250px)] pb-4">
+          {/* Core */}
           <Button variant={isActiveRoute('/dashboard') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
-            <Link to="/dashboard"><Package className="mr-2 h-4 w-4" />My Products</Link>
+            <Link to="/dashboard"><Package className="mr-2 h-4 w-4" />Products</Link>
           </Button>
           <Button variant={isActiveRoute('/orders') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/orders"><ShoppingBag className="mr-2 h-4 w-4" />Orders</Link>
           </Button>
+
+          {/* Brand section divider */}
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold px-3 pt-4 pb-1">Brand</p>
+
+          <Button variant={isActiveRoute('/brand/employees') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/employees"><Users className="mr-2 h-4 w-4" />Employees</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/credits') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/credits"><Gift className="mr-2 h-4 w-4" />Credits</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/team') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/team"><UserCog className="mr-2 h-4 w-4" />Team</Link>
+          </Button>
+
+          {/* Finance section divider */}
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold px-3 pt-4 pb-1">Finance</p>
+
           <Button variant={isActiveRoute('/wallet') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
-            <Link to="/wallet"><Wallet className="mr-2 h-4 w-4" />Wallet</Link>
+            <Link to="/wallet"><Wallet className="mr-2 h-4 w-4" />Company Wallet</Link>
           </Button>
-          {/* <Button variant={isActiveRoute('/invoices') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+          <Button variant={isActiveRoute('/brand/billing') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/billing"><CreditCard className="mr-2 h-4 w-4" />Billing</Link>
+          </Button>
+          <Button variant={isActiveRoute('/invoices') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/invoices"><FileText className="mr-2 h-4 w-4" />Invoices</Link>
-          </Button> */}
-          <Button variant={isActiveRoute('/customers') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
-            <Link to="/customers"><Users className="mr-2 h-4 w-4" />Customers</Link>
           </Button>
-          {/* <Button variant={isActiveRoute('/analytics') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+
+          {/* Other */}
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold px-3 pt-4 pb-1">Other</p>
+
+          <Button variant={isActiveRoute('/analytics') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/analytics"><TrendingUp className="mr-2 h-4 w-4" />Analytics</Link>
-          </Button> */}
+          </Button>
           {isAdmin && (
             <Button variant={isActiveRoute('/admin') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
               <Link to="/admin"><Users className="mr-2 h-4 w-4" />Admin Panel</Link>
@@ -471,6 +496,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link>
           </Button>
         </nav>
+
 
         <div className="absolute bottom-6 left-6 right-6">
           <div className="border-t pt-4 space-y-2">

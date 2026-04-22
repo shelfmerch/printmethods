@@ -1,0 +1,204 @@
+body,.dg-box .accordion{font-family:'Roboto Slab',serif;font-weight:300;font-size:13px}
+.dg-box label{color:#333;font-weight:300}
+h1,h2,h3,h4,h5,h6,.h1,.h2,.h3,.h4,.h5,.h6{font-family:'Roboto Slab',serif;font-weight:300}
+.menu-left li > a{color:#666;font-size:13px;font-weight:400;padding:10px;text-shadow:none}
+.dg-box .ui-accordion .ui-accordion-header{color:#666;font-size:13px;font-weight:400;text-shadow:none}
+#product-attributes .form-group{margin-bottom:15px}
+#product-attributes .list-number li{margin:8px 0}
+.popover.right{margin-left:15px}
+.popover{width:270px}
+small{font-size:12px}
+.dg-options-content > .row{line-height:22px;padding-top:6px}
+.btn-gray{
+    background-color: #3fb3d3;
+    color: #fff;
+}
+.btn-gray.btn_add_cart {
+    border-radius: 0;
+}
+ul.menu-item-tabs {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow: hidden;
+    width: calc(100% + 15px);
+    height: auto;
+}
+ul.menu-item-tabs {
+    margin: 0;
+    list-style: none;
+    overflow: hidden;
+    width: 100%;
+    height: auto;
+    padding: 0 15px;
+    display: grid;
+    grid-template-columns: auto auto auto;
+    text-align: center;
+}
+ul.menu-item-tabs > li.active {
+    opacity: 1;
+}
+ul.menu-item-tabs > li{
+    float: left;
+    border: 0!important;
+    margin: 0!important;
+    padding: 0!important;
+    opacity: 0.5;
+}
+ul.menu-item-tabs > li > a {
+    padding: 0;
+    border-radius: 3px;
+    color: #666;
+    font-weight: 400;
+    text-align: center;
+    margin: 15px 0 0 0;
+    overflow: hidden;
+    text-decoration: none;
+    display: inline-block;
+}
+ul.menu-item-tabs > li > a span {
+    clear: both;
+    display: block;
+    line-height: 24px;
+        width: 76px;
+}
+.img-frames{
+    background-color: #f4cc55; 
+}
+.img-grids{
+    background-color: #9772d4; 
+}
+.img-vectors{
+    background-color: #e89848; 
+}
+.img-photo{
+    background-color: #8ec370; 
+}
+.img-shapes{
+    background-color: #db5b86; 
+}
+.img-background{
+    background-color: #53c1ca; 
+}
+.img-lines{
+    background-color: #5f99cd; 
+}
+.img-icons{
+    background-color: #d3523e; 
+}
+.obj-main-content {
+    display: inline-block;
+    width: 100%;
+}
+#dg-obj-icons .obj-main-content .box-art {
+    width: 65px;
+    height: 65px;
+}
+#dg-obj-shapes .obj-main-content .box-art{
+    width: 88px;
+    height: 88px;
+}
+#dag-list-store-arts .box-art {
+    width: 136px;
+    margin: 0 8px 8px 0;
+}
+.obj-main-content .box-art {
+    width: 105px;
+    height: auto;
+    margin: 0 10px 10px 0;
+    border-radius: 3px;
+    padding: 0;
+}
+#dg-obj-icons .obj-main-content img {
+    max-width: 94%;
+    max-height: 94%;
+}
+.store-categories ul li a {
+    float: left;
+    background-color: #fff;
+    padding: 4px 6px;
+    margin: 8px 8px 0 0;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    color: #333;
+}
+.obj-footer {
+    position: fixed;
+    bottom: 10px;
+    right: 6px;
+    background-color: rgba(0, 0, 0, 0.5);
+    height: 32px;
+    line-height: 30px;
+    border-radius: 100%;
+    width: 32px;
+    text-align: center;
+    padding: 0 10px;
+}
+a.obj-scrolltop {
+    color: #fff;
+    text-decoration: none;
+}
+.obj-tab-content {
+    position: relative;
+    padding: 0 15px;
+}
+ .obj-header {
+    width: 100%;
+    border-top: 1px dashed #ccc;
+    padding-top: 15px;
+    display: inline-block;
+}
+.option-panel-content {
+   height: 100%;
+    overflow: auto;
+    display: inline-block;
+    width: 100%;
+}
+ul#upload-tabs {
+    clear: both;
+    display: grid;
+    width: 100%;
+    overflow: hidden;
+    margin: 0;
+    padding: 15px 0 0 0;
+    grid-area: 3;
+    grid-template-columns: auto auto auto;
+}
+#upload-tabs>li.active {
+    opacity: 1;
+}
+ul#upload-tabs > li a i {
+    width: 80px;
+    height: 80px;
+    background-color: #ccc;
+    border-radius: 4px;
+    font-size: 36px;
+    line-height: 80px;
+    color: #fff;
+}
+ul#upload-tabs > li a.bg-upload-facebook i{
+    background: #4267b2;
+}
+ul#upload-tabs > li a.bg-upload-conputer i{
+    background: #e89848;
+}
+ul#upload-tabs > li a.bg-upload-instagram i{
+    background: #bd3381;
+}
+#upload-tabs li a span {
+    clear: both;
+    display: block;
+    font-size: 11px;
+    text-align: center;
+    padding-top: 5px;
+}
+span.tools-price {
+    display: inline;
+}
+a.site-logo {
+    position: relative;
+    top: -5px;
+    float: left;
+    padding-left: 8px;
+    padding-right: 8px;
+}

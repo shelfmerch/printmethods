@@ -36,6 +36,12 @@ const mapStoreToFrontend = (storeDoc, includeBuilder = false) => {
     },
     useBuilder: store.useBuilder || false,
     builderLastPublishedAt: store.builderLastPublishedAt || null,
+    brandProfile: store.brandProfile || null,
+    accessMode: store.accessMode || 'public',
+    subscriptionPlan: store.subscriptionPlan || 'trial',
+    subscriptionStatus: store.subscriptionStatus || 'trial',
+    subscriptionExpiry: store.subscriptionExpiry || null,
+    companyWalletId: store.companyWalletId || null,
   };
 
   // Include builder data when requested (e.g., for storefront rendering)
@@ -140,7 +146,7 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    const { name, theme, description, currency, country } = req.body;
+    const { name, theme, description, currency, country, brandProfile } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -177,8 +183,28 @@ router.post('/', protect, async (req, res) => {
       settings: {
         currency: (currency || 'INR').toUpperCase(),
         timezone: 'UTC',
-        primaryColor: '#000000',
+        primaryColor: brandProfile?.brandGuidelines?.primaryColor || '#000000',
+        logoUrl: brandProfile?.brandGuidelines?.logoUrl,
       },
+      // Brand / corporate swag profile
+      ...(brandProfile && {
+        brandProfile: {
+          companyName: brandProfile.companyName || name.trim(),
+          website: brandProfile.website,
+          emailDomain: brandProfile.emailDomain,
+          industry: brandProfile.industry,
+          headcount: brandProfile.headcount,
+          regions: brandProfile.regions || ['India'],
+          brandGuidelines: {
+            primaryColor: brandProfile.brandGuidelines?.primaryColor || '#000000',
+            secondaryColor: brandProfile.brandGuidelines?.secondaryColor,
+            logoUrl: brandProfile.brandGuidelines?.logoUrl,
+            coverImageUrl: brandProfile.brandGuidelines?.coverImageUrl,
+          },
+        },
+      }),
+      subscriptionPlan: 'trial',
+      subscriptionStatus: 'trial',
       // Do NOT set domain here; leave it undefined so it doesn't trip unique index
       isActive: true,
       isConnected: false,

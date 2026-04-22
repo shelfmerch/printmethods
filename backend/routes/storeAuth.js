@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Store = require('../models/Store');
 const StoreCustomer = require('../models/StoreCustomer');
+const BrandEmployee = require('../models/BrandEmployee');
 
 const { sendOTP: sendEmailOTP } = require('../utils/mailer');
 const { sendOTP: sendPhoneOTP } = require('../utils/msg91');
@@ -12,6 +13,26 @@ const { sendOTP: sendPhoneOTP } = require('../utils/msg91');
 const getStoreBySubdomain = async (subdomain) => {
     if (!subdomain) return null;
     return await Store.findOne({ slug: subdomain }).lean();
+};
+
+/**
+ * Invite-only gate:
+ * If the store's accessMode is 'invite_only', the identifier (email/phone)
+ * must match an active or pending BrandEmployee record.
+ */
+const assertInviteAllowed = async (store, identifier, identifierType = 'email') => {
+    if (store.accessMode !== 'invite_only') return; // public store — always allowed
+    const query = {
+        brandId: store._id,
+        inviteStatus: { $in: ['active', 'pending'] },
+    };
+    if (identifierType === 'email') query.email = identifier.toLowerCase();
+    const emp = await BrandEmployee.findOne(query).lean();
+    if (!emp) {
+        const error = new Error('This store is invite-only. Please contact your HR team to get access.');
+        error.status = 403;
+        throw error;
+    }
 };
 
 const sendCustomerTokenResponse = (customer, statusCode, res) => {
@@ -70,6 +91,15 @@ router.post('/otp/send', async (req, res) => {
             identifier = phoneNumber.replace(/\D/g, '').slice(-10);
         } else {
             return res.status(400).json({ success: false, message: 'Invalid OTP type' });
+        }
+
+        // Invite-only gate (email only — phone gate is best-effort due to no phone on BrandEmployee)
+        if (otpType === 'email') {
+            try {
+                await assertInviteAllowed(store, identifier, 'email');
+            } catch (gateErr) {
+                return res.status(gateErr.status || 403).json({ success: false, message: gateErr.message });
+            }
         }
 
         const query = otpType === 'email'
@@ -241,6 +271,13 @@ router.post('/register', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Store not found' });
         }
 
+        // Invite-only gate
+        try {
+            await assertInviteAllowed(store, email, 'email');
+        } catch (gateErr) {
+            return res.status(gateErr.status || 403).json({ success: false, message: gateErr.message });
+        }
+
         // Check if customer exists in this store
         let customer = await StoreCustomer.findOne({ storeId: store._id, email });
         if (customer) {
@@ -281,6 +318,13 @@ router.post('/login', async (req, res) => {
         const store = await getStoreBySubdomain(subdomain);
         if (!store) {
             return res.status(404).json({ success: false, message: 'Store not found' });
+        }
+
+        // Invite-only gate
+        try {
+            await assertInviteAllowed(store, email, 'email');
+        } catch (gateErr) {
+            return res.status(gateErr.status || 403).json({ success: false, message: gateErr.message });
         }
 
         // Find customer

@@ -188,21 +188,22 @@ router.post('/bulk', protect, authorize('superadmin'), async (req, res) => {
 // @access  Private
 router.get('/product/:productId', protect, async (req, res) => {
   try {
-    const variants = await CatalogProductVariant.find({
-      catalogProductId: req.params.productId
-    }).sort({ size: 1, color: 1 });
+    const [variants, parentProduct] = await Promise.all([
+      CatalogProductVariant.find({ catalogProductId: req.params.productId }).sort({ size: 1, color: 1 }),
+      CatalogProduct.findById(req.params.productId).select('basePrice').lean(),
+    ]);
 
-    // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
-    // Keep basePrice in response for production cost calculation (required by ListingEditor)
+    const catalogBasePrice = parentProduct?.basePrice;
+
     const transformedVariants = variants.map(v => {
       const variant = v.toObject ? v.toObject() : v;
       return {
         ...variant,
         sku: variant.skuTemplate || variant.sku,
-        price: variant.basePrice, // For backward compatibility
-        // Keep basePrice for production cost calculation (ListingEditor requirement)
+        price: variant.basePrice,
         basePrice: variant.basePrice,
-        skuTemplate: undefined // Remove skuTemplate to avoid confusion
+        catalogBasePrice, // parent product basePrice — fallback when variant has no basePrice
+        skuTemplate: undefined
       };
     });
 

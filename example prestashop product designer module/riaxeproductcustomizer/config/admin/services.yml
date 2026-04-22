@@ -1,0 +1,50 @@
+services:
+
+  riaxeproductcustomizer.module:
+    class: Riaxeproductcustomizer
+    public: true
+    factory: ['Module', 'getInstanceByName']
+    arguments:
+      - 'riaxeproductcustomizer'
+
+  riaxeproductcustomizer.context:
+    class: Context
+    public: true
+    factory: [ 'Context', 'getContext' ]
+    
+  #####################
+  # PS Account
+  riaxeproductcustomizer.ps_accounts_installer:
+    class: 'PrestaShop\PsAccountsInstaller\Installer\Installer'
+    public: true
+    arguments:
+      - "5.0"
+
+  riaxeproductcustomizer.ps_accounts_facade:
+    class: 'PrestaShop\PsAccountsInstaller\Installer\Facade\PsAccounts'
+    public: true
+    arguments:
+      - "@riaxeproductcustomizer.ps_accounts_installer"
+
+  #####################
+  # PS Billing
+  riaxeproductcustomizer.ps_billings_context_wrapper:
+    class: 'PrestaShopCorp\Billing\Wrappers\BillingContextWrapper'
+    arguments:
+      - '@riaxeproductcustomizer.ps_accounts_facade'
+      - '@riaxeproductcustomizer.context'
+
+  riaxeproductcustomizer.ps_billings_facade:
+    class: 'PrestaShopCorp\Billing\Presenter\BillingPresenter'
+    public: true
+    arguments:
+      - '@riaxeproductcustomizer.ps_billings_context_wrapper'
+      - '@riaxeproductcustomizer.module'
+
+  # Remove this if you don't need BillingService
+  riaxeproductcustomizer.ps_billings_service:
+    class: PrestaShopCorp\Billing\Services\BillingService
+    public: true
+    arguments:
+      - '@riaxeproductcustomizer.ps_billings_context_wrapper'
+      - '@riaxeproductcustomizer.module'

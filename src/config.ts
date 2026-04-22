@@ -9,14 +9,14 @@ export const IS_PROD = import.meta.env.PROD;
 
 // API Base URL - The backend endpoint
 // In production, we favor VITE_API_BASE_URL for explicit targeting, falling back to relative /api
-export const API_BASE_URL = IS_PROD 
-  ? (import.meta.env.VITE_API_BASE_URL || '/api') 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:5000/api');
+export const API_BASE_URL = IS_PROD
+  ? (import.meta.env.VITE_API_BASE_URL || '/api')
+  : (import.meta.env.VITE_API_URL || 'http://localhost:5002/api');
 
 // For Shopify OAuth, we MUST use the public ngrok/production URL for both start and callback.
 // If VITE_API_BASE_URL is set (e.g. to ngrok), we use that to ensure cookies are set on the correct domain.
-export const SHOPIFY_API_BASE_URL = import.meta.env.VITE_SHOPIFY_API_BASE_URL || 
-  import.meta.env.VITE_API_BASE_URL || 
+export const SHOPIFY_API_BASE_URL = import.meta.env.VITE_SHOPIFY_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
   API_BASE_URL;
 
 // Store Base URL - Where the storefronts are hosted
@@ -26,8 +26,8 @@ export const STORE_BASE_URL = import.meta.env.VITE_STORE_BASE_URL || 'http://loc
 
 // Helper to get raw API URL (without /api suffix if needed)
 export const RAW_API_URL = API_BASE_URL.endsWith('/api')
-    ? API_BASE_URL.slice(0, -4)
-    : API_BASE_URL;
+  ? API_BASE_URL.slice(0, -4)
+  : API_BASE_URL;
 
 console.log(`[Config] Running in ${IS_DEV ? 'development' : 'production'} mode`);
 console.log(`[Config] API Base URL: ${API_BASE_URL}`);

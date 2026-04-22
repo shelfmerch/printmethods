@@ -4586,7 +4586,8 @@ import {
   ArrowRightLeft,
   Layers,
   CreditCard,
-  User
+  User,
+  Printer
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -5597,6 +5598,16 @@ const Admin = () => {
               <Link to="/admin/catalogue-fields">
                 <FileText className="mr-2 h-4 w-4" />
                 Catalogue Fields
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              asChild
+            >
+              <Link to="/admin/print-methods">
+                <Printer className="mr-2 h-4 w-4" />
+                Print Methods
               </Link>
             </Button>
             <Button

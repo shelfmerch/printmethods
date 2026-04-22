@@ -656,6 +656,7 @@ const DesignEditor: React.FC = () => {
 
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]); // Keep for backward compatibility
+  const [selectedPrintMethodsByView, setSelectedPrintMethodsByView] = useState<Record<string, string | null>>({});
   const [selectedSizesByColor, setSelectedSizesByColor] = useState<Record<string, string[]>>({});
   // Current view's mockup — always the base product image (view.mockupImageUrl)
   const _primaryColorNorm = (selectedColors[0] || '').toLowerCase().trim();
@@ -698,6 +699,15 @@ const DesignEditor: React.FC = () => {
 
     return { isValid: true };
   }, [selectedColors, selectedSizes, selectedSizesByColor]);
+
+  // --- PRINT METHOD VALIDATION ---
+  const printMethodValidation = useMemo(() => {
+    const activeMethods = ((product?.allowedPrintMethodIds as any[]) ?? []).filter((m: any) => m.active !== false);
+    if (activeMethods.length <= 1) return { isValid: true };
+    const hasSelection = Object.values(selectedPrintMethodsByView).some(id => id != null);
+    if (!hasSelection) return { isValid: false, message: 'Please select a print method for at least one side' };
+    return { isValid: true };
+  }, [product?.allowedPrintMethodIds, selectedPrintMethodsByView]);
 
   // Generate cache key: viewKey|garmentTintHex|designSig|settingsSig
   const getPreviewCacheKey = useCallback((viewKey: string): string => {
@@ -1131,6 +1141,47 @@ const DesignEditor: React.FC = () => {
   const inchesToPixels = useCallback((inches: number): number => {
     return inches * PX_PER_INCH;
   }, [PX_PER_INCH]);
+
+  // Bounding box of placed elements per view in sq inches (used for dynamic print cost).
+  // Computed after render so Konva nodes are current.
+  const [actualDesignAreaSqIn, setActualDesignAreaSqIn] = useState(0);
+  const [designAreaByView, setDesignAreaByView] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!PX_PER_INCH || PX_PER_INCH <= 0 || !stageRef.current || elements.length === 0) {
+      setActualDesignAreaSqIn(0);
+      setDesignAreaByView(prev => ({ ...prev, [currentView]: 0 }));
+      return;
+    }
+    const stage = stageRef.current;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let hasAny = false;
+    for (const el of elements) {
+      const node = stage.findOne('#' + el.id);
+      if (!node) continue;
+      try {
+        const rect = node.getClientRect({ relativeTo: stage });
+        if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+        hasAny = true;
+        minX = Math.min(minX, rect.x);
+        minY = Math.min(minY, rect.y);
+        maxX = Math.max(maxX, rect.x + rect.width);
+        maxY = Math.max(maxY, rect.y + rect.height);
+      } catch {
+        // node not yet mounted
+      }
+    }
+    if (!hasAny) {
+      setActualDesignAreaSqIn(0);
+      setDesignAreaByView(prev => ({ ...prev, [currentView]: 0 }));
+      return;
+    }
+    const bboxW = Math.max(0, maxX - minX);
+    const bboxH = Math.max(0, maxY - minY);
+    const area = (bboxW / PX_PER_INCH) * (bboxH / PX_PER_INCH);
+    setActualDesignAreaSqIn(area);
+    setDesignAreaByView(prev => ({ ...prev, [currentView]: area }));
+  }, [elements, PX_PER_INCH, currentView]);
 
   // Get all placeholders for current view.
   // IMPORTANT: Use the exact same inches → pixels mapping as `CanvasMockup.tsx`
@@ -2808,6 +2859,11 @@ const DesignEditor: React.FC = () => {
         return;
       }
 
+      if (!printMethodValidation.isValid) {
+        toast.error(printMethodValidation.message!);
+        return;
+      }
+
       // Ensure the merchant has at least one store before creating a draft
       try {
         const storesResp = await storeApi.listMyStores();
@@ -2916,6 +2972,27 @@ const DesignEditor: React.FC = () => {
       }
       */
 
+      // --- COMPUTE TOTAL PRINT COST ---
+      // Sum decoration cost for all views where user selected a print method
+      const computeMethodCost = (pm: any, area: number): number => {
+        const areaCharge = (pm.baseRatePaisePerSqIn ?? 0) * area;
+        const extraColors = pm.hasColors ? Math.max(0, 1 - (pm.minColors ?? 1)) : 0;
+        const colorCharge = pm.hasColors ? ((pm.colorRatePaise ?? 0) * extraColors) : 0;
+        return Math.round(areaCharge + colorCharge) / 100;
+      };
+      let totalPrintCost = 0;
+      for (const [viewKey, methodId] of Object.entries(selectedPrintMethodsByView)) {
+        if (!methodId) continue;
+        const pm = ((product.allowedPrintMethodIds as any[]) ?? []).find((m: any) => m._id === methodId);
+        if (!pm) continue;
+        const actualArea = designAreaByView[viewKey] ?? 0;
+        const placeholderArea = (product.design?.views ?? [])
+          .find((v: any) => v.key === viewKey)
+          ?.placeholders?.reduce((s: number, ph: any) => s + ((ph.widthIn ?? 0) * (ph.heightIn ?? 0)), 0) ?? 0;
+        const area = actualArea > 0 ? actualArea : placeholderArea;
+        totalPrintCost += computeMethodCost(pm, area);
+      }
+
       // --- CREATE DRAFT IN DATABASE ---
       // Create a draft store product with the entire elements array
       const draftPayload = {
@@ -2933,6 +3010,8 @@ const DesignEditor: React.FC = () => {
           selectedSizes,
           selectedSizesByColor, // Save size selections per color
           primaryColorHex, // Save primary color for garment tinting
+          selectedPrintMethodsByView, // Per-view print method selections
+          totalPrintCost, // Total decoration cost (used by ListingEditor for production cost)
         },
         // Optional: include basic product info if available
         title: product?.catalogue?.name,
@@ -3047,39 +3126,6 @@ const DesignEditor: React.FC = () => {
           displacementSettings: product.design?.displacementSettings
         };
 
-        if (!user.isEmailVerified && !user.isPhoneVerified) {
-          toast.info('Please verify your email and phone to continue.');
-          navigate('/verify-email?source=add-product', {
-            state: {
-              returnTo: targetPath,
-              returnToState: targetState,
-              nextVerification: 'phone',
-              triggerPublish: true,
-              from: 'add-product'
-            }
-          });
-        } else if (!user.isEmailVerified) {
-          toast.info('Please verify your email to continue.');
-          navigate('/verify-email?source=add-product', {
-            state: {
-              returnTo: targetPath,
-              returnToState: targetState,
-              triggerPublish: true,
-              from: 'add-product'
-            }
-          });
-        } else {
-          toast.info('Please verify your phone number to continue.');
-          navigate('/verify-phone?source=add-product', {
-            state: {
-              returnTo: targetPath,
-              returnToState: targetState,
-              triggerPublish: true,
-              from: 'add-product'
-            }
-          });
-        }
-        return;
       }
 
       // Navigate to MockupsLibrary if sample mockups exist
@@ -3472,7 +3518,7 @@ const DesignEditor: React.FC = () => {
               size="sm"
               onClick={handlePublishToStore}
               disabled={isPublishing}
-              className={`rounded-full h-9 px-4 font-semibold text-xs shadow-sm shadow-primary/20 ${!variantValidation.isValid ? 'opacity-50 grayscale' : ''}`}
+              className={`rounded-full h-9 px-4 font-semibold text-xs shadow-sm shadow-primary/20 ${(!variantValidation.isValid || !printMethodValidation.isValid) ? 'opacity-50 grayscale' : ''}`}
             >
               {isPublishing ? '...' : 'Add Product'}
             </Button>
@@ -4736,6 +4782,12 @@ const DesignEditor: React.FC = () => {
                     setPrimaryColorHex(hex);
                     setHasUnsavedChanges(true);
                   }}
+                  selectedPrintMethodId={selectedPrintMethodsByView[currentView] ?? null}
+                  onPrintMethodChange={(id) => setSelectedPrintMethodsByView(prev => ({ ...prev, [currentView]: id }))}
+                  designAreaSqIn={actualDesignAreaSqIn}
+                  selectedPrintMethodsByView={selectedPrintMethodsByView}
+                  designAreaByView={designAreaByView}
+                  currentView={currentView}
                 />
               </TabsContent>
 
@@ -4847,6 +4899,12 @@ const DesignEditor: React.FC = () => {
                       setPrimaryColorHex(hex);
                       setHasUnsavedChanges(true);
                     }}
+                    selectedPrintMethodId={selectedPrintMethodsByView[currentView] ?? null}
+                    onPrintMethodChange={(id) => setSelectedPrintMethodsByView(prev => ({ ...prev, [currentView]: id }))}
+                    designAreaSqIn={actualDesignAreaSqIn}
+                    selectedPrintMethodsByView={selectedPrintMethodsByView}
+                    designAreaByView={designAreaByView}
+                    currentView={currentView}
                   />
                 )}
 

@@ -1,0 +1,17 @@
+/*2015-11-26*/
+.box-detail-design{
+	border: 1px solid #ccc;
+    clear: both;
+    color: black;
+    display: block;
+	text-align:center;
+    padding: 0 4px;    
+    top: -1px;
+    width: 100%;	
+	-moz-hyphens:auto;
+	-ms-hyphens:auto;
+	-webkit-hyphens:auto;
+	hyphens:auto;
+	word-wrap:break-word;	
+}
+

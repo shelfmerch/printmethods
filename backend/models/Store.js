@@ -127,6 +127,51 @@ const storeSchema = new mongoose.Schema({
   },
   builderLastPublishedAt: {
     type: Date
+  },
+
+  // ─── Brand / Corporate Swag fields ─────────────────────────────────────────
+  brandProfile: {
+    companyName:     { type: String, trim: true },
+    website:         { type: String, trim: true },
+    emailDomain:     { type: String, trim: true, lowercase: true }, // e.g. "toasttab.com"
+    industry:        { type: String, trim: true },
+    headcount:       { type: Number },
+    regions:         { type: [String], default: ['India'] },        // ['India','Taiwan','Australia','New Zealand']
+    brandGuidelines: {
+      primaryColor:   { type: String, default: '#000000' },
+      secondaryColor: { type: String },
+      logoUrl:        { type: String },
+      coverImageUrl:  { type: String }
+    }
+  },
+
+  // Who can access the store's ordering portal
+  accessMode: {
+    type: String,
+    enum: ['public', 'invite_only', 'domain_restricted'],
+    default: 'public'
+  },
+
+  // Subscription billing
+  subscriptionPlan: {
+    type: String,
+    enum: ['trial', 'starter', 'business', 'enterprise'],
+    default: 'trial'
+  },
+  subscriptionStatus: {
+    type: String,
+    enum: ['active', 'trial', 'expired', 'cancelled'],
+    default: 'trial'
+  },
+  subscriptionExpiry: {
+    type: Date
+  },
+
+  // Separate company-level wallet for credit allocation to employees
+  companyWalletId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Wallet',
+    sparse: true
   }
 }, {
   timestamps: true

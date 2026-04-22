@@ -1,0 +1,48 @@
+.group-thumb {
+    float: left;
+    width: 90px;
+    height: 90px;
+    position: relative;
+    border: 1px solid #ddd;
+    margin: 8px 15px 8px 0;
+    text-align: center;
+    display: flex;
+    border-radius: 3px;
+}
+.group-thumb span.thumb-title {
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.8);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    color: #666;
+    text-align: center;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: 0 0 3px 3px;
+}
+.group-thumb img.thumb-main {
+    max-width: 100%;
+    max-height: 100%;
+    margin: auto;
+    border-radius: 3px;
+}
+.group-thumb .thumb-edit {
+    position: absolute;
+    right: 0px;
+    top: 0px;
+    background-color: #428bca;
+    color: #fff;
+    margin: auto;
+    left: 0;
+    bottom: 0;
+    width: 30px;
+    height: 30px;
+    display: none;
+}
+.group-thumb:hover img{
+    opacity: 0.6;
+}
+.group-thumb:hover .thumb-edit{
+    display: block;
+}

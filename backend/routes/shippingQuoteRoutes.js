@@ -136,8 +136,49 @@ function calculateFallbackShipping(destPincode, weightGrams) {
 /**
  * Main Route Handler
  */
+// International flat rates (INR per kg)
+const INTL_FLAT_RATES = {
+  'Taiwan':      2500,
+  'Australia':   3500,
+  'New Zealand': 3500,
+};
+
+// Helper: normalise country name variants
+function resolveCountry(raw) {
+  if (!raw) return null;
+  const s = raw.trim().toLowerCase();
+  if (s === 'india' || s === 'in') return 'India';
+  if (s === 'taiwan' || s === 'tw') return 'Taiwan';
+  if (s === 'australia' || s === 'au') return 'Australia';
+  if (s === 'new zealand' || s === 'nz') return 'New Zealand';
+  return null;
+}
+
 router.post('/', async (req, res) => {
-    const { destPincode, weightGrams } = req.body;
+    const { destPincode, weightGrams, destCountry } = req.body;
+    const country = resolveCountry(destCountry);
+
+    // ── International flat-rate path ──────────────────────────────────────────
+    if (country && country !== 'India') {
+        const ratePerKg = INTL_FLAT_RATES[country];
+        if (!ratePerKg) {
+            return res.status(400).json({ success: false, message: `Shipping to ${country} not available` });
+        }
+        const weight = Math.max(MIN_WEIGHT_GRAMS, weightGrams || 500);
+        const weightKg = weight / 1000;
+        const shipping_charge = Math.ceil(weightKg * ratePerKg);
+        console.log(`[Shipping Quote] International ${country}: ${weightKg}kg × ₹${ratePerKg}/kg = ₹${shipping_charge}`);
+        return res.json({
+            success: true,
+            serviceable: true,
+            cod_available: false,
+            country,
+            shipping_charge,
+            estimated_days: country === 'Taiwan' ? '7-10' : '10-14',
+            rate_source: 'flat_rate',
+        });
+    }
+
     console.log(`[Shipping Quote] Request received for pincode: ${destPincode}, weight: ${weightGrams}g`);
 
     // Validation

@@ -1,0 +1,7 @@
+[
+	"addons/install/share-google.json",
+	"addons/js/share_google.js",
+	"addons/language/google.ini",
+	"addons/remove/share-google.json",
+	"addons/share/googleplus.php"
+]
