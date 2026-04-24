@@ -96,6 +96,18 @@ const BrandKitSendWizard = () => {
 
   const canAdvanceRecipients = recipientCount > 0 && moqWarnings.every((warning) => warning.accepted);
 
+  // Minimum schedule date = today + max production days across all kit items
+  const minScheduleDate = useMemo(() => {
+    const maxHours = kit?.items.reduce((max, item) => {
+      const ph = productFromItem(item)?.productionHours || 120;
+      return Math.max(max, ph);
+    }, 120) ?? 120;
+    const productionDays = Math.ceil(maxHours / 8);
+    const d = new Date();
+    d.setDate(d.getDate() + productionDays);
+    return d.toISOString().split('T')[0]; // YYYY-MM-DD
+  }, [kit]);
+
   const itemCostTotal = useMemo(() => {
     if (!kit || !recipientCount) return 0;
     return kit.items.reduce((sum, item) => {
@@ -314,7 +326,7 @@ const BrandKitSendWizard = () => {
                 {deliveryMode === 'redeem' ? (
                   <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
                     <div className="space-y-2">
-                      <Label htmlFor="global-qty">Global quantity</Label>
+                      <Label htmlFor="global-qty">Quantity</Label>
                       <Input id="global-qty" type="number" min={1} value={globalQty} onChange={(event) => setGlobalQty(Number(event.target.value) || 1)} />
                     </div>
                     <div className="space-y-2">
@@ -410,7 +422,12 @@ const BrandKitSendWizard = () => {
                     </label>
                   </RadioGroup>
                   {sendInviteAt === 'scheduled' && (
-                    <Input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
+                    <Input
+                      type="date"
+                      value={scheduledAt}
+                      min={minScheduleDate}
+                      onChange={(event) => setScheduledAt(event.target.value)}
+                    />
                   )}
                 </div>
                 <div className="rounded-xl border bg-muted/30 p-5">
