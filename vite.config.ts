@@ -14,12 +14,12 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Dev-only: avoids browser CORS by proxying through Vite (same-origin)
         "/api/partner": {
-          target: "http://127.0.0.1:5000",
+          target: "http://127.0.0.1:5002",
           changeOrigin: true,
           secure: false,
         },
         "/api/shopify": {
-          target: "http://127.0.0.1:5000",
+          target: "http://127.0.0.1:5002",
           changeOrigin: true,
           secure: false,
         },

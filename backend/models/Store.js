@@ -131,11 +131,12 @@ const storeSchema = new mongoose.Schema({
 
   // ─── Brand / Corporate Swag fields ─────────────────────────────────────────
   brandProfile: {
-    companyName:     { type: String, trim: true },
+    companyName:     { type: String, trim: true, default: '' },
     website:         { type: String, trim: true },
-    emailDomain:     { type: String, trim: true, lowercase: true }, // e.g. "toasttab.com"
-    industry:        { type: String, trim: true },
-    headcount:       { type: Number },
+    emailDomain:     { type: String, trim: true, lowercase: true, default: '' },
+    country:         { type: String, trim: true, default: '' },
+    industry:        { type: String, trim: true, default: '' },
+    headcount:       { type: Number, default: 0 },
     regions:         { type: [String], default: ['India'] },        // ['India','Taiwan','Australia','New Zealand']
     brandGuidelines: {
       primaryColor:   { type: String, default: '#000000' },

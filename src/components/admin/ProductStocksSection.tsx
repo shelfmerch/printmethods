@@ -38,6 +38,52 @@ export const ProductStocksSection = ({ data, onChange }: ProductStocksSectionPro
 
       <Separator />
 
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="fulfillmentType">Fulfillment type</Label>
+          <RadioGroup
+            value={data.fulfillmentType || 'print_on_demand'}
+            onValueChange={(value: 'print_on_demand' | 'inventory') => onChange({
+              ...data,
+              fulfillmentType: value,
+            })}
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="print_on_demand" id="fulfillment-pod" />
+              <Label htmlFor="fulfillment-pod" className="font-normal cursor-pointer">
+                Print on demand
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="inventory" id="fulfillment-inventory" />
+              <Label htmlFor="fulfillment-inventory" className="font-normal cursor-pointer">
+                Inventory
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="productionHours">Production hours</Label>
+          <Input
+            id="productionHours"
+            type="number"
+            min="1"
+            placeholder="120"
+            value={data.productionHours || ''}
+            onChange={(e) => onChange({
+              ...data,
+              productionHours: parseInt(e.target.value, 10) || 120,
+            })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Used in kits to estimate production lead time in working days.
+          </p>
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Stock Location Section */}
       <div className="space-y-2">
         <Label htmlFor="stockLocation">Stock location</Label>
@@ -181,4 +227,3 @@ export const ProductStocksSection = ({ data, onChange }: ProductStocksSectionPro
     </div>
   );
 };
-

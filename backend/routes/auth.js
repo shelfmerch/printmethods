@@ -2,7 +2,6 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const User = require('../models/User');
-const Store = require('../models/Store');
 const { sendTokenResponse, generateToken, generateRefreshToken } = require('../utils/generateToken');
 const { protect, authorize } = require('../middleware/auth');
 const { sendVerificationEmail, sendPasswordResetOTP, sendOTP: sendEmailOTP } = require('../utils/mailer');
@@ -12,6 +11,12 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const passport = require('passport');
 const { getClientUrl } = require('../utils/security');
+
+const extractEmailDomain = (email) => {
+  if (!email || typeof email !== 'string') return '';
+  const [, domain = ''] = email.trim().toLowerCase().split('@');
+  return domain;
+};
 
 // @route   GET /api/auth/google
 // @desc    Auth with Google
@@ -148,6 +153,12 @@ router.post(
       .withMessage('Name is required')
       .isLength({ min: 2, max: 50 })
       .withMessage('Name must be between 2 and 50 characters'),
+    body('companyName')
+      .trim()
+      .notEmpty()
+      .withMessage('Company name is required')
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Company name must be between 2 and 100 characters'),
     body('email')
       .trim()
       .notEmpty()
@@ -181,7 +192,7 @@ router.post(
         });
       }
 
-      let { name, email, password, role } = req.body;
+      let { name, companyName, email, password, role } = req.body;
 
       // Clean email - remove any leading @ that normalizeEmail might have added incorrectly
       if (email && typeof email === 'string') {
@@ -232,6 +243,8 @@ router.post(
       console.log('Creating user with:', { name, email, role: userRole });
       const user = await User.create({
         name,
+        companyName: companyName.trim(),
+        emailDomain: extractEmailDomain(email),
         email,
         password,
         role: userRole,
@@ -240,22 +253,6 @@ router.post(
         emailVerificationTokenExpiry: emailVerificationTokenExpiry
       });
       console.log('User created successfully:', user._id);
-
-      // Create default store
-      try {
-        const defaultStoreSlug = `store-${user._id.toString().slice(-6)}`;
-        await Store.create({
-          name: 'New Store',
-          slug: defaultStoreSlug,
-          merchant: user._id,
-          type: 'native',
-          isActive: true
-        });
-        console.log('Default store created for user:', user._id);
-      } catch (storeError) {
-        console.error('Error creating default store:', storeError);
-        // Don't fail registration if store creation fails
-      }
 
       // Send verification email
       try {
@@ -485,6 +482,8 @@ router.get('/me', protect, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        companyName: user.companyName || '',
+        emailDomain: user.emailDomain || '',
         phoneNumber: user.phoneNumber,
         role: user.role,
         isEmailVerified: user.isEmailVerified,
@@ -839,7 +838,7 @@ router.post(
 );
 
 // @route   PUT /api/auth/update-profile
-// @desc    Update user profile (name)
+// @desc    Update user profile (name/company)
 // @access  Private
 router.put(
   '/update-profile',
@@ -851,6 +850,11 @@ router.put(
       .withMessage('Name is required')
       .isLength({ min: 2, max: 50 })
       .withMessage('Name must be between 2 and 50 characters'),
+    body('companyName')
+      .optional()
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Company name must be between 2 and 100 characters'),
     body('upiId')
       .optional()
       .trim()
@@ -868,7 +872,7 @@ router.put(
         });
       }
 
-      const { name, upiId } = req.body;
+      const { name, companyName, upiId } = req.body;
 
       // Update user
       const user = await User.findById(req.user.id);
@@ -880,6 +884,9 @@ router.put(
       }
 
       user.name = name.trim();
+      if (companyName !== undefined) {
+        user.companyName = companyName.trim();
+      }
       if (upiId !== undefined) {
         user.upiId = upiId.trim();
       }
@@ -892,6 +899,8 @@ router.put(
           id: user._id,
           name: user.name,
           email: user.email,
+          companyName: user.companyName || '',
+          emailDomain: user.emailDomain || '',
           role: user.role,
           upiId: user.upiId
         }
@@ -1332,7 +1341,7 @@ router.post('/signup/otp/email-init', async (req, res) => {
 // @desc    Final account creation (Step 4)
 router.post('/signup/otp/complete', async (req, res) => {
   try {
-    const { name, phone, email, password, otp, serverOtp } = req.body;
+    const { name, companyName, phone, email, password, otp, serverOtp } = req.body;
     if (otp !== serverOtp) return res.status(400).json({ success: false, message: 'Invalid verification code' });
 
     // Build query to check for existing users
@@ -1348,6 +1357,8 @@ router.post('/signup/otp/complete', async (req, res) => {
     // Build user object with only provided fields
     const userData = {
       name,
+      companyName: companyName ? companyName.trim() : '',
+      emailDomain: email ? extractEmailDomain(email) : '',
       isOtpUser: !password,
       role: 'merchant'
     };
@@ -1661,6 +1672,4 @@ router.delete('/tokens/personal/:id', protect, async (req, res) => {
 });
 
 module.exports = router;
-
-
 

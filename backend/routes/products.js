@@ -22,6 +22,8 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       details,
       design,
       shipping,
+      fulfillmentType,
+      productionHours,
       pricing,
       stocks,
       options,
@@ -159,6 +161,8 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
         physicalDimensions: design.physicalDimensions
       },
       shipping,
+      fulfillmentType: fulfillmentType || stocks?.fulfillmentType || 'print_on_demand',
+      productionHours: Number(productionHours || stocks?.productionHours || 120),
       galleryImages: Array.isArray(galleryImages) ? galleryImages : [],
       details: details || {},
       pricing: pricing || {}, // Preserve pricing object if sent from frontend
@@ -731,6 +735,8 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       details,
       design,
       shipping,
+      fulfillmentType,
+      productionHours,
       pricing,
       variants,
       galleryImages,
@@ -757,6 +763,12 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (details !== undefined) product.details = details;
     if (design) product.design = design;
     if (shipping) product.shipping = shipping;
+    if (fulfillmentType !== undefined || stocks?.fulfillmentType !== undefined) {
+      product.fulfillmentType = fulfillmentType || stocks?.fulfillmentType || 'print_on_demand';
+    }
+    if (productionHours !== undefined || stocks?.productionHours !== undefined) {
+      product.productionHours = Number(productionHours || stocks?.productionHours || 120);
+    }
     if (pricing) product.pricing = pricing;
     if (galleryImages) product.galleryImages = galleryImages;
     if (stocks !== undefined) product.stocks = stocks;
@@ -1014,4 +1026,3 @@ router.patch('/:id/gst', protect, authorize('superadmin'), async (req, res) => {
 });
 
 module.exports = router;
-

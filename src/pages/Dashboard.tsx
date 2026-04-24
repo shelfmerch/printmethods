@@ -5,10 +5,11 @@ import { Card } from '@/components/ui/card';
 import {
   Package,
   Plus,
-  IndianRupee,
   ShoppingBag,
-  TrendingUp,
   Store,
+  ArrowRight,
+  Truck,
+  CheckCircle2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '@/types';
@@ -401,21 +402,37 @@ const Dashboard = () => {
   }, [storeProducts]);
 
   const stats = [
-    { label: 'Total Orders', value: `${orders.length}`, icon: ShoppingBag, color: 'text-primary' },
-    { label: 'Products', value: `${totalProductsCount}`, icon: Package, color: 'text-blue-500' },
     {
-      label: 'Revenue',
-      value: `₹${orders.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}`,
-      icon: IndianRupee,
-      color: 'text-green-500',
+      label: 'Needs Action',
+      value: `${orders.filter((order) => ['on-hold', 'paid'].includes(order.status)).length}`,
+      icon: ShoppingBag,
+      color: 'text-amber-500',
     },
     {
-      label: 'Profit',
-      value: `₹${invoices.reduce((sum, inv) => sum + (inv.merchantProfit || 0), 0).toFixed(2)}`,
-      icon: TrendingUp,
-      color: 'text-purple-500'
+      label: 'In Production',
+      value: `${orders.filter((order) => order.status === 'in-production').length}`,
+      icon: Package,
+      color: 'text-violet-500',
+    },
+    {
+      label: 'Shipped',
+      value: `${orders.filter((order: any) => order.status === 'shipped').length}`,
+      icon: Truck,
+      color: 'text-blue-500',
+    },
+    {
+      label: 'Delivered',
+      value: `${orders.filter((order: any) => order.status === 'delivered').length}`,
+      icon: CheckCircle2,
+      color: 'text-green-500'
     },
   ];
+
+  const recentOrders = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())
+      .slice(0, 5);
+  }, [orders]);
 
   return (
     <DashboardLayout >
@@ -434,7 +451,7 @@ const Dashboard = () => {
             ) : (
               <p className="text-muted-foreground">
                 {selectedStore
-                  ? `Here's what's happening with ${selectedStore.storeName} today.`
+                  ? `Here's what's happening with ${selectedStore.brandProfile?.companyName || selectedStore.storeName} today.`
                   : "Select a store from the sidebar to view its dashboard."}
               </p>
             )}
@@ -466,6 +483,55 @@ const Dashboard = () => {
               </Card>
             ))}
           </div>
+        )}
+
+        {(selectedStore || storesLoading) && (
+          <Card className="mb-8">
+            <div className="flex items-center justify-between border-b px-6 py-5">
+              <div>
+                <h2 className="text-lg font-semibold">Recent Orders</h2>
+                <p className="text-sm text-muted-foreground">A quick view of the latest orders that may need attention.</p>
+              </div>
+              <Button variant="outline" onClick={() => navigate('/orders')}>
+                Open Full Orders View
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+            <div className="divide-y">
+              {spLoading || storesLoading ? (
+                <div className="px-6 py-8 text-sm text-muted-foreground">Loading recent orders...</div>
+              ) : recentOrders.length === 0 ? (
+                <div className="px-6 py-8 text-sm text-muted-foreground">No recent orders for this store yet.</div>
+              ) : (
+                recentOrders.map((order: any) => (
+                  <button
+                    key={order._id || order.id}
+                    type="button"
+                    onClick={() => navigate(`/orders/${order._id || order.id}`)}
+                    className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/30"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">#{String(order._id || order.id).slice(-8).toUpperCase()}</p>
+                        <Badge className={order.shipment?.trackingNumber || order.shipment?.trackingUrl ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>
+                          {order.shipment?.trackingNumber || order.shipment?.trackingUrl ? 'Tracking Ready' : 'Missing Tracking'}
+                        </Badge>
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {order.customerEmail || 'No email'} • {order.items?.[0]?.productName || 'Order item'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : order.status === 'in-production' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'}>
+                        {order.status}
+                      </Badge>
+                      <p className="mt-1 text-sm font-semibold">₹{Number(order.total || 0).toFixed(2)}</p>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </Card>
         )}
 
 

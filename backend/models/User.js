@@ -18,6 +18,17 @@ const userSchema = new mongoose.Schema({
       'Please provide a valid email'
     ]
   },
+  companyName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  emailDomain: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: ''
+  },
   password: {
     type: String,
     required: function () {
@@ -166,5 +177,4 @@ userSchema.methods.toJSON = function () {
 };
 
 module.exports = mongoose.model('User', userSchema);
-
 

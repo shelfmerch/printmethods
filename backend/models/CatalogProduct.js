@@ -221,6 +221,19 @@ const CatalogProductSchema = new mongoose.Schema({
     required: true
   },
 
+  fulfillmentType: {
+    type: String,
+    enum: ['print_on_demand', 'inventory'],
+    default: 'print_on_demand',
+    index: true,
+  },
+
+  productionHours: {
+    type: Number,
+    default: 120,
+    min: 1,
+  },
+
   // Gallery images
   galleryImages: [CatalogProductGalleryImageSchema],
 

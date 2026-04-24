@@ -300,6 +300,7 @@ import {
   Gift,
   CreditCard,
   UserCog,
+  PackageCheck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -466,6 +467,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </Button>
           <Button variant={isActiveRoute('/brand/team') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/brand/team"><UserCog className="mr-2 h-4 w-4" />Team</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/kits') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/kits"><PackageCheck className="mr-2 h-4 w-4" />Kits &amp; Items</Link>
           </Button>
 
           {/* Finance section divider */}

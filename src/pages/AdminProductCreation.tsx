@@ -134,6 +134,8 @@ const AdminProductCreation = () => {
   // SECTION H: Stocks/Inventory Data
   const [stocksData, setStocksData] = useState<ProductStocksData>({
     minimumQuantity: 1,
+    fulfillmentType: 'print_on_demand',
+    productionHours: 120,
     stockLocation: '',
     lowStockAlertEnabled: false,
     lowStockAlertEmail: '',
@@ -308,7 +310,11 @@ const AdminProductCreation = () => {
           }
 
           if (product.stocks) {
-            setStocksData(product.stocks);
+            setStocksData({
+              ...product.stocks,
+              fulfillmentType: product.fulfillmentType || product.stocks.fulfillmentType || 'print_on_demand',
+              productionHours: product.productionHours || product.stocks.productionHours || 120,
+            });
           }
 
           if (product.options) {

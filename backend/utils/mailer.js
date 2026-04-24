@@ -586,11 +586,42 @@ const sendCustomerOrderConfirmation = async (customerEmail, order, store, attach
   }
 };
 
+const sendKitInviteEmail = async ({ to, recipientName, fromName, message, redeemUrl }) => {
+  try {
+    const transporter = createTransporter();
+    const safeName = recipientName || 'there';
+    const safeFromName = fromName || 'Your team';
+    const safeMessage = message || 'A gift is waiting for you.';
+
+    const mailOptions = {
+      from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
+      to,
+      subject: `${safeFromName} sent you a gift from ShelfMerch`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111827;">
+          <h1 style="margin: 0 0 16px; font-size: 28px;">You have a gift waiting</h1>
+          <p style="margin: 0 0 12px;">Hi ${safeName},</p>
+          <p style="margin: 0 0 12px;"><strong>${safeFromName}</strong> sent you a ShelfMerch gift.</p>
+          <p style="margin: 0 0 20px; color: #4b5563;">${safeMessage}</p>
+          <a href="${redeemUrl}" style="display: inline-block; padding: 12px 20px; background: #22c55e; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">Redeem your gift</a>
+          <p style="margin: 20px 0 0; color: #6b7280; font-size: 14px;">If the button does not work, use this link:<br /><a href="${redeemUrl}">${redeemUrl}</a></p>
+        </div>
+      `,
+      text: `Hi ${safeName},\n\n${safeFromName} sent you a ShelfMerch gift.\n\n${safeMessage}\n\nRedeem here: ${redeemUrl}`,
+    };
+
+    return await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('[Mailer] Error sending kit invite email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetOTP,
   sendOTP,
   sendMerchantOrderNotification,
   sendCustomerOrderConfirmation,
+  sendKitInviteEmail,
 };
-

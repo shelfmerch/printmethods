@@ -38,7 +38,7 @@ import {
   Check, Package, Palette, Ruler, Droplets, Wind,
   Thermometer, X, Heart, Share2, Truck, Shield, FileText, Droplet, Archive,
   Award, Sparkles, ShieldCheck, TrendingUp, Star, ZoomIn,
-  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Home, Minus, Plus, Maximize2, Info
+  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Home, Minus, Plus, Maximize2, Info, ShoppingCart
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -727,6 +727,17 @@ const ProductDetail = () => {
             <div className="flex gap-3 pt-2">
               <Button
                 size="lg"
+                variant="outline"
+                className="flex-1 text-base font-semibold h-12"
+                asChild
+              >
+                <Link to={`/catalog/${id}`}>
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  Order Now
+                </Link>
+              </Button>
+              <Button
+                size="lg"
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-base font-semibold h-12"
                 asChild
               >
@@ -953,6 +964,17 @@ const ProductDetail = () => {
                   <p className="text-sm text-muted-foreground">From</p>
                   <p className="text-xl font-bold">₹{product.catalogue?.basePrice?.toFixed(2) || '0.00'}</p>
                 </div>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="flex-1 font-semibold"
+                  asChild
+                >
+                  <Link to={`/catalog/${id}`}>
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Order Now
+                  </Link>
+                </Button>
                 <Button
                   size="lg"
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"

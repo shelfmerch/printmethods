@@ -794,6 +794,7 @@ const Auth = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']); // Multi-use OTP
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   // Countdown timer for Resend OTP
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -995,14 +996,14 @@ const Auth = () => {
   // Step 5 (Signup): Name Entry & Complete
   const handleSignupComplete = async () => {
     if (!name) { toast.error('Please enter your name'); return; }
+    if (!companyName.trim()) { toast.error('Please enter your company name'); return; }
 
     setIsLoading(true);
     try {
-      await signupComplete(name);
+      await signupComplete(name, companyName);
       toast.success('Account successfully created');
-      const target = consumeReturnTo();
-      console.log('[Auth] Signup redirect to:', target);
-      navigate(target);
+      consumeReturnTo(); // clear any stored returnTo
+      navigate('/create-store');
     } catch (err: any) {
       toast.error(err.message || 'Error creating account');
     } finally { setIsLoading(false); }
@@ -1018,7 +1019,7 @@ const Auth = () => {
     setOtp(['', '', '', '', '', '']);
     setPassword('');
     setName('');
-    setName('');
+    setCompanyName('');
     // ServerOtp removed
   };
 
@@ -1263,7 +1264,7 @@ const Auth = () => {
                   className="animate-in fade-in slide-in-from-top-2 space-y-6"
                 >
                   <div className="text-center mb-2">
-                    <p className="text-sm text-gray-500">One last step — we'll create your brand store next.</p>
+                    <p className="text-sm text-gray-500">One last step, then you can submit your brand onboarding form.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-semibold text-gray-600 ml-1">Your name</Label>
@@ -1273,6 +1274,16 @@ const Auth = () => {
                       onChange={(e) => setName(e.target.value)}
                       className="h-12 rounded-xl border-gray-200 focus:ring-2 focus:ring-[#39b38e]/20 focus:border-[#39b38e] transition-all"
                       placeholder="First and last name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName" className="text-sm font-semibold text-gray-600 ml-1">Company Name</Label>
+                    <Input
+                      id="companyName"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="h-12 rounded-xl border-gray-200 focus:ring-2 focus:ring-[#39b38e]/20 focus:border-[#39b38e] transition-all"
+                      placeholder="Google"
                     />
                   </div>
                   <Button

@@ -434,6 +434,7 @@ import VerifyPhone from "./pages/VerifyPhone";
 import Dashboard from "./pages/Dashboard";
 import ProfilePage from "./pages/ProfilePage";
 import Orders from "./pages/Orders";
+import MerchantOrderDetail from "./pages/MerchantOrderDetail";
 import Stores from "./pages/Stores";
 import ConnectStore from "./pages/ConnectStore";
 import Analytics from "./pages/Analytics";
@@ -469,6 +470,14 @@ import AdminInvoices from "./pages/AdminInvoices";
 import WalletTopUp from "./pages/WalletTopUp";
 import WalletTransactions from "./pages/WalletTransactions";
 import MerchantWallet from "./pages/MerchantWallet";
+import CatalogBrowse from "./pages/CatalogBrowse";
+import CatalogOrderPage from "./pages/CatalogOrderPage";
+import DirectCheckout from "./pages/DirectCheckout";
+import BrandKits from "./pages/BrandKits";
+import BrandKitBuilder from "./pages/BrandKitBuilder";
+import BrandKitDetail from "./pages/BrandKitDetail";
+import BrandKitSendWizard from "./pages/BrandKitSendWizard";
+import KitRedeem from "./pages/KitRedeem";
 import BrandTeam from "./pages/BrandTeam";
 import BrandEmployees from "./pages/BrandEmployees";
 import CreditAllocation from "./pages/CreditAllocation";
@@ -544,6 +553,10 @@ const App = () => {
                     <Route path="/category-subcategories/:categoryId" element={<CategorySubcategories />} />
                     <Route path="/products/category/:slug" element={<CategoryProducts />} />
                     <Route path="/products/:id" element={<ProductDetail />} />
+                    <Route path="/catalog" element={<CatalogBrowse />} />
+                    <Route path="/catalog/:productId" element={<CatalogOrderPage />} />
+                    <Route path="/direct-checkout" element={<DirectCheckout />} />
+                    <Route path="/redeem/:token" element={<KitRedeem />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/verify-email" element={<VerifyEmail />} />
                     <Route path="/verify-phone" element={<VerifyPhone />} />
@@ -627,6 +640,22 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <Orders />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/orders/:id"
+                      element={
+                        <ProtectedRoute>
+                          <MerchantOrderDetail />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/orders/direct/:id"
+                      element={
+                        <ProtectedRoute>
+                          <MerchantOrderDetail />
                         </ProtectedRoute>
                       }
                     />
@@ -860,6 +889,46 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <BrandBilling />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/kits"
+                      element={
+                        <ProtectedRoute>
+                          <BrandKits />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/kits/new"
+                      element={
+                        <ProtectedRoute>
+                          <BrandKitBuilder />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/kits/:id"
+                      element={
+                        <ProtectedRoute>
+                          <BrandKitDetail />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/kits/:id/edit"
+                      element={
+                        <ProtectedRoute>
+                          <BrandKitBuilder />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/kits/:id/send"
+                      element={
+                        <ProtectedRoute>
+                          <BrandKitSendWizard />
                         </ProtectedRoute>
                       }
                     />

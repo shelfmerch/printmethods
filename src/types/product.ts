@@ -236,6 +236,8 @@ export interface ProductPricingData {
 // SECTION E: Stocks / Inventory Data
 export interface ProductStocksData {
   minimumQuantity: number; // Minimum quantity for sale
+  fulfillmentType?: 'print_on_demand' | 'inventory';
+  productionHours?: number;
   stockLocation?: string; // Stock location/warehouse
   lowStockAlertEnabled: boolean; // Enable low stock email alerts
   lowStockAlertEmail?: string; // Email for low stock alerts
@@ -289,4 +291,3 @@ export interface ProductFormData {
   // Print methods allowed for this product
   allowedPrintMethodIds?: string[];
 }
-
