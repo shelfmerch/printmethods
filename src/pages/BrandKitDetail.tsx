@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, SendHorizonal, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Pencil, SendHorizonal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Header, Footer } from '@/components/home/';
 import KitItemPreview from '@/components/kits/KitItemPreview';
+import { RAW_API_URL } from '@/config';
 import { kitsApi } from '@/lib/kits';
 import { Kit, KitSend } from '@/types/kits';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,9 @@ const BrandKitDetail = () => {
   const [kit, setKit] = useState<Kit | null>(null);
   const [sends, setSends] = useState<KitSend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedSendId, setExpandedSendId] = useState<string | null>(null);
+  const [redemptions, setRedemptions] = useState<Record<string, any[]>>({});
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
     const load = async () => {
@@ -49,6 +53,34 @@ const BrandKitDetail = () => {
       return acc;
     }, { total: 0, redeemed: 0 });
   }, [sends]);
+
+  const fetchRedemptions = async (sendId: string) => {
+    if (redemptions[sendId]) return;
+    try {
+      const res = await fetch(`${RAW_API_URL}/api/kit-redemptions?kitSendId=${sendId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        throw new Error(data.message || 'Failed to load recipient status');
+      }
+      setRedemptions((prev) => ({ ...prev, [sendId]: Array.isArray(data) ? data : data.data || [] }));
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load recipient status');
+    }
+  };
+
+  const toggleSendExpansion = async (sendId: string) => {
+    const nextId = expandedSendId === sendId ? null : sendId;
+    setExpandedSendId(nextId);
+    if (nextId) await fetchRedemptions(nextId);
+  };
+
+  const redemptionBadgeClass = (status: string) => {
+    if (status === 'redeemed') return 'bg-emerald-100 text-emerald-800';
+    if (status === 'pending') return 'bg-amber-100 text-amber-800';
+    return 'bg-gray-100 text-gray-700';
+  };
 
   const removeKit = async () => {
     if (!id || !confirm('Delete this kit? This only works when there are no paid sends.')) return;
@@ -143,38 +175,87 @@ const BrandKitDetail = () => {
                 <TabsContent value="sent-gifts" className="space-y-4">
                   {sends.map((send: any) => (
                     <Card key={send._id}>
-                      <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-semibold">Send #{send._id.slice(-6)}</h3>
-                            <Badge variant="outline">{send.status}</Badge>
+                      <CardContent className="space-y-4 p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => toggleSendExpansion(send._id)}
+                                className="rounded-md p-1 hover:bg-muted"
+                                aria-label={expandedSendId === send._id ? 'Collapse recipients' : 'Expand recipients'}
+                              >
+                                {expandedSendId === send._id ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                              <h3 className="font-semibold">Send #{send._id.slice(-6)}</h3>
+                              <Badge variant="outline">{send.status}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {send.deliveryMode === 'redeem' ? 'Recipients redeem' : send.deliveryMode === 'single_location' ? 'Single location' : 'Surprise recipients'} · {send.recipientCount} {send.deliveryMode === 'single_location' ? 'kit units' : 'recipients'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {send.stats?.redeemed || 0}/{send.stats?.total || send.recipientCount} redeemed
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {send.deliveryMode === 'redeem' ? 'Recipients redeem' : 'Surprise recipients'} · {send.recipientCount} recipients
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {send.stats?.redeemed || 0}/{send.stats?.total || send.recipientCount} redeemed
-                          </p>
+                          <div className="flex flex-wrap gap-3">
+                            {send.status !== 'closed' && (
+                              <Button variant="outline" onClick={() => closeCampaign(send._id)}>
+                                Close Campaign
+                              </Button>
+                            )}
+                            {send.deliveryMode === 'redeem' && (
+                              <Button variant="outline" onClick={async () => {
+                                try {
+                                  await kitsApi.resendInvites(send._id);
+                                  toast.success('Invites resent');
+                                } catch (error: any) {
+                                  toast.error(error.message || 'Failed to resend invites');
+                                }
+                              }}>
+                                Resend invites
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                          {send.status !== 'closed' && (
-                            <Button variant="outline" onClick={() => closeCampaign(send._id)}>
-                              Close Campaign
-                            </Button>
-                          )}
-                          {send.deliveryMode === 'redeem' && (
-                            <Button variant="outline" onClick={async () => {
-                              try {
-                                await kitsApi.resendInvites(send._id);
-                                toast.success('Invites resent');
-                              } catch (error: any) {
-                                toast.error(error.message || 'Failed to resend invites');
-                              }
-                            }}>
-                              Resend invites
-                            </Button>
-                          )}
-                        </div>
+                        {expandedSendId === send._id && (
+                          <div className="overflow-hidden rounded-lg border">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/50 text-left">
+                                <tr>
+                                  <th className="px-4 py-3 font-medium">Recipient Email</th>
+                                  <th className="px-4 py-3 font-medium">Status</th>
+                                  <th className="px-4 py-3 font-medium">Redeemed At</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(redemptions[send._id] || []).map((redemption) => (
+                                  <tr key={redemption._id} className="border-t">
+                                    <td className="px-4 py-3">{redemption.recipientEmail || '—'}</td>
+                                    <td className="px-4 py-3">
+                                      <Badge className={redemptionBadgeClass(redemption.status)}>
+                                        {redemption.status}
+                                      </Badge>
+                                    </td>
+                                    <td className="px-4 py-3 text-muted-foreground">
+                                      {redemption.redeemedAt ? new Date(redemption.redeemedAt).toLocaleString() : '—'}
+                                    </td>
+                                  </tr>
+                                ))}
+                                {!redemptions[send._id]?.length && (
+                                  <tr className="border-t">
+                                    <td className="px-4 py-6 text-center text-muted-foreground" colSpan={3}>
+                                      No recipient redemption records found for this send.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
