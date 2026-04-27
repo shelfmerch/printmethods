@@ -260,6 +260,15 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+const redemptionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 attempts per IP per 15-minute window
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/kit-redemptions/token/', redemptionLimiter);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
