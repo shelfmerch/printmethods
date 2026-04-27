@@ -54,7 +54,7 @@ const DirectCheckout = () => {
   });
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('catalogCart');
+    const stored = localStorage.getItem('catalogCart');
     if (stored) {
       try { setItems(JSON.parse(stored)); } catch { /* ignore */ }
     }
@@ -179,7 +179,7 @@ const DirectCheckout = () => {
             const verifyData = await verifyRes.json();
             if (!verifyData.success) throw new Error(verifyData.message);
 
-            sessionStorage.removeItem('catalogCart');
+            localStorage.removeItem('catalogCart');
             setDone(true);
             toast.success('Order placed successfully!');
           } catch (err: any) {

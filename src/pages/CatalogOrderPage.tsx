@@ -342,8 +342,16 @@ const CatalogOrderPage = () => {
 
       if (!items.length) { toast.error('No items to add'); return; }
 
-      const existing = JSON.parse(sessionStorage.getItem('catalogCart') || '[]');
-      sessionStorage.setItem('catalogCart', JSON.stringify([...existing, ...items]));
+      const existing = JSON.parse(localStorage.getItem('catalogCart') || '[]');
+      const merged = [...existing];
+      for (const item of items) {
+        const idx = merged.findIndex(
+          (e: typeof item) => e.catalogProductId === item.catalogProductId && e.color === item.color && e.size === item.size
+        );
+        if (idx >= 0) merged[idx].quantity += item.quantity;
+        else merged.push(item);
+      }
+      localStorage.setItem('catalogCart', JSON.stringify(merged));
       toast.success(`${totalQty} items added`);
 
       if (!user) {
