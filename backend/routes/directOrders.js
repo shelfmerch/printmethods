@@ -173,6 +173,19 @@ router.post('/razorpay/verify', protect, async (req, res) => {
     appendStatusHistory(order, 'paid', req.user, 'Payment verified');
     await order.save();
 
+    try {
+      const { sendOrderConfirmationEmail } = require('../utils/mailer');
+      await sendOrderConfirmationEmail({
+        to: req.user.email,
+        orderId: order._id,
+        items: order.items,
+        total: order.total,
+      });
+    } catch (emailErr) {
+      console.error('Order confirmation email failed:', emailErr);
+      // Non-fatal - order is already saved as paid
+    }
+
     res.json({ success: true, data: { orderId: order._id, status: order.status } });
   } catch (err) {
     console.error('Direct order verify error:', err);

@@ -617,11 +617,66 @@ const sendKitInviteEmail = async ({ to, recipientName, fromName, message, redeem
   }
 };
 
+const sendOrderConfirmationEmail = async ({ to, orderId, items = [], total = 0 }) => {
+  try {
+    const transporter = createTransporter();
+    const safeItems = Array.isArray(items) ? items : [];
+    const formatCurrency = (value) => `₹${Number(value || 0).toFixed(2)}`;
+
+    const itemRows = safeItems.map((item) => {
+      const name = item.productName || item.name || 'Selected item';
+      const quantity = Number(item.quantity || 0);
+      const sizeColor = [item.size, item.color].filter(Boolean).join(' / ');
+      const unitPrice = Number(item.unitPrice || item.price || 0);
+      return `
+        <tr>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+            <strong>${name}</strong>${sizeColor ? `<br /><span style="color: #6b7280;">${sizeColor}</span>` : ''}
+          </td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: center;">${quantity}</td>
+          <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${formatCurrency(unitPrice * quantity)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const mailOptions = {
+      from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
+      to,
+      subject: `Order confirmation #${orderId}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #111827;">
+          <h1 style="margin: 0 0 12px; font-size: 28px;">Order confirmed</h1>
+          <p style="margin: 0 0 20px; color: #4b5563;">Thanks for your order. We have received your payment and will start processing it.</p>
+          <p style="margin: 0 0 20px;"><strong>Order ID:</strong> #${orderId}</p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="padding: 8px 0; border-bottom: 2px solid #111827; text-align: left;">Item</th>
+                <th style="padding: 8px 0; border-bottom: 2px solid #111827; text-align: center;">Qty</th>
+                <th style="padding: 8px 0; border-bottom: 2px solid #111827; text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${itemRows || '<tr><td colspan="3" style="padding: 12px 0;">Your selected items are being processed.</td></tr>'}</tbody>
+          </table>
+          <p style="font-size: 18px; font-weight: 700; text-align: right;">Total: ${formatCurrency(total)}</p>
+        </div>
+      `,
+      text: `Order confirmed\n\nOrder ID: #${orderId}\nTotal: ${formatCurrency(total)}\n\nItems:\n${safeItems.map((item) => `- ${item.productName || item.name || 'Selected item'} x ${item.quantity || 0}`).join('\n')}`,
+    };
+
+    return await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('[Mailer] Error sending order confirmation email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetOTP,
   sendOTP,
   sendMerchantOrderNotification,
   sendCustomerOrderConfirmation,
+  sendOrderConfirmationEmail,
   sendKitInviteEmail,
 };
