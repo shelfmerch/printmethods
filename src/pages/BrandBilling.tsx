@@ -20,17 +20,17 @@ import { RAW_API_URL } from '@/config';
 // ── Subscription plans ────────────────────────────────────────────────────────
 const PLANS = [
   {
-    id: 'starter',
-    name: 'Starter',
-    price: '₹4,999',
+    id: 'free',
+    name: 'Free',
+    price: '₹0',
     period: '/month',
     employees: '50',
-    regions: 'India only',
+    regions: '1 swag store',
     features: [
+      '1 swag store',
       'Up to 50 employees',
-      'India shipping only',
-      'Credit allocation',
-      'Brand team (2 seats)',
+      '10 live swag store products',
+      'Standard service fee',
       'Email support',
     ],
     color: 'border-border',
@@ -38,20 +38,19 @@ const PLANS = [
     icon: Zap,
   },
   {
-    id: 'business',
-    name: 'Business',
-    price: '₹12,999',
+    id: 'growth',
+    name: 'Growth',
+    price: '₹4,999',
     period: '/month',
-    employees: '250',
-    regions: 'India + 1 international',
+    employees: '500',
+    regions: '5 swag stores',
     features: [
-      'Up to 250 employees',
-      'India + 1 intl. region',
-      'HRIS sync (Keka/Darwinbox)',
-      'Campaign automation',
-      'Unlimited team seats',
+      '5 swag stores',
+      'Unlimited kits',
+      'Up to 500 employees',
+      '250 live swag store products',
+      'Lower service fee',
       'Priority support',
-      'Bonusly integration',
     ],
     color: 'border-primary',
     badge: 'Most Popular',
@@ -63,15 +62,15 @@ const PLANS = [
     price: 'Custom',
     period: '',
     employees: 'Unlimited',
-    regions: 'All regions',
+    regions: 'Unlimited stores',
     features: [
+      'Unlimited swag stores',
       'Unlimited employees',
-      'All regions (IN, TW, AU, NZ)',
-      'Custom onboarding',
-      'Dedicated account manager',
-      'SLA guarantee',
+      'Unlimited products and kits',
+      'SSO and API access',
+      'Net terms and custom support',
       'Custom integrations',
-      'White-label domain',
+      'Dedicated account manager',
     ],
     color: 'border-border',
     badge: null,
@@ -114,13 +113,17 @@ const BrandBilling = () => {
     })();
   }, [brandId]);
 
-  const currentPlan = storeData?.subscriptionPlan || 'trial';
-  const currentStatus = storeData?.subscriptionStatus || 'trial';
+  const currentPlan = storeData?.subscriptionPlan || 'free';
+  const currentStatus = storeData?.subscriptionStatus || 'active';
   const expiryDate = storeData?.subscriptionExpiry
     ? new Date(storeData.subscriptionExpiry).toLocaleDateString('en-IN', { dateStyle: 'medium' })
     : null;
 
   const handleUpgrade = async (planId: string) => {
+    if (planId === 'free') {
+      toast.info('You are already on the Free plan.');
+      return;
+    }
     if (planId === 'enterprise') {
       // Open contact/enquiry — no self-serve for enterprise
       toast.info('Please contact us at hello@shelfmerch.in for Enterprise pricing.');
@@ -130,7 +133,7 @@ const BrandBilling = () => {
     try {
       // TODO: Integrate Razorpay Subscriptions here when ready
       // For now: show a toast directing to contact
-      toast.info(`Subscription upgrade to ${planId} — payment integration coming soon. Contact hello@shelfmerch.in.`);
+      toast.info(`Growth activation is coming soon. Contact hello@shelfmerch.in to activate ${planId}.`);
     } finally {
       setUpgrading(null);
     }

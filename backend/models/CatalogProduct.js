@@ -191,6 +191,11 @@ const CatalogProductSchema = new mongoose.Schema({
     min: 0
   },
 
+  sampleAvailable: {
+    type: Boolean,
+    default: false
+  },
+
   currency: {
     type: String,
     default: 'INR'

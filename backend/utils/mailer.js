@@ -671,6 +671,110 @@ const sendOrderConfirmationEmail = async ({ to, orderId, items = [], total = 0 }
   }
 };
 
+const sendShippingNotificationEmail = async ({
+  to,
+  recipientName = '',
+  orderId,
+  trackingNumber = '',
+  carrier = '',
+  trackingUrl = '',
+  items = [],
+}) => {
+  try {
+    const transporter = createTransporter();
+    const safeItems = Array.isArray(items) ? items : [];
+    const safeName = recipientName || 'there';
+    const trackingLine = trackingNumber
+      ? `${carrier ? `${carrier} ` : ''}${trackingNumber}`
+      : 'Tracking details will be shared by the carrier.';
+
+    const mailOptions = {
+      from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
+      to,
+      subject: `Your ShelfMerch shipment is on the way${orderId ? ` - #${orderId}` : ''}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #111827;">
+          <h1 style="margin: 0 0 12px; font-size: 28px;">Your shipment is on the way</h1>
+          <p style="margin: 0 0 12px;">Hi ${safeName},</p>
+          <p style="margin: 0 0 20px; color: #4b5563;">Your ShelfMerch order has been marked as shipped.</p>
+          ${orderId ? `<p style="margin: 0 0 8px;"><strong>Reference:</strong> #${orderId}</p>` : ''}
+          <p style="margin: 0 0 8px;"><strong>Tracking:</strong> ${trackingLine}</p>
+          ${trackingUrl ? `<p style="margin: 0 0 20px;"><a href="${trackingUrl}" style="color: #2563eb;">Track shipment</a></p>` : ''}
+          ${safeItems.length ? `<p style="margin: 20px 0 8px;"><strong>Items:</strong></p><ul>${safeItems.map((item) => `<li>${item.productName || item.name || 'Selected item'}${item.quantity ? ` x ${item.quantity}` : ''}</li>`).join('')}</ul>` : ''}
+        </div>
+      `,
+      text: `Hi ${safeName},\n\nYour ShelfMerch shipment is on the way.\n${orderId ? `Reference: #${orderId}\n` : ''}Tracking: ${trackingLine}${trackingUrl ? `\nTrack: ${trackingUrl}` : ''}`,
+    };
+
+    return await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error('[Mailer] Error sending shipping notification email:', error);
+    throw error;
+  }
+};
+
+const notifySuperadminNewPO = async ({ quotationNumber, purchaseOrderNumber = '', brandEmail = '', purchaseOrderUrl = '' }) => {
+  try {
+    const transporter = createTransporter();
+    const to = process.env.SUPERADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    if (!to) return null;
+
+    return await transporter.sendMail({
+      from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
+      to,
+      subject: `Purchase order received - ${quotationNumber}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #111827;">
+          <h1 style="margin: 0 0 12px;">Purchase order received</h1>
+          <p><strong>Quotation:</strong> ${quotationNumber}</p>
+          ${purchaseOrderNumber ? `<p><strong>PO Number:</strong> ${purchaseOrderNumber}</p>` : ''}
+          ${brandEmail ? `<p><strong>Brand:</strong> ${brandEmail}</p>` : ''}
+          ${purchaseOrderUrl ? `<p><a href="${purchaseOrderUrl}" style="color:#2563eb;">Open purchase order</a></p>` : ''}
+        </div>
+      `,
+      text: `Purchase order received\nQuotation: ${quotationNumber}\nPO Number: ${purchaseOrderNumber}\nBrand: ${brandEmail}\n${purchaseOrderUrl}`,
+    });
+  } catch (error) {
+    console.error('[Mailer] Error notifying superadmin about PO:', error);
+    throw error;
+  }
+};
+
+const notifySuperadminNewSupportTicket = async ({ ticketNumber, subject, brandEmail = '' }) => {
+  try {
+    const transporter = createTransporter();
+    const to = process.env.SUPERADMIN_EMAIL || process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    if (!to) return null;
+    return await transporter.sendMail({
+      from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
+      to,
+      subject: `New support ticket ${ticketNumber}`,
+      html: `<p>New support ticket <strong>${ticketNumber}</strong> was raised by ${brandEmail || 'a brand'}.</p><p>${subject}</p>`,
+      text: `New support ticket ${ticketNumber}\nRaised by: ${brandEmail}\nSubject: ${subject}`,
+    });
+  } catch (error) {
+    console.error('[Mailer] Error notifying superadmin about support ticket:', error);
+    throw error;
+  }
+};
+
+const sendSupportTicketReplyEmail = async ({ to, ticketNumber, subject, status }) => {
+  try {
+    const transporter = createTransporter();
+    if (!to) return null;
+    return await transporter.sendMail({
+      from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
+      to,
+      subject: `Update on ticket ${ticketNumber}`,
+      html: `<p>Your ticket <strong>${ticketNumber}</strong>${status ? ` is now <strong>${status}</strong>` : ' has a new reply'}.</p><p>${subject || ''}</p>`,
+      text: `Ticket ${ticketNumber} update${status ? `: ${status}` : ''}\n${subject || ''}`,
+    });
+  } catch (error) {
+    console.error('[Mailer] Error sending support ticket email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetOTP,
@@ -678,5 +782,9 @@ module.exports = {
   sendMerchantOrderNotification,
   sendCustomerOrderConfirmation,
   sendOrderConfirmationEmail,
+  sendShippingNotificationEmail,
+  notifySuperadminNewPO,
+  notifySuperadminNewSupportTicket,
+  sendSupportTicketReplyEmail,
   sendKitInviteEmail,
 };

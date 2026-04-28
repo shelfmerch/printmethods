@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, ShoppingBag, MapPin, Globe, CheckCircle } from 'lucide-react';
+import { FileText, Loader2, ShoppingBag, MapPin, Globe, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import Header from '@/components/home/Header';
 import Footer from '@/components/home/Footer';
@@ -45,6 +45,7 @@ const DirectCheckout = () => {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [deliveryNote, setDeliveryNote] = useState('');
   const [placing, setPlacing] = useState(false);
+  const [quoting, setQuoting] = useState(false);
   const [done, setDone] = useState(false);
 
   const [shipping, setShipping] = useState({
@@ -97,19 +98,84 @@ const DirectCheckout = () => {
       document.body.appendChild(script);
     });
 
-  const handlePlaceOrder = async () => {
-    if (items.length === 0) { toast.error('Cart is empty'); return; }
+  const validateDelivery = () => {
+    if (items.length === 0) { toast.error('Cart is empty'); return false; }
     if (deliveryMode === 'single_address') {
       if (!shipping.fullName || !shipping.email || !shipping.address1 || !shipping.city) {
         toast.error('Please fill all required shipping fields');
-        return;
+        return false;
       }
-    } else {
-      if (selectedCountries.length === 0) {
-        toast.error('Select at least one delivery country');
-        return;
-      }
+    } else if (selectedCountries.length === 0) {
+      toast.error('Select at least one delivery country');
+      return false;
     }
+    return true;
+  };
+
+  const buildCheckoutPayload = (extra: Record<string, any> = {}) => ({
+    ...extra,
+    items: items.map(i => ({
+      catalogProductId: i.catalogProductId,
+      productName: i.productName,
+      variantId: i.variantId,
+      color: i.color,
+      colorHex: i.colorHex,
+      size: i.size,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      decorationMethodId: i.decorationMethodId,
+      decorationMethodName: i.decorationMethodName,
+      uploadedDesignUrls: i.uploadedDesignUrls || [],
+    })),
+    shippingInfo: deliveryMode === 'single_address' ? shipping : undefined,
+    deliveryMode,
+    deliveryCountries: deliveryMode === 'multi_country' ? selectedCountries : [],
+    deliveryNote,
+  });
+
+  const downloadQuotationPdf = async (orderId: string, quotationNumber: string, token: string | null) => {
+    const pdfRes = await fetch(`${RAW_API_URL}/api/quotation-pdf/${orderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!pdfRes.ok) throw new Error('Failed to download quotation PDF');
+    const blob = await pdfRes.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${quotationNumber}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadQuotation = async () => {
+    if (!validateDelivery()) return;
+    setQuoting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${RAW_API_URL}/api/quotations/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(buildCheckoutPayload()),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Failed to create quotation');
+      await downloadQuotationPdf(data.data.orderId, data.data.quotationNumber, token);
+      toast.success(`Quotation ${data.data.quotationNumber} downloaded. Find it in Draft Orders.`);
+      navigate('/brand/draft-orders');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download quotation');
+    } finally {
+      setQuoting(false);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!validateDelivery()) return;
 
     const loaded = await loadRazorpay();
     if (!loaded) { toast.error('Could not load payment gateway'); return; }
@@ -123,25 +189,7 @@ const DirectCheckout = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          items: items.map(i => ({
-            catalogProductId: i.catalogProductId,
-            productName: i.productName,
-            variantId: i.variantId,
-            color: i.color,
-            colorHex: i.colorHex,
-            size: i.size,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            decorationMethodId: i.decorationMethodId,
-            decorationMethodName: i.decorationMethodName,
-            uploadedDesignUrls: i.uploadedDesignUrls || [],
-          })),
-          shippingInfo: deliveryMode === 'single_address' ? shipping : undefined,
-          deliveryMode,
-          deliveryCountries: deliveryMode === 'multi_country' ? selectedCountries : [],
-          deliveryNote,
-        }),
+        body: JSON.stringify(buildCheckoutPayload(items.some((item: any) => item.sampleRequest) ? { orderType: 'sample' } : {})),
       });
 
       const orderData = await res.json();
@@ -468,6 +516,15 @@ const DirectCheckout = () => {
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
                 Pay ₹{subtotal.toFixed(2)}
+              </Button>
+              <Button
+                onClick={handleDownloadQuotation}
+                disabled={placing || quoting}
+                variant="outline"
+                className="w-full mt-3 h-11 text-base"
+              >
+                {quoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+                Download Quotation for Approval
               </Button>
               <p className="text-xs text-gray-400 text-center mt-2">
                 Secured by Razorpay

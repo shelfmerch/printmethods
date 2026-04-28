@@ -4,14 +4,19 @@ import { Gift, PackageCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import KitItemPreview from '@/components/kits/KitItemPreview';
 import { kitsApi } from '@/lib/kits';
+import {
+  buildKitSelections,
+  getVariantColors,
+  getVariantSizes,
+  isValidKitVariantSelection,
+  KitItemSelection,
+  productRequiresVariantSelection,
+} from '@/lib/kitVariants';
 import { KitProduct, KitRedemption } from '@/types/kits';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
-const colorOptions = ['Black', 'White', 'Navy', 'Blue', 'Grey'];
 
 const KitRedeem = () => {
   const { token } = useParams<{ token: string }>();
@@ -36,6 +41,8 @@ const KitRedeem = () => {
   const kitSend = redemption?.kitSendId;
   const kit = kitSend?.kitId;
   const items = useMemo(() => kit?.items || [], [kit]);
+  const products = useMemo(() => items.map((item: any) => item.catalogProductId).filter(Boolean) as KitProduct[], [items]);
+  const variantProducts = useMemo(() => products.filter(productRequiresVariantSelection), [products]);
 
   useEffect(() => {
     if (!items.length) return;
@@ -43,16 +50,32 @@ const KitRedeem = () => {
       const product: KitProduct = item.catalogProductId;
       return {
         catalogProductId: product._id,
-        size: 'M',
-        color: 'Black',
         quantity: 1,
       };
     }));
   }, [items]);
 
   const updateSelectedItem = (productId: string, patch: any) => {
-    setSelectedItems((current) => current.map((item) => item.catalogProductId === productId ? { ...item, ...patch } : item));
+    const product = products.find((entry) => entry._id === productId);
+    setSelectedItems((current) => current.map((item) => {
+      if (item.catalogProductId !== productId) return item;
+      const next = { ...item, ...patch };
+      if (patch.size && item.color && product) {
+        const validColors = getVariantColors(product, patch.size);
+        if (!validColors.includes(item.color)) {
+          next.color = '';
+        }
+      }
+      return next;
+    }));
   };
+
+  const variantSelectionsComplete = variantProducts.every((product) =>
+    isValidKitVariantSelection(
+      product,
+      selectedItems.find((entry: KitItemSelection) => entry.catalogProductId === product._id)
+    )
+  );
 
   const submit = async () => {
     if (!token) return;
@@ -60,10 +83,14 @@ const KitRedeem = () => {
       toast.error('Complete the shipping address');
       return;
     }
+    if (!variantSelectionsComplete) {
+      toast.error('Choose size and color for each applicable item');
+      return;
+    }
 
     try {
       const response: any = await kitsApi.redeemByToken(token, {
-        selectedItems,
+        selectedItems: buildKitSelections(products, selectedItems),
         shippingAddress: address,
       });
       setRedemption(response.data);
@@ -134,20 +161,27 @@ const KitRedeem = () => {
                 <Card key={product._id}>
                   <CardContent className="space-y-4 p-4">
                     <KitItemPreview product={product} logoUrl={item.uploadedLogoUrl} />
-                    {kitSend.deliveryMode === 'redeem' && (
+                    {kitSend.deliveryMode === 'redeem' && productRequiresVariantSelection(product) && (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
                           <Label>Size</Label>
-                          <select className="h-10 w-full rounded-md border bg-background px-3" value={selected?.size || 'M'} onChange={(event) => updateSelectedItem(product._id, { size: event.target.value })}>
-                            {sizeOptions.map((size) => <option key={size}>{size}</option>)}
+                          <select className="h-10 w-full rounded-md border bg-background px-3" value={selected?.size || ''} onChange={(event) => updateSelectedItem(product._id, { size: event.target.value })}>
+                            <option value="">Select size</option>
+                            {getVariantSizes(product).map((size) => <option key={size} value={size}>{size}</option>)}
                           </select>
                         </div>
                         <div className="space-y-2">
                           <Label>Color</Label>
-                          <select className="h-10 w-full rounded-md border bg-background px-3" value={selected?.color || 'Black'} onChange={(event) => updateSelectedItem(product._id, { color: event.target.value })}>
-                            {colorOptions.map((color) => <option key={color}>{color}</option>)}
+                          <select className="h-10 w-full rounded-md border bg-background px-3" value={selected?.color || ''} onChange={(event) => updateSelectedItem(product._id, { color: event.target.value })} disabled={!selected?.size}>
+                            <option value="">Select color</option>
+                            {getVariantColors(product, selected?.size).map((color) => <option key={color} value={color}>{color}</option>)}
                           </select>
                         </div>
+                      </div>
+                    )}
+                    {kitSend.deliveryMode === 'redeem' && !productRequiresVariantSelection(product) && (
+                      <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                        No size/color needed for this item.
                       </div>
                     )}
                   </CardContent>
@@ -168,7 +202,7 @@ const KitRedeem = () => {
                 <Input placeholder="ZIP / Postal code" value={address.zipCode || ''} onChange={(event) => setAddress({ ...address, zipCode: event.target.value })} />
                 <Input placeholder="Country" value={address.country || ''} onChange={(event) => setAddress({ ...address, country: event.target.value })} />
               </div>
-              <Button className="w-full" size="lg" onClick={submit}>
+              <Button className="w-full" size="lg" onClick={submit} disabled={!variantSelectionsComplete}>
                 Redeem gift
               </Button>
             </CardContent>

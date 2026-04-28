@@ -149,6 +149,12 @@ const BrandKitDetail = () => {
                 </div>
               </div>
 
+              {(kit as any).sampleRequested && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <strong>Sample kit requested</strong> - awaiting fulfillment by ShelfMerch before this campaign goes live.
+                </div>
+              )}
+
               <Tabs defaultValue="items" className="space-y-6">
                 <TabsList>
                   <TabsTrigger value="items">Items</TabsTrigger>

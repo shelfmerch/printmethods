@@ -6,6 +6,7 @@ const Store = require('../models/Store');
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const { protect } = require('../middleware/auth');
+const { assertWithinPlanLimit } = require('../utils/planLimits');
 
 // Helper: verify brand access (owner or brand_admin team member)
 async function assertBrandAccess(req, brandId) {
@@ -51,9 +52,24 @@ router.post('/:brandId', protect, async (req, res) => {
     const { email, name, department, employeeId } = req.body;
 
     if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+    const normalizedEmail = email.toLowerCase();
+    const existingEmployee = await BrandEmployee.findOne({ brandId: req.params.brandId, email: normalizedEmail });
+    if (!existingEmployee) {
+      const currentCount = await BrandEmployee.countDocuments({
+        brandId: req.params.brandId,
+        inviteStatus: { $ne: 'deactivated' },
+      });
+      assertWithinPlanLimit({
+        planId: store.subscriptionPlan,
+        resource: 'employees',
+        currentCount,
+        attemptedAdd: 1,
+        limitKey: 'maxEmployees',
+      });
+    }
 
     // Find or create wallet for this email
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: normalizedEmail });
     let walletId = null;
 
     if (user) {
@@ -97,11 +113,28 @@ router.post('/:brandId', protect, async (req, res) => {
 // @access  Brand owner / brand_admin / hr_manager
 router.post('/:brandId/bulk', protect, async (req, res) => {
   try {
-    await assertBrandAccess(req, req.params.brandId);
+    const store = await assertBrandAccess(req, req.params.brandId);
     const { employees } = req.body; // [{ email, name, department }]
     if (!Array.isArray(employees) || employees.length === 0) {
       return res.status(400).json({ success: false, message: 'employees array required' });
     }
+    const incomingEmails = [...new Set(employees.map((emp) => emp.email?.toLowerCase()).filter(Boolean))];
+    const existing = await BrandEmployee.find({ brandId: req.params.brandId, email: { $in: incomingEmails } })
+      .select('email')
+      .lean();
+    const existingEmails = new Set(existing.map((employee) => employee.email));
+    const newEmployeeCount = incomingEmails.filter((email) => !existingEmails.has(email)).length;
+    const currentCount = await BrandEmployee.countDocuments({
+      brandId: req.params.brandId,
+      inviteStatus: { $ne: 'deactivated' },
+    });
+    assertWithinPlanLimit({
+      planId: store.subscriptionPlan,
+      resource: 'employees',
+      currentCount,
+      attemptedAdd: newEmployeeCount,
+      limitKey: 'maxEmployees',
+    });
 
     const results = { added: 0, skipped: 0, errors: [] };
 

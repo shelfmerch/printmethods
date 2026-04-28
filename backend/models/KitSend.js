@@ -43,6 +43,19 @@ const SurpriseRecipientSchema = new mongoose.Schema({
   },
 }, { _id: false });
 
+const SingleLocationSelectionSchema = new mongoose.Schema({
+  catalogProductId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CatalogProduct',
+  },
+  color: String,
+  size: String,
+  quantity: {
+    type: Number,
+    default: 1,
+  },
+}, { _id: false });
+
 const OverageItemSchema = new mongoose.Schema({
   catalogProductId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -71,7 +84,7 @@ const KitSendSchema = new mongoose.Schema({
   },
   deliveryMode: {
     type: String,
-    enum: ['redeem', 'surprise'],
+    enum: ['redeem', 'surprise', 'single_location'],
     required: true,
   },
   fromName: {
@@ -102,7 +115,33 @@ const KitSendSchema = new mongoose.Schema({
     type: [SurpriseRecipientSchema],
     default: [],
   },
+  singleLocationQuantity: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  singleLocationType: {
+    type: String,
+    enum: ['office', 'event', 'other'],
+    default: 'office',
+  },
+  singleLocationAddress: {
+    type: AddressSchema,
+    default: () => ({}),
+  },
+  singleLocationNotes: {
+    type: String,
+    default: '',
+  },
+  singleLocationSelections: {
+    type: [SingleLocationSelectionSchema],
+    default: [],
+  },
   itemsCostPerRecipient: {
+    type: Number,
+    default: 0,
+  },
+  packagingCost: {
     type: Number,
     default: 0,
   },

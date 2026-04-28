@@ -5,7 +5,6 @@ const CreditAllocation = require('../models/CreditAllocation');
 const BrandEmployee = require('../models/BrandEmployee');
 const Store = require('../models/Store');
 const Wallet = require('../models/Wallet');
-const walletService = require('../services/walletService');
 const { protect } = require('../middleware/auth');
 
 // Helper: check brand access (owner, superadmin, or brand_admin/hr_manager team member)
@@ -25,6 +24,33 @@ async function assertBrandAccess(req, brandId) {
     if (!isTeam) throw Object.assign(new Error('Not authorized'), { status: 403 });
   }
   return store;
+}
+
+async function getOrLinkCompanyWallet(store, currentUserId, session) {
+  if (store.companyWalletId) {
+    const existingWallet = await Wallet.findById(store.companyWalletId).session(session);
+    if (existingWallet) return existingWallet;
+  }
+
+  const merchantUserId = store.merchant;
+  const merchantWallet = await Wallet.findOne({ userId: merchantUserId }).session(session);
+  const currentUserWallet =
+    currentUserId && currentUserId.toString() !== merchantUserId.toString()
+      ? await Wallet.findOne({ userId: currentUserId }).session(session)
+      : null;
+  let wallet = merchantWallet?.balancePaise > 0 ? merchantWallet : currentUserWallet || merchantWallet;
+
+  if (!wallet) {
+    const [createdWallet] = await Wallet.create(
+      [{ userId: merchantUserId, currency: 'INR', balancePaise: 0, status: 'ACTIVE' }],
+      { session }
+    );
+    wallet = createdWallet;
+  }
+
+  store.companyWalletId = wallet._id;
+  await store.save({ session });
+  return wallet;
 }
 
 // ─── GET /api/credit-allocation/:brandId ─────────────────────────────────────
@@ -127,18 +153,18 @@ router.post('/:brandId', protect, async (req, res) => {
       ? [employeeId]
       : null;
 
-    if (!targets || targets.length === 0)
+    if (!targets || targets.length === 0) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'employeeId or employeeIds required' });
-    if (!amountPaise || !Number.isInteger(amountPaise) || amountPaise < 100)
+    }
+    if (!amountPaise || !Number.isInteger(amountPaise) || amountPaise < 100) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: 'amountPaise must be an integer >= 100 (₹1)' });
+    }
 
-    // Company wallet check
-    if (!store.companyWalletId)
-      return res.status(400).json({ success: false, message: 'Company wallet not set up. Please top up the company wallet first.' });
-
-    const companyWallet = await Wallet.findById(store.companyWalletId).session(session);
-    if (!companyWallet)
-      return res.status(400).json({ success: false, message: 'Company wallet not found' });
+    const companyWallet = await getOrLinkCompanyWallet(store, req.user._id, session);
 
     const totalRequired = amountPaise * targets.length;
     if (companyWallet.balancePaise < totalRequired) {
@@ -191,16 +217,8 @@ router.post('/:brandId', protect, async (req, res) => {
         const idempotencyKey = `credit_alloc_${req.params.brandId}_${empId}_${Date.now()}`;
 
         // 1. Debit company wallet
-        const companyTxn = await walletService.debitWallet(
-          null, // we'll do it directly via Wallet model since userId-based doesn't apply to company wallet
-          0,    // placeholder — we'll use direct Wallet ops below
-          {},
-          session
-        ).catch(() => null); // fallthrough to direct op
-
-        // Direct company wallet debit (company wallet may not have a userId)
         const updatedCompanyWallet = await Wallet.findOneAndUpdate(
-          { _id: store.companyWalletId, balancePaise: { $gte: amountPaise } },
+          { _id: companyWallet._id, balancePaise: { $gte: amountPaise } },
           { $inc: { balancePaise: -amountPaise } },
           { new: true, session }
         );

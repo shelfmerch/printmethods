@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 
 type DraftItem = {
   catalogProductId: string;
@@ -32,13 +33,20 @@ const BrandKitBuilder = () => {
   const [status, setStatus] = useState<'draft' | 'live'>('draft');
   const [catalogProducts, setCatalogProducts] = useState<KitProduct[]>([]);
   const [selectedItems, setSelectedItems] = useState<DraftItem[]>([]);
+  const [packaging, setPackaging] = useState<{
+    mode: 'none' | 'catalog_product';
+    catalogProductId: string;
+    branding: 'none' | 'logo' | 'custom';
+    notes: string;
+  }>({ mode: 'none', catalogProductId: '', branding: 'none', notes: '' });
+  const [sampleRequested, setSampleRequested] = useState(false);
   const [loading, setLoading] = useState(false);
   const token = localStorage.getItem('token');
 
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await fetch(`${RAW_API_URL}/api/products?limit=100&isActive=true&hasActiveVariantsOnly=true`, {
+        const response = await fetch(`${RAW_API_URL}/api/products?limit=100&isActive=true`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const json = await response.json();
@@ -62,6 +70,16 @@ const BrandKitBuilder = () => {
         const kit: Kit = response.data;
         setName(kit.name);
         setStatus(kit.status === 'live' ? 'live' : 'draft');
+        setSampleRequested(Boolean((kit as any).sampleRequested));
+        const kitPackaging = kit.packaging;
+        setPackaging({
+          mode: kitPackaging?.mode || 'none',
+          catalogProductId: typeof kitPackaging?.catalogProductId === 'string'
+            ? kitPackaging.catalogProductId
+            : kitPackaging?.catalogProductId?._id || '',
+          branding: kitPackaging?.branding || 'none',
+          notes: kitPackaging?.notes || '',
+        });
         setSelectedItems(
           kit.items.map((item) => ({
             catalogProductId: typeof item.catalogProductId === 'string' ? item.catalogProductId : item.catalogProductId._id,
@@ -90,6 +108,9 @@ const BrandKitBuilder = () => {
   }, [catalogProducts]);
 
   const selectedIds = useMemo(() => new Set(selectedItems.map((item) => item.catalogProductId)), [selectedItems]);
+  const merchandiseProducts = useMemo(() => catalogProducts.filter((product) => product.categoryId !== 'packaging'), [catalogProducts]);
+  const packagingProducts = useMemo(() => catalogProducts.filter((product) => product.categoryId === 'packaging'), [catalogProducts]);
+  const hasSampleAvailable = useMemo(() => selectedItems.some((item) => (item.product as any)?.sampleAvailable), [selectedItems]);
 
   const toggleProduct = (product: KitProduct) => {
     setSelectedItems((current) => {
@@ -130,6 +151,11 @@ const BrandKitBuilder = () => {
       setStep(2);
       return;
     }
+    if (packaging.mode === 'catalog_product' && !packaging.catalogProductId) {
+      toast.error('Choose a packaging product or select no packaging');
+      setStep(4);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -141,6 +167,13 @@ const BrandKitBuilder = () => {
           catalogProductId: item.catalogProductId,
           uploadedLogoUrl: item.uploadedLogoUrl,
         })),
+        packaging: {
+          mode: packaging.mode,
+          catalogProductId: packaging.mode === 'catalog_product' ? packaging.catalogProductId : undefined,
+          branding: packaging.mode === 'catalog_product' ? packaging.branding : 'none',
+          notes: packaging.notes,
+        },
+        sampleRequested,
       };
 
       const response: any = isEditMode && id
@@ -179,8 +212,8 @@ const BrandKitBuilder = () => {
             </Badge>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            {['Name the kit', 'Choose products', 'Upload logos'].map((label, index) => (
+          <div className="grid gap-3 md:grid-cols-4">
+            {['Name the kit', 'Choose products', 'Upload logos', 'Packaging'].map((label, index) => (
               <button
                 key={label}
                 type="button"
@@ -221,7 +254,7 @@ const BrandKitBuilder = () => {
                 <CardTitle>Step 2: Browse catalog</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {catalogProducts.map((product) => (
+                {merchandiseProducts.map((product) => (
                   <button
                     key={product._id}
                     type="button"
@@ -234,6 +267,7 @@ const BrandKitBuilder = () => {
                         <div>
                           <h3 className="font-semibold">{product.name}</h3>
                           <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                          {(product as any).sampleAvailable && <Badge variant="outline" className="mt-2">Sample available</Badge>}
                         </div>
                         {selectedIds.has(product._id) && <Check className="h-5 w-5 text-primary" />}
                       </div>
@@ -288,6 +322,113 @@ const BrandKitBuilder = () => {
                     </div>
                   </div>
                 ))}
+              </CardContent>
+              <div className="flex flex-wrap justify-end gap-3 px-6 pb-6">
+                <Button onClick={() => setStep(4)} disabled={!selectedItems.length}>
+                  Continue
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {step === 4 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Step 4: Packaging</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => setPackaging((current) => ({ ...current, mode: 'none', catalogProductId: '', branding: 'none' }))}
+                    className={`rounded-xl border p-4 text-left transition ${packaging.mode === 'none' ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-primary/50'}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-semibold">No packaging needed</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">Send items without a selected kit box, pouch, or cover.</p>
+                      </div>
+                      {packaging.mode === 'none' && <Check className="h-5 w-5 text-primary" />}
+                    </div>
+                  </button>
+
+                  {packagingProducts.map((product) => {
+                    const selected = packaging.mode === 'catalog_product' && packaging.catalogProductId === product._id;
+                    const primaryImage = product.galleryImages?.find((image) => image.isPrimary)?.url || product.galleryImages?.[0]?.url;
+                    return (
+                      <button
+                        key={product._id}
+                        type="button"
+                        onClick={() => setPackaging((current) => ({ ...current, mode: 'catalog_product', catalogProductId: product._id }))}
+                        className={`overflow-hidden rounded-xl border text-left transition ${selected ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-primary/50'}`}
+                      >
+                        <div className="aspect-square bg-white">
+                          {primaryImage ? (
+                            <img src={primaryImage} alt={product.name} className="h-full w-full object-contain" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No preview</div>
+                          )}
+                        </div>
+                        <div className="space-y-2 border-t p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <h3 className="font-semibold">{product.name}</h3>
+                              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                            </div>
+                            {selected && <Check className="h-5 w-5 text-primary" />}
+                          </div>
+                          <div className="text-sm text-muted-foreground">₹{Number(product.basePrice || 0).toFixed(2)} per kit</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {packaging.mode === 'catalog_product' && (
+                  <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-[240px_1fr]">
+                    <div className="space-y-2">
+                      <Label>Branding</Label>
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3"
+                        value={packaging.branding}
+                        onChange={(event) => setPackaging((current) => ({ ...current, branding: event.target.value as any }))}
+                      >
+                        <option value="none">No branding</option>
+                        <option value="logo">Use uploaded logo</option>
+                        <option value="custom">Custom packaging branding</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Packaging notes</Label>
+                      <Textarea
+                        value={packaging.notes}
+                        onChange={(event) => setPackaging((current) => ({ ...current, notes: event.target.value }))}
+                        placeholder="Add presentation or packing instructions"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {!packagingProducts.length && (
+                  <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+                    No packaging products are active yet. Add products in the Packaging category from the superadmin catalog to show them here.
+                  </div>
+                )}
+                {hasSampleAvailable && (
+                  <div className="flex items-center justify-between rounded-xl border p-4">
+                    <div>
+                      <h3 className="font-semibold">Request a sample kit first?</h3>
+                      <p className="text-sm text-muted-foreground">ShelfMerch can fulfill a sample kit before you send this campaign to recipients.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={sampleRequested ? 'default' : 'outline'}
+                      onClick={() => setSampleRequested((value) => !value)}
+                    >
+                      {sampleRequested ? 'Sample requested' : 'Yes, send me a sample'}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
               <div className="flex flex-wrap justify-end gap-3 px-6 pb-6">
                 <Button variant="outline" onClick={() => saveKit('draft')} disabled={loading}>

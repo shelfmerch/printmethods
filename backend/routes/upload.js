@@ -11,11 +11,11 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Accept only image files
-    if (file.mimetype.startsWith('image/')) {
+    // Accept images and PDF documents for design, PO, and support attachments
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error('Only image or PDF files are allowed'), false);
     }
   },
 });
@@ -212,7 +212,6 @@ router.post('/video', protect, authorize('merchant', 'superadmin'), uploadVideo.
 });
 
 module.exports = router;
-
 
 
 

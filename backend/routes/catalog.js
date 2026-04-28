@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
     const products = await CatalogProduct.find(filter)
-      .select('name shortDescription categoryId basePrice currency galleryImages design stocks gst pricing')
+      .select('name shortDescription categoryId basePrice currency sampleAvailable galleryImages design stocks gst pricing')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
@@ -45,6 +45,7 @@ router.get('/', async (req, res) => {
       shortDescription: p.shortDescription,
       categoryId: p.categoryId,
       basePrice: p.basePrice,
+      sampleAvailable: Boolean(p.sampleAvailable),
       currency: p.currency,
       minimumQuantity: p.stocks?.minimumQuantity ?? 1,
       primaryImage: p.galleryImages?.find(g => g.isPrimary)?.url
@@ -124,6 +125,7 @@ router.get('/:id', async (req, res) => {
         highlights: product.highlights,
         categoryId: product.categoryId,
         basePrice: product.basePrice,
+        sampleAvailable: Boolean(product.sampleAvailable),
         currency: product.currency,
         gst: product.gst,
         minimumQuantity: product.stocks?.minimumQuantity ?? 1,

@@ -15,29 +15,25 @@ const KitItemPreview = ({ product, logoUrl, label, className = '' }: KitItemPrev
   const physicalWidth = product?.design?.physicalDimensions?.width || 1;
   const physicalHeight = product?.design?.physicalDimensions?.height || 1;
 
-  const overlayStyle = placeholder ? {
+  const overlayStyle = placeholder && physicalWidth > 0 && physicalHeight > 0 ? {
     left: `${((placeholder.xIn || 0) / physicalWidth) * 100}%`,
     top: `${((placeholder.yIn || 0) / physicalHeight) * 100}%`,
     width: `${((placeholder.widthIn || 0.0001) / physicalWidth) * 100}%`,
     height: `${((placeholder.heightIn || 0.0001) / physicalHeight) * 100}%`,
-  } : {
-    left: '30%',
-    top: '30%',
-    width: '40%',
-    height: '40%',
-  };
+    transform: placeholder.rotationDeg ? `rotate(${placeholder.rotationDeg}deg)` : undefined,
+  } : null;
 
   return (
     <div className={`overflow-hidden rounded-lg border bg-muted/30 ${className}`}>
       <div className="relative aspect-square w-full bg-white">
         {mockupUrl ? (
-          <img src={mockupUrl} alt={product?.name || 'Kit item'} className="h-full w-full object-cover" />
+          <img src={mockupUrl} alt={product?.name || 'Kit item'} className="h-full w-full object-contain" />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             No preview
           </div>
         )}
-        {logoUrl && (
+        {logoUrl && overlayStyle && (
           <div className="absolute overflow-hidden rounded-md border border-white/70 bg-white/70 shadow" style={overlayStyle}>
             <img src={logoUrl} alt="Brand logo preview" className="h-full w-full object-contain" />
           </div>

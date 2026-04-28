@@ -1,4 +1,31 @@
 const mongoose = require('mongoose');
+const ORDER_STATUSES = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'];
+const PRODUCTION_STAGES = ['queued', 'printing', 'packaging', 'ready_to_ship', 'shipped'];
+
+const ShipmentStatusHistorySchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ORDER_STATUSES,
+      required: true,
+    },
+    at: {
+      type: Date,
+      default: Date.now,
+    },
+    note: {
+      type: String,
+      default: '',
+    },
+    actor: {
+      id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      role: { type: String, default: '' },
+      name: { type: String, default: '' },
+      email: { type: String, default: '' },
+    },
+  },
+  { _id: false }
+);
 
 const StoreOrderSchema = new mongoose.Schema(
   {
@@ -46,9 +73,28 @@ const StoreOrderSchema = new mongoose.Schema(
     total: Number,
     status: {
       type: String,
-      enum: ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'],
+      enum: ORDER_STATUSES,
       default: 'on-hold',
       index: true,
+    },
+    shipment: {
+      carrier: { type: String, default: '' },
+      trackingNumber: { type: String, default: '' },
+      trackingUrl: { type: String, default: '' },
+      productionStage: {
+        type: String,
+        enum: PRODUCTION_STAGES,
+        default: 'queued',
+        index: true,
+      },
+      shippedAt: Date,
+      deliveredAt: Date,
+      statusUpdatedAt: { type: Date, default: Date.now },
+      internalNotes: { type: String, default: '' },
+      statusHistory: {
+        type: [ShipmentStatusHistorySchema],
+        default: [],
+      },
     },
     shippingAddress: {
       fullName: String,

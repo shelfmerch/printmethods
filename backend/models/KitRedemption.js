@@ -84,6 +84,45 @@ const KitRedemptionSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  carrier: {
+    type: String,
+    default: '',
+  },
+  trackingUrl: {
+    type: String,
+    default: '',
+  },
+  shippingStatus: {
+    type: String,
+    enum: ['ready', 'in-production', 'shipped', 'delivered'],
+    default: 'ready',
+    index: true,
+  },
+  shippedAt: Date,
+  deliveredAt: Date,
+  shippingHistory: {
+    type: [{
+      status: {
+        type: String,
+        enum: ['ready', 'in-production', 'shipped', 'delivered'],
+      },
+      at: {
+        type: Date,
+        default: Date.now,
+      },
+      note: {
+        type: String,
+        default: '',
+      },
+      actor: {
+        id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        role: { type: String, default: '' },
+        name: { type: String, default: '' },
+        email: { type: String, default: '' },
+      },
+    }],
+    default: [],
+  },
 }, {
   timestamps: true,
 });

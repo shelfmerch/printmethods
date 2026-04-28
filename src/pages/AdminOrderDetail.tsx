@@ -5,10 +5,15 @@ import { storeProductsApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, ShoppingBag, Store as StoreIcon, Mail, Clock, Image as ImageIcon, Layers, Eye, Download } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Store as StoreIcon, Mail, Clock, Image as ImageIcon, Layers, Eye, Download, Truck, ExternalLink, Loader2 } from 'lucide-react';
 import { Order } from '@/types';
+import { toast } from 'sonner';
 
 // ─── Mockup Canvas Preview ────────────────────────────────────────────────────
 // Replicates DesignEditor's 800×600 stage + element rendering in a read-only
@@ -19,6 +24,21 @@ const CANVAS_H = 600;
 const CANVAS_PADDING = 40;
 const EFFECTIVE_W = CANVAS_W - CANVAS_PADDING * 2; // 720
 const EFFECTIVE_H = CANVAS_H - CANVAS_PADDING * 2; // 520
+const STATUS_OPTIONS = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'] as const;
+
+const formatStatus = (status?: string) =>
+  (status || 'on-hold')
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const toInputDateTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => `${n}`.padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
 
 interface MockupCanvasPreviewProps {
   mockupImageUrl: string;
@@ -289,6 +309,18 @@ const AdminOrderDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [storeProductsById, setStoreProductsById] = useState<Record<string, any>>({});
   const [storeProductsLoading, setStoreProductsLoading] = useState<Record<string, boolean>>({});
+  const [shipmentForm, setShipmentForm] = useState({
+    status: 'on-hold',
+    carrier: '',
+    trackingNumber: '',
+    trackingUrl: '',
+    shippedAt: '',
+    deliveredAt: '',
+    internalNotes: '',
+  });
+  const [statusNote, setStatusNote] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [savingShipment, setSavingShipment] = useState(false);
 
   const getStoreProductIdFromItem = (item: any): string | null => {
     const sp = item?.storeProductId;
@@ -368,6 +400,19 @@ const AdminOrderDetail = () => {
     };
   }, [order, storeProductsById, storeProductsLoading]);
 
+  useEffect(() => {
+    if (!order) return;
+    setShipmentForm({
+      status: order.status || 'on-hold',
+      carrier: order.shipment?.carrier || '',
+      trackingNumber: order.shipment?.trackingNumber || '',
+      trackingUrl: order.shipment?.trackingUrl || '',
+      shippedAt: toInputDateTime(order.shipment?.shippedAt),
+      deliveredAt: toInputDateTime(order.shipment?.deliveredAt),
+      internalNotes: order.shipment?.internalNotes || '',
+    });
+  }, [order]);
+
   const formatCurrency = (value?: number) => {
     if (typeof value !== 'number') return '-';
     return `₹${value.toFixed(2)}`;
@@ -378,6 +423,46 @@ const AdminOrderDetail = () => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return '-';
     return d.toLocaleString();
+  };
+
+  const handleStatusSave = async () => {
+    if (!id) return;
+    try {
+      setSavingStatus(true);
+      const response = await storeOrdersApi.updateStatus(id, shipmentForm.status as any, statusNote);
+      const data = (response && (response.data || response)) as any;
+      setOrder(data as Order);
+      setStatusNote('');
+      toast.success('Order status updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update order status');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleShipmentSave = async () => {
+    if (!id) return;
+    try {
+      setSavingShipment(true);
+      const response = await storeOrdersApi.updateShipment(id, {
+        status: shipmentForm.status as any,
+        carrier: shipmentForm.carrier,
+        trackingNumber: shipmentForm.trackingNumber,
+        trackingUrl: shipmentForm.trackingUrl,
+        shippedAt: shipmentForm.shippedAt ? new Date(shipmentForm.shippedAt).toISOString() : undefined,
+        deliveredAt: shipmentForm.deliveredAt ? new Date(shipmentForm.deliveredAt).toISOString() : undefined,
+        internalNotes: shipmentForm.internalNotes,
+        note: 'Shipment updated by superadmin',
+      });
+      const data = (response && (response.data || response)) as any;
+      setOrder(data as Order);
+      toast.success('Shipment details updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update shipment details');
+    } finally {
+      setSavingShipment(false);
+    }
   };
 
   const handleDownloadOriginal = async (url: string, fileName: string) => {
@@ -633,6 +718,96 @@ const AdminOrderDetail = () => {
                     </TableBody>
                   </Table>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Shipment Controls
+                </CardTitle>
+                <CardDescription>Superadmin-owned shipment status and tracking updates.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={shipmentForm.status} onValueChange={(value) => setShipmentForm((prev) => ({ ...prev, status: value }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {formatStatus(status)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status Note</Label>
+                    <Textarea
+                      value={statusNote}
+                      onChange={(event) => setStatusNote(event.target.value)}
+                      placeholder="Optional note for this status change"
+                    />
+                  </div>
+                  <Button onClick={handleStatusSave} disabled={savingStatus} className="w-full">
+                    {savingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Status
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Carrier</Label>
+                      <Input value={shipmentForm.carrier} onChange={(event) => setShipmentForm((prev) => ({ ...prev, carrier: event.target.value }))} placeholder="Delhivery, Blue Dart, DHL" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tracking Number</Label>
+                      <Input value={shipmentForm.trackingNumber} onChange={(event) => setShipmentForm((prev) => ({ ...prev, trackingNumber: event.target.value }))} placeholder="AWB / tracking number" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tracking URL</Label>
+                    <Input value={shipmentForm.trackingUrl} onChange={(event) => setShipmentForm((prev) => ({ ...prev, trackingUrl: event.target.value }))} placeholder="https://tracking.example.com/..." />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Shipped At</Label>
+                      <Input type="datetime-local" value={shipmentForm.shippedAt} onChange={(event) => setShipmentForm((prev) => ({ ...prev, shippedAt: event.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Delivered At</Label>
+                      <Input type="datetime-local" value={shipmentForm.deliveredAt} onChange={(event) => setShipmentForm((prev) => ({ ...prev, deliveredAt: event.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Internal Notes</Label>
+                    <Textarea
+                      value={shipmentForm.internalNotes}
+                      onChange={(event) => setShipmentForm((prev) => ({ ...prev, internalNotes: event.target.value }))}
+                      placeholder="Notes for the operational team"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={handleShipmentSave} disabled={savingShipment}>
+                      {savingShipment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Save Shipment Details
+                    </Button>
+                    {order.shipment?.trackingUrl ? (
+                      <Button variant="outline" asChild>
+                        <a href={order.shipment.trackingUrl} target="_blank" rel="noreferrer">
+                          Open Tracking
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

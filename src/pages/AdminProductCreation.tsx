@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, ChevronLeft, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { ProductCatalogueSection } from '@/components/admin/ProductCatalogueSection';
 import { ProductVariantsSection } from '@/components/admin/ProductVariantsSection';
 import { ProductImageConfigurator } from '@/components/admin/ProductImageConfigurator';
@@ -46,6 +47,7 @@ const AdminProductCreation = () => {
     categoryId: '',
     subcategoryIds: [],
     basePrice: 0,
+    sampleAvailable: false,
     tags: [],
     productTypeCode: '',
     attributes: {},
@@ -186,6 +188,7 @@ const AdminProductCreation = () => {
               categoryId: product.catalogue.categoryId || '',
               subcategoryIds: product.catalogue.subcategoryIds || [],
               basePrice: product.catalogue.basePrice || 0,
+              sampleAvailable: Boolean(product.catalogue.sampleAvailable ?? product.sampleAvailable),
               tags: product.catalogue.tags || [],
               productTypeCode: product.catalogue.productTypeCode || '',
               attributes: product.catalogue.attributes || {},
@@ -855,6 +858,18 @@ const AdminProductCreation = () => {
                   data={optionsData}
                   onChange={setOptionsData}
                 />
+                <Card>
+                  <CardContent className="p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-medium">Sample available</p>
+                      <p className="text-sm text-muted-foreground">Allow brands to request one paid sample before placing a full order.</p>
+                    </div>
+                    <Switch
+                      checked={Boolean(catalogueData.sampleAvailable)}
+                      onCheckedChange={(checked) => setCatalogueData((prev) => ({ ...prev, sampleAvailable: checked }))}
+                    />
+                  </CardContent>
+                </Card>
                 <div className="flex justify-between pt-4">
                   <Button
                     variant="outline"

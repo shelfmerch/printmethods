@@ -156,13 +156,13 @@ const storeSchema = new mongoose.Schema({
   // Subscription billing
   subscriptionPlan: {
     type: String,
-    enum: ['trial', 'starter', 'business', 'enterprise'],
-    default: 'trial'
+    enum: ['free', 'growth', 'enterprise', 'trial', 'starter', 'business'],
+    default: 'free'
   },
   subscriptionStatus: {
     type: String,
     enum: ['active', 'trial', 'expired', 'cancelled'],
-    default: 'trial'
+    default: 'active'
   },
   subscriptionExpiry: {
     type: Date

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Store = require('../models/Store');
 const { protect } = require('../middleware/auth');
+const { PLAN_LIMITS, getPlanLimits, normalizePlanId, isKnownPlanId } = require('../utils/planLimits');
 
 // ── Access helper ──────────────────────────────────────────────────────────────
 const BRAND_ROLES = ['Owner', 'Superadmin', 'BrandAdmin'];
@@ -18,44 +19,15 @@ const assertBrandAccess = async (req, storeId) => {
 };
 
 // ── Plans definition (single source of truth) ─────────────────────────────────
-const PLANS = {
-    trial: {
-        id: 'trial',
-        name: 'Trial',
-        maxEmployees: 10,
-        regions: ['India'],
-        priceMonthlyPaise: 0,
-    },
-    starter: {
-        id: 'starter',
-        name: 'Starter',
-        maxEmployees: 50,
-        regions: ['India'],
-        priceMonthlyPaise: 499900,   // ₹4,999
-    },
-    business: {
-        id: 'business',
-        name: 'Business',
-        maxEmployees: 250,
-        regions: ['India', 'Taiwan', 'Australia', 'New Zealand'],
-        priceMonthlyPaise: 1299900,  // ₹12,999
-    },
-    enterprise: {
-        id: 'enterprise',
-        name: 'Enterprise',
-        maxEmployees: Infinity,
-        regions: ['India', 'Taiwan', 'Australia', 'New Zealand'],
-        priceMonthlyPaise: null,     // Custom
-    },
-};
+const PLANS = PLAN_LIMITS;
 
 // ── GET /api/brand-subscription/:brandId ─────────────────────────────────────
 // Returns current plan details + subscription status
 router.get('/:brandId', protect, async (req, res) => {
     try {
         const store = await assertBrandAccess(req, req.params.brandId);
-        const planId = store.subscriptionPlan || 'trial';
-        const plan = PLANS[planId] || PLANS.trial;
+        const planId = normalizePlanId(store.subscriptionPlan);
+        const plan = getPlanLimits(planId);
 
         return res.json({
             success: true,
@@ -85,13 +57,13 @@ router.patch('/:brandId', protect, async (req, res) => {
 
     const { plan, status, expiryDate } = req.body;
 
-    if (plan && !PLANS[plan]) {
+    if (plan && !isKnownPlanId(plan)) {
         return res.status(400).json({ success: false, message: `Invalid plan: ${plan}` });
     }
 
     try {
         const updates = {};
-        if (plan) updates.subscriptionPlan = plan;
+        if (plan) updates.subscriptionPlan = normalizePlanId(plan);
         if (status) updates.subscriptionStatus = status;
         if (expiryDate) updates.subscriptionExpiry = new Date(expiryDate);
 
@@ -127,11 +99,12 @@ router.post('/:brandId/initiate', protect, async (req, res) => {
         await assertBrandAccess(req, req.params.brandId);
         const { plan } = req.body;
 
-        if (!plan || !PLANS[plan]) {
+        const normalizedPlan = normalizePlanId(plan);
+        if (!plan || !isKnownPlanId(plan)) {
             return res.status(400).json({ success: false, message: `Invalid plan: ${plan}` });
         }
 
-        if (plan === 'enterprise') {
+        if (normalizedPlan === 'enterprise') {
             return res.json({
                 success: true,
                 action: 'contact',
@@ -148,7 +121,7 @@ router.post('/:brandId/initiate', protect, async (req, res) => {
             success: true,
             action: 'contact',
             message: 'Subscription payments are coming soon. Contact hello@shelfmerch.in to activate your plan.',
-            plan: PLANS[plan],
+            plan: PLANS[normalizedPlan],
         });
     } catch (err) {
         return res.status(err.status || 500).json({ success: false, message: err.message });

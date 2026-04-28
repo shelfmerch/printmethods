@@ -3,11 +3,24 @@ export interface KitProduct {
   name: string;
   description?: string;
   basePrice: number;
+  categoryId?: string;
+  subcategoryIds?: string[];
   fulfillmentType?: 'print_on_demand' | 'inventory';
   productionHours?: number;
+  sampleAvailable?: boolean;
   stocks?: {
     minimumQuantity?: number;
   };
+  variants?: Array<{
+    _id?: string;
+    size?: string;
+    color?: string;
+    colorHex?: string;
+    isActive?: boolean;
+    stockStatus?: string;
+  }>;
+  availableSizes?: string[];
+  availableColors?: string[];
   galleryImages?: Array<{ url: string; isPrimary?: boolean }>;
   design?: {
     physicalDimensions?: {
@@ -22,6 +35,7 @@ export interface KitProduct {
         yIn?: number;
         widthIn?: number;
         heightIn?: number;
+        rotationDeg?: number;
       }>;
     }>;
   };
@@ -32,12 +46,21 @@ export interface KitItem {
   uploadedLogoUrl: string;
 }
 
+export interface KitPackaging {
+  mode: 'none' | 'catalog_product';
+  catalogProductId?: string | KitProduct;
+  branding: 'none' | 'logo' | 'custom';
+  notes?: string;
+}
+
 export interface Kit {
   _id: string;
   brandId: string;
   name: string;
   status: 'draft' | 'live' | 'archived';
   items: KitItem[];
+  packaging?: KitPackaging;
+  sampleRequested?: boolean;
   createdAt: string;
   updatedAt: string;
   lastSentAt?: string | null;
@@ -54,14 +77,35 @@ export interface KitSend {
   _id: string;
   kitId: string | Kit;
   brandId: string;
-  deliveryMode: 'redeem' | 'surprise';
+  deliveryMode: 'redeem' | 'surprise' | 'single_location';
   fromName: string;
   message: string;
   sendInviteAt: 'immediate' | 'scheduled';
   scheduledAt?: string;
   recipientCount: number;
   recipientEmails?: string[];
+  singleLocationQuantity?: number;
+  singleLocationType?: 'office' | 'event' | 'other';
+  singleLocationAddress?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    address1?: string;
+    address2?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  singleLocationNotes?: string;
+  singleLocationSelections?: Array<{
+    catalogProductId: string;
+    color?: string;
+    size?: string;
+    quantity: number;
+  }>;
   itemsCostPerRecipient: number;
+  packagingCost?: number;
   serviceFee: number;
   tax?: number;
   total: number;

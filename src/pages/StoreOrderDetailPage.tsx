@@ -51,16 +51,33 @@ interface OrderDetail {
     payment?: {
         method?: string;
     };
+    shipment?: {
+        carrier?: string;
+        trackingNumber?: string;
+        trackingUrl?: string;
+        shippedAt?: string;
+        deliveredAt?: string;
+        statusUpdatedAt?: string;
+        statusHistory?: Array<{
+            status: string;
+            at: string;
+            note?: string;
+        }>;
+    };
     paymentMethod?: string;
     shippingAddress: {
-        addressLine1: string;
+        addressLine1?: string;
         addressLine2?: string;
+        address1?: string;
+        address2?: string;
         city: string;
         state: string;
-        pincode: string;
+        pincode?: string;
+        zipCode?: string;
         country: string;
         phone?: string;
-        name: string;
+        name?: string;
+        fullName?: string;
     };
     items: OrderItem[];
     invoiceNumber?: string;
@@ -122,6 +139,15 @@ const StoreOrderDetailPage: React.FC = () => {
         if (s.includes('cancel') || s.includes('refund')) return 'bg-red-100 text-red-700 border-red-200';
         return 'bg-blue-100 text-blue-700 border-blue-200';
     };
+
+    const formatStatus = (status: string = '') =>
+        status
+            .split('-')
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ');
+
+    const timelineSteps = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered'];
+    const currentStep = timelineSteps.indexOf((order?.orderStatus || order?.status || 'on-hold').toLowerCase());
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return '';
@@ -210,7 +236,7 @@ const StoreOrderDetailPage: React.FC = () => {
                                             </div>
                                         </div>
                                         <Badge variant="outline" className={`rounded-full px-4 py-1.5 font-bold uppercase tracking-wide text-xs ${getStatusColor(order.orderStatus || order.status)}`}>
-                                            {order.orderStatus || order.status}
+                                            {formatStatus(order.orderStatus || order.status)}
                                         </Badge>
                                     </div>
                                 </CardHeader>
@@ -279,6 +305,69 @@ const StoreOrderDetailPage: React.FC = () => {
                                 </CardContent>
                             </Card>
 
+                            <Card className="border-none shadow-sm">
+                                <CardHeader className="pb-4">
+                                    <CardTitle className="text-lg flex items-center gap-2">
+                                        <Truck className="h-5 w-5 text-muted-foreground" />
+                                        Shipment Tracking
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-5">
+                                    <div className="grid gap-3 md:grid-cols-5">
+                                        {timelineSteps.map((step, index) => {
+                                            const isDone = currentStep >= index;
+                                            return (
+                                                <div key={step} className={`rounded-xl border p-3 ${isDone ? 'border-green-200 bg-green-50' : 'border-border bg-white'}`}>
+                                                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Step {index + 1}</p>
+                                                    <p className="mt-1 text-sm font-bold">{formatStatus(step)}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {order.shipment?.trackingNumber || order.shipment?.trackingUrl ? (
+                                        <div className="rounded-xl border bg-muted/10 p-4">
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracking</p>
+                                                    <p className="font-bold">{order.shipment?.trackingNumber || 'Tracking link available'}</p>
+                                                    <p className="text-sm text-muted-foreground">{order.shipment?.carrier || 'Carrier will update soon'}</p>
+                                                </div>
+                                                {order.shipment?.trackingUrl && (
+                                                    <Button variant="outline" asChild>
+                                                        <a href={order.shipment.trackingUrl} target="_blank" rel="noreferrer">
+                                                            Track Package
+                                                            <ExternalLink className="ml-2 h-4 w-4" />
+                                                        </a>
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-xl border bg-muted/10 p-4 text-sm text-muted-foreground">
+                                            Not shipped yet. Tracking details will appear here once the order leaves production.
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-3">
+                                        {(order.shipment?.statusHistory || []).length > 0 ? (
+                                            order.shipment?.statusHistory?.map((entry, index) => (
+                                                <div key={`${entry.status}-${entry.at}-${index}`} className="flex gap-3">
+                                                    <div className="mt-1.5 h-2.5 w-2.5 rounded-full bg-green-500" />
+                                                    <div>
+                                                        <p className="text-sm font-medium">{formatStatus(entry.status)}</p>
+                                                        <p className="text-xs text-muted-foreground">{formatDate(entry.at)}</p>
+                                                        {entry.note ? <p className="text-xs text-muted-foreground">{entry.note}</p> : null}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">We’ll keep this timeline updated as your order moves forward.</p>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
                             {/* Payment Info */}
                             <Card className="border-none shadow-sm">
                                 <CardHeader className="pb-4">
@@ -313,11 +402,11 @@ const StoreOrderDetailPage: React.FC = () => {
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="p-4 bg-muted/20 rounded-xl space-y-1">
-                                        <p className="font-bold text-lg">{order.shippingAddress.name}</p>
+                                        <p className="font-bold text-lg">{order.shippingAddress.fullName || order.shippingAddress.name}</p>
                                         <p className="text-sm leading-relaxed text-muted-foreground">
-                                            {order.shippingAddress.addressLine1}
-                                            {order.shippingAddress.addressLine2 && <><br />{order.shippingAddress.addressLine2}</>}
-                                            <br />{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode}
+                                            {order.shippingAddress.addressLine1 || order.shippingAddress.address1}
+                                            {(order.shippingAddress.addressLine2 || order.shippingAddress.address2) && <><br />{order.shippingAddress.addressLine2 || order.shippingAddress.address2}</>}
+                                            <br />{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode || order.shippingAddress.zipCode}
                                             <br />{order.shippingAddress.country}
                                         </p>
                                         {order.shippingAddress.phone && (

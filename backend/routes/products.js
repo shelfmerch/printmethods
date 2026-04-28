@@ -153,6 +153,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       tags: Array.isArray(catalogue.tags) ? catalogue.tags : [],
       attributes: catalogue.attributes || new Map(),
       basePrice: catalogue.basePrice,
+      sampleAvailable: Boolean(catalogue.sampleAvailable || req.body.sampleAvailable),
       careInstructions: catalogue.careInstructions || { icons: [], text: '' },
       design: {
         views: filteredViews,
@@ -255,6 +256,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       tags: product.tags,
       attributes: product.attributes,
       basePrice: product.basePrice,
+      sampleAvailable: Boolean(product.sampleAvailable),
       careInstructions: product.careInstructions || { icons: [], text: '' }
     };
     // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
@@ -680,6 +682,7 @@ router.get('/:id', async (req, res) => {
       tags: product.tags,
       attributes: product.attributes,
       basePrice: product.basePrice,
+      sampleAvailable: Boolean(product.sampleAvailable),
       careInstructions: product.careInstructions || { icons: [], text: '' }
     };
     // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
@@ -758,8 +761,10 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       if (catalogue.tags !== undefined) product.tags = catalogue.tags;
       if (catalogue.attributes !== undefined) product.attributes = catalogue.attributes;
       if (catalogue.basePrice !== undefined) product.basePrice = catalogue.basePrice;
+      if (catalogue.sampleAvailable !== undefined) product.sampleAvailable = Boolean(catalogue.sampleAvailable);
       if (catalogue.careInstructions !== undefined) product.careInstructions = catalogue.careInstructions;
     }
+    if (req.body.sampleAvailable !== undefined) product.sampleAvailable = Boolean(req.body.sampleAvailable);
     if (details !== undefined) product.details = details;
     if (design) product.design = design;
     if (shipping) product.shipping = shipping;

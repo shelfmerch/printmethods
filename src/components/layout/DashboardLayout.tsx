@@ -285,6 +285,7 @@ import logo from '@/assets/logo.webp';
 import type { Store as StoreType } from '@/types';
 import {
   Package,
+  LayoutDashboard,
   Store,
   TrendingUp,
   ShoppingBag,
@@ -301,6 +302,7 @@ import {
   CreditCard,
   UserCog,
   PackageCheck,
+  HelpCircle,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -450,7 +452,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-250px)] pb-4">
           {/* Core */}
           <Button variant={isActiveRoute('/dashboard') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
-            <Link to="/dashboard"><Package className="mr-2 h-4 w-4" />Products</Link>
+            <Link to="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
+          </Button>
+          <Button variant={isActiveRoute('/products') || isActiveRoute('/catalog') || isActiveRoute('/designer') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/products"><Package className="mr-2 h-4 w-4" />Products</Link>
+          </Button>
+          <Button variant={isActiveRoute('/stores') || isActiveRoute('/connect-store') || isActiveRoute('/dashboard/shopify') || isActiveRoute('/settings/developer') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/stores"><Store className="mr-2 h-4 w-4" />Store Setup</Link>
           </Button>
           <Button variant={isActiveRoute('/orders') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/orders"><ShoppingBag className="mr-2 h-4 w-4" />Orders</Link>
@@ -470,6 +478,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </Button>
           <Button variant={isActiveRoute('/brand/kits') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/brand/kits"><PackageCheck className="mr-2 h-4 w-4" />Kits &amp; Items</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/draft-orders') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/draft-orders"><FileText className="mr-2 h-4 w-4" />Draft Orders</Link>
           </Button>
 
           {/* Finance section divider */}
@@ -498,6 +509,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           )}
           <Button variant={isActiveRoute('/settings') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/support-tickets') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/support-tickets"><HelpCircle className="mr-2 h-4 w-4" />Support</Link>
           </Button>
         </nav>
 

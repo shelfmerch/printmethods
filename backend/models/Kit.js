@@ -12,6 +12,27 @@ const KitItemSchema = new mongoose.Schema({
   },
 }, { _id: false });
 
+const KitPackagingSchema = new mongoose.Schema({
+  mode: {
+    type: String,
+    enum: ['none', 'catalog_product'],
+    default: 'none',
+  },
+  catalogProductId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CatalogProduct',
+  },
+  branding: {
+    type: String,
+    enum: ['none', 'logo', 'custom'],
+    default: 'none',
+  },
+  notes: {
+    type: String,
+    default: '',
+  },
+}, { _id: false });
+
 const KitSchema = new mongoose.Schema({
   brandId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -33,6 +54,14 @@ const KitSchema = new mongoose.Schema({
   items: {
     type: [KitItemSchema],
     default: [],
+  },
+  packaging: {
+    type: KitPackagingSchema,
+    default: () => ({ mode: 'none', branding: 'none', notes: '' }),
+  },
+  sampleRequested: {
+    type: Boolean,
+    default: false,
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

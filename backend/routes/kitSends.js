@@ -6,9 +6,19 @@ const Kit = require('../models/Kit');
 const KitSend = require('../models/KitSend');
 const KitRedemption = require('../models/KitRedemption');
 const CatalogProduct = require('../models/CatalogProduct');
+const CatalogProductVariant = require('../models/CatalogProductVariant');
 const { assertBrandAccess } = require('../utils/brandAccess');
 const razorpayService = require('../services/razorpayService');
 const { sendKitInviteEmail } = require('../utils/mailer');
+const {
+  attachVariantsToProducts,
+  validateSelectionsForKit,
+} = require('../utils/kitVariantSelections');
+const {
+  calculatePackagingTotal,
+  validatePackagingChoice,
+  validateSingleLocationFulfillment,
+} = require('../utils/kitFulfillment');
 
 function roundCurrency(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
@@ -25,14 +35,36 @@ function buildRedemptionLink(token) {
 
 async function computeKitSendPricing(kit, payload) {
   const productIds = kit.items.map((item) => item.catalogProductId);
-  const products = await CatalogProduct.find({ _id: { $in: productIds } }).lean();
+  const packagingProductId = kit.packaging?.mode === 'catalog_product' ? kit.packaging.catalogProductId : null;
+  const [baseProducts, variants] = await Promise.all([
+    CatalogProduct.find({ _id: { $in: productIds } }).lean(),
+    CatalogProductVariant.find({
+      catalogProductId: { $in: productIds },
+      isActive: true,
+    }).lean(),
+  ]);
+  const packagingProduct = packagingProductId
+    ? await CatalogProduct.findById(packagingProductId).lean()
+    : null;
+  const products = attachVariantsToProducts(baseProducts, variants);
   const productById = new Map(products.map((product) => [String(product._id), product]));
+  const packaging = validatePackagingChoice({
+    packaging: kit.packaging || { mode: 'none' },
+    packagingProduct,
+  });
 
   const recipientEmails = Array.isArray(payload.recipientEmails)
     ? payload.recipientEmails.map(cleanEmail).filter(Boolean)
     : [];
-  const surpriseRecipients = Array.isArray(payload.surpriseRecipients) ? payload.surpriseRecipients : [];
-  const recipientCount = payload.deliveryMode === 'surprise' ? surpriseRecipients.length : recipientEmails.length;
+  let surpriseRecipients = Array.isArray(payload.surpriseRecipients) ? payload.surpriseRecipients : [];
+  const singleLocation = payload.deliveryMode === 'single_location'
+    ? validateSingleLocationFulfillment({ products, payload })
+    : null;
+  const recipientCount = payload.deliveryMode === 'single_location'
+    ? singleLocation.quantity
+    : payload.deliveryMode === 'surprise'
+      ? surpriseRecipients.length
+      : recipientEmails.length;
 
   if (!recipientCount) {
     throw Object.assign(new Error('At least one recipient is required'), { status: 400 });
@@ -43,6 +75,25 @@ async function computeKitSendPricing(kit, payload) {
   const overageItems = [];
   let itemsTotal = 0;
 
+  if (payload.deliveryMode === 'surprise') {
+    surpriseRecipients = surpriseRecipients.map((recipient, index) => ({
+      ...recipient,
+      selections: validateSelectionsForKit({
+        products,
+        selections: recipient.selections || [],
+        context: recipient.recipientEmail || `Recipient ${index + 1}`,
+      }),
+    }));
+  }
+
+  const singleLocationQtyByProduct = new Map();
+  if (singleLocation) {
+    singleLocation.selections.forEach((selection) => {
+      const key = String(selection.catalogProductId);
+      singleLocationQtyByProduct.set(key, (singleLocationQtyByProduct.get(key) || 0) + Number(selection.quantity || 0));
+    });
+  }
+
   for (const item of kit.items) {
     const product = productById.get(String(item.catalogProductId));
     if (!product) {
@@ -50,7 +101,9 @@ async function computeKitSendPricing(kit, payload) {
     }
 
     const minimumQuantity = product.stocks?.minimumQuantity || 1;
-    let chargeQty = recipientCount;
+    let chargeQty = singleLocation
+      ? Number(singleLocationQtyByProduct.get(String(product._id)) || recipientCount)
+      : recipientCount;
 
     if (product.fulfillmentType === 'inventory' && recipientCount < minimumQuantity) {
       const decision = overageDecisionByProduct.get(String(product._id));
@@ -77,17 +130,23 @@ async function computeKitSendPricing(kit, payload) {
     itemsTotal += Number(product.basePrice || 0) * chargeQty;
   }
 
+  const packagingCost = packaging.mode === 'catalog_product'
+    ? calculatePackagingTotal({ packagingProduct, quantity: recipientCount })
+    : 0;
+  const billableSubtotal = itemsTotal + packagingCost;
   const itemsCostPerRecipient = roundCurrency(itemsTotal / recipientCount);
-  const serviceFee = roundCurrency(itemsTotal * 0.15);
-  const tax = roundCurrency((itemsTotal + serviceFee) * 0.18);
-  const total = roundCurrency(itemsTotal + serviceFee + tax);
+  const serviceFee = roundCurrency(billableSubtotal * 0.15);
+  const tax = roundCurrency((billableSubtotal + serviceFee) * 0.18);
+  const total = roundCurrency(billableSubtotal + serviceFee + tax);
 
   return {
     recipientCount,
     recipientEmails,
     surpriseRecipients,
+    singleLocation,
     overageItems,
     itemsCostPerRecipient,
+    packagingCost,
     serviceFee,
     tax,
     total,
@@ -149,7 +208,13 @@ router.post('/razorpay/create', protect, async (req, res) => {
       recipientCount: pricing.recipientCount,
       recipientEmails: pricing.recipientEmails,
       surpriseRecipients: pricing.surpriseRecipients,
+      singleLocationQuantity: pricing.singleLocation?.quantity || 0,
+      singleLocationType: pricing.singleLocation?.locationType || 'office',
+      singleLocationAddress: pricing.singleLocation?.address || {},
+      singleLocationNotes: pricing.singleLocation?.notes || '',
+      singleLocationSelections: pricing.singleLocation?.selections || [],
       itemsCostPerRecipient: pricing.itemsCostPerRecipient,
+      packagingCost: pricing.packagingCost,
       serviceFee: pricing.serviceFee,
       tax: pricing.tax,
       total: pricing.total,
@@ -202,7 +267,7 @@ router.post('/razorpay/verify', protect, async (req, res) => {
     }
 
     kitSend.payment = { razorpayOrderId, razorpayPaymentId, razorpaySignature };
-    kitSend.status = kitSend.deliveryMode === 'surprise' ? 'completed' : 'paid';
+    kitSend.status = ['surprise', 'single_location'].includes(kitSend.deliveryMode) ? 'completed' : 'paid';
     await kitSend.save();
 
     const existingCount = await KitRedemption.countDocuments({ kitSendId: kitSend._id });
@@ -223,7 +288,7 @@ router.post('/razorpay/verify', protect, async (req, res) => {
         if (docs.length) {
           await KitRedemption.insertMany(docs);
         }
-      } else {
+      } else if (kitSend.deliveryMode === 'redeem') {
         const redemptions = [];
         for (const email of kitSend.recipientEmails) {
           const redemption = await KitRedemption.create({

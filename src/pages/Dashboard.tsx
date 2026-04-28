@@ -1,874 +1,284 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useStore } from '@/contexts/StoreContext';
+import { brandDashboardApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-  Package,
-  Plus,
-  ShoppingBag,
-  Store,
-  ArrowRight,
-  Truck,
-  CheckCircle2,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { Product } from '@/types';
-import { storeProductsApi, invoiceApi } from '@/lib/api';
-import { storeOrdersApi } from '@/lib/api';
-import { getProducts } from '@/lib/localStorage';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Order } from '@/types';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2 } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Gift,
+  Package,
+  PackageOpen,
+  Plus,
+  Printer,
+  Store,
+  Truck,
+  Users,
+  Wallet,
+} from 'lucide-react';
+
+const formatMoney = (value: unknown) => {
+  const numeric = Number(value || 0);
+  return `₹${numeric.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatLimit = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return 'Unlimited';
+  return String(value);
+};
 
 const Dashboard = () => {
   const { selectedStore, stores, loading: storesLoading } = useStore();
   const navigate = useNavigate();
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [storageUsage, setStorageUsage] = useState<{ used: number; limit: number } | null>(null);
-  const [storeProducts, setStoreProducts] = useState<any[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [spLoading, setSpLoading] = useState(false);
-  const [spFilter, setSpFilter] = useState<{ status?: 'draft' | 'published'; isActive?: boolean }>({});
-
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const [productToPublish, setProductToPublish] = useState<any>(null);
-  const [targetStoreIds, setTargetStoreIds] = useState<string[]>([]);
-
-  // OOS variants popup state
-  const [oosDialogOpen, setOosDialogOpen] = useState(false);
-  const [productForOos, setProductForOos] = useState<any>(null);
-
-  const storageKey = useMemo(() => `products_storage`, []);
-
-  useEffect(() => {
-    const loadProducts = () => {
-      const loadedProducts = getProducts('default');
-      setProducts(loadedProducts);
-      if (storageKey) {
-        const raw = localStorage.getItem(storageKey) || '';
-        const usedBytes = raw ? new Blob([raw]).size : 0;
-        const limitBytes = 5 * 1024 * 1024; // ~5MB typical browser localStorage quota per origin
-        setStorageUsage({ used: usedBytes, limit: limitBytes });
-      }
-    };
-
-    loadProducts();
-
-    // Listen for real-time updates
-    const handleUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (!customEvent.detail?.type || customEvent.detail.type === 'product') {
-        loadProducts();
-      }
-    };
-
-    const handleStorage = () => {
-      loadProducts();
-    };
-
-    window.addEventListener('shelfmerch-data-update', handleUpdate);
-    window.addEventListener('storage', handleStorage);
-
-    return () => {
-      window.removeEventListener('shelfmerch-data-update', handleUpdate);
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, [storageKey]);
-
-  // Load Store Products from backend - filtered by selected store
-  useEffect(() => {
-    const loadSP = async () => {
-      try {
-        setSpLoading(true);
-        const storeIdForFilter = selectedStore?.id || selectedStore?._id;
-        const resp = await storeProductsApi.list({ ...spFilter, storeId: storeIdForFilter as string });
-        if (resp.success) {
-          let products = resp.data || [];
-          // Double check filter if storeId was provided (just in case)
-          if (selectedStore) {
-            const storeId = selectedStore.id || selectedStore._id;
-            products = products.filter((sp: any) => {
-              const spStoreId = sp.storeId?._id?.toString() || sp.storeId?.toString() || sp.storeId;
-              return spStoreId === storeId || spStoreId === selectedStore._id || spStoreId === selectedStore.id;
-            });
-          }
-          setStoreProducts(products);
-        }
-      } catch (e) {
-        console.error('Failed to load store products', e);
-      } finally {
-        setSpLoading(false);
-      }
-    };
-    loadSP();
-  }, [spFilter, selectedStore]);
-
-  // Load Dashboard Data (Orders and Invoices) - filtered by selected store
   useEffect(() => {
     let isMounted = true;
+    const brandId = selectedStore?.id || selectedStore?._id;
 
-    const loadDashboardData = async () => {
+    if (!brandId) {
+      setSummary(null);
+      return;
+    }
+
+    const loadSummary = async () => {
       try {
-        setSpLoading(true);
-        // Fetch both concurrently
-        const [ordersData, invoicesData] = await Promise.all([
-          storeOrdersApi.listForMerchant(),
-          invoiceApi.listForMerchant()
-        ]);
-
-        if (isMounted) {
-          // Filter orders by selected store if one is selected
-          let filteredOrders = ordersData || [];
-          let filteredInvoices = invoicesData || [];
-
-          if (selectedStore) {
-            const storeId = selectedStore.id || selectedStore._id;
-
-            filteredOrders = (ordersData || []).filter((order: any) => {
-              const orderStoreId = order.storeId?._id?.toString() || order.storeId?.toString() || order.storeId;
-              return orderStoreId === storeId || orderStoreId === selectedStore._id || orderStoreId === selectedStore.id;
-            });
-
-            filteredInvoices = (invoicesData || []).filter((inv: any) => {
-              const invStoreId = inv.storeId?._id?.toString() || inv.storeId?.toString() || inv.storeId;
-              return invStoreId === storeId || invStoreId === selectedStore._id || invStoreId === selectedStore.id;
-            });
-          }
-
-          setOrders(filteredOrders);
-          setInvoices(filteredInvoices);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          console.error('Failed to load dashboard data', err);
-          setError(err?.message || 'Failed to load data');
-        }
+        setLoading(true);
+        const data = await brandDashboardApi.getSummary(brandId);
+        if (isMounted) setSummary(data);
+      } catch (error) {
+        console.error('Failed to load brand dashboard summary', error);
       } finally {
-        if (isMounted) {
-          setSpLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
-    loadDashboardData();
-
+    loadSummary();
     return () => {
       isMounted = false;
     };
   }, [selectedStore]);
 
-  // Note: StoreContext automatically refreshes stores when user changes, no need to call refreshStores here
+  const storeName = summary?.store?.name || selectedStore?.brandProfile?.companyName || selectedStore?.storeName || 'Your swag store';
+  const hasStore = Boolean(selectedStore);
 
-  const updateStoreProduct = async (id: string, updates: any) => {
-    try {
-      const resp = await storeProductsApi.update(id, updates);
-      if (resp.success) {
-        setStoreProducts(prev => prev.map(p => (p._id === id ? resp.data : p)));
-      }
-    } catch (e) {
-      console.error('Update failed', e);
-    }
-  };
-  console.log(orders);
-
-  const handlePublishClick = (sp: any) => {
-    // If multiple stores, allow choice
-    if (stores.length > 1) {
-      setProductToPublish(sp);
-      // Default to selected store if available, or the product's store, or first store
-      const currentStoreId = selectedStore?.id || selectedStore?._id ||
-        sp.storeId?._id?.toString() || sp.storeId?.toString() ||
-        stores[0]?.id || stores[0]?._id;
-      setTargetStoreIds(currentStoreId ? [currentStoreId] : []);
-      setPublishDialogOpen(true);
-    } else if (stores.length === 1) {
-      // Just one store, proceed as before
-      updateStoreProduct(sp._id, { status: 'published' });
-    } else {
-      // No stores available
-      toast.error('Please create a store first');
-    }
-  };
-
-  const confirmPublish = async () => {
-    if (!productToPublish || targetStoreIds.length === 0) return;
-
-    try {
-      const promises = targetStoreIds.map(async (storeId) => {
-        // If same store, just update status
-        if (productToPublish.storeId === storeId) {
-          return updateStoreProduct(productToPublish._id, { status: 'published' });
-        } else {
-          // Different store: create copy and publish
-          const payload = {
-            storeId: storeId,
-            catalogProductId: productToPublish.catalogProductId,
-            sellingPrice: productToPublish.sellingPrice,
-            compareAtPrice: productToPublish.compareAtPrice,
-            title: productToPublish.title,
-            description: productToPublish.description,
-            tags: productToPublish.tags,
-            status: 'published' as const,
-            galleryImages: productToPublish.galleryImages,
-            designData: productToPublish.designData,
-            // Map variants if they exist
-            variants: productToPublish.variants?.map((v: any) => ({
-              catalogProductVariantId: v.catalogProductVariantId || v.id,
-              sku: v.sku,
-              sellingPrice: v.sellingPrice,
-              isActive: v.isActive !== false
-            }))
-          };
-
-          const resp = await storeProductsApi.create(payload);
-          if (resp.success) {
-            setStoreProducts(prev => [resp.data, ...prev]);
-          }
-          return resp;
-        }
-      });
-
-      await Promise.all(promises);
-
-    } catch (err) {
-      console.error("Publish failed", err);
-    } finally {
-      setPublishDialogOpen(false);
-      setProductToPublish(null);
-      setTargetStoreIds([]);
-    }
-  };
-
-  const deleteStoreProduct = async (id: string) => {
-    try {
-      const resp = await storeProductsApi.delete(id);
-      if (resp.success) {
-        setStoreProducts(prev => prev.filter(p => p._id !== id));
-      }
-    } catch (e) {
-      console.error('Delete failed', e);
-    }
-  };
-
-  const handleEditProduct = (sp: any) => {
-    // Determine catalogProductId (handle populated vs string)
-    let catalogProductId = sp.catalogProductId;
-    if (typeof catalogProductId === 'object' && catalogProductId !== null) {
-      catalogProductId = catalogProductId._id || catalogProductId.id;
-    }
-
-    if (!catalogProductId) {
-      toast.error("Invalid product data: Missing Catalog Product ID");
-      return;
-    }
-
-    // Construct design state compatible with DesignEditor's restoration logic
-    const designData = sp.designData || {};
-
-    // Aggregating elements from all views (since DesignEditor stores them flat in history/state)
-    // and storeProducts.js saves them per-view in views[viewKey].elements
-    let elements: any[] = designData.elements || [];
-    if (elements.length === 0 && designData.views) {
-      Object.values(designData.views).forEach((v: any) => {
-        if (v.elements && Array.isArray(v.elements)) {
-          // Avoid duplicates if any
-          const newElements = v.elements.filter((el: any) => !elements.some(e => e.id === el.id));
-          elements = [...elements, ...newElements];
-        }
-      });
-    }
-
-    // Reconstruct designUrlsByPlaceholder
-    const designUrlsByPlaceholder = designData.designUrlsByPlaceholder || {};
-    if (Object.keys(designUrlsByPlaceholder).length === 0 && designData.views) {
-      Object.entries(designData.views).forEach(([viewKey, viewData]: [string, any]) => {
-        if (viewData.designUrlsByPlaceholder) {
-          designUrlsByPlaceholder[viewKey] = viewData.designUrlsByPlaceholder;
-        }
-      });
-    }
-
-    const designerState = {
-      elements: elements,
-      selectedColors: designData.selectedColors || [],
-      selectedSizes: designData.selectedSizes || [],
-      selectedSizesByColor: designData.selectedSizesByColor || {},
-      currentView: 'front', // Default to front
-      designUrlsByPlaceholder: designUrlsByPlaceholder,
-      placementsByView: designData.placementsByView || {},
-      savedPreviewImages: designData.previewImagesByView || {},
-      displacementSettings: designData.displacementSettings || { scaleX: 20, scaleY: 20, contrastBoost: 1.5 },
-      primaryColorHex: designData.primaryColorHex || null,
-      storeProductId: sp._id,
-    };
-
-    // Save to sessionStorage
-    try {
-      sessionStorage.setItem(`designer_state_${catalogProductId}`, JSON.stringify(designerState));
-      console.log('Saved designer state for edit:', catalogProductId, designerState);
-    } catch (e) {
-      console.error("Failed to save designer state to session storage", e);
-      toast.error("Failed to prepare design for editing");
-      return;
-    }
-
-    navigate(`/designer/${catalogProductId}`);
-  };
-
-  const handleProductClick = (product: Product) => {
-    if (product.id) {
-      navigate(`/dashboard/products/${product.id}`);
-    }
-  };
-
-  const handleSelectProduct = (productId: string, checked: boolean) => {
-    setSelectedProducts((prev) => {
-      if (checked) {
-        return prev.includes(productId) ? prev : [...prev, productId];
-      }
-      return prev.filter((id) => id !== productId);
-    });
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedProducts(products.map((product) => product.id));
-    } else {
-      setSelectedProducts([]);
-    }
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)} ${sizes[i]}`;
-  };
-
-  const totalProductsCount = useMemo(() => {
-    return storeProducts.length;
-  }, [storeProducts]);
-
-  const tableData = useMemo(() => {
-    return storeProducts.map((sp) => {
-      let displayVariant = '';
-      if (Array.isArray(sp.variantsSummary) && sp.variantsSummary.length > 0) {
-        // Group variants by color to show a summary like "3 sizes, 2 colors"
-        const colors = new Set(sp.variantsSummary.map((v: any) => v.color).filter(Boolean));
-        const sizes = new Set(sp.variantsSummary.map((v: any) => v.size).filter(Boolean));
-
-        if (colors.size > 0 && sizes.size > 0) {
-          displayVariant = `${sizes.size} size${sizes.size > 1 ? 's' : ''}, ${colors.size} color${colors.size > 1 ? 's' : ''}`;
-        } else if (sizes.size > 0) {
-          displayVariant = `${sizes.size} size${sizes.size > 1 ? 's' : ''}`;
-        } else if (colors.size > 0) {
-          displayVariant = `${colors.size} color${colors.size > 1 ? 's' : ''}`;
-        }
-      }
-
-      return {
-        ...sp,
-        displayTitle: sp.title || 'Untitled',
-        displayVariant,
-        displayPrice: sp.sellingPrice,
-        isVariant: false
-      };
-    });
-  }, [storeProducts]);
-
-  const stats = [
+  const onboardingSteps = useMemo(() => [
     {
-      label: 'Needs Action',
-      value: `${orders.filter((order) => ['on-hold', 'paid'].includes(order.status)).length}`,
-      icon: ShoppingBag,
-      color: 'text-amber-500',
+      title: 'Create swag store',
+      description: 'Your company storefront is ready.',
+      complete: Boolean(summary?.onboarding?.storeCreated || selectedStore),
+      to: '/create-store',
+      icon: Store,
     },
     {
-      label: 'In Production',
-      value: `${orders.filter((order) => order.status === 'in-production').length}`,
+      title: 'Design first product',
+      description: 'Add your first branded item.',
+      complete: Boolean(summary?.onboarding?.firstProductDesigned),
+      to: '/products',
       icon: Package,
-      color: 'text-violet-500',
     },
     {
-      label: 'Shipped',
-      value: `${orders.filter((order: any) => order.status === 'shipped').length}`,
-      icon: Truck,
-      color: 'text-blue-500',
+      title: 'Add team members',
+      description: 'Invite HR, finance, or marketing.',
+      complete: Boolean(summary?.onboarding?.teamMembersAdded),
+      to: '/brand/team',
+      icon: Users,
     },
     {
-      label: 'Delivered',
-      value: `${orders.filter((order: any) => order.status === 'delivered').length}`,
-      icon: CheckCircle2,
-      color: 'text-green-500'
+      title: 'Top up wallet',
+      description: 'Fund credits and fulfillment.',
+      complete: Boolean(summary?.onboarding?.walletToppedUp),
+      to: '/wallet/top-up',
+      icon: Wallet,
     },
+    {
+      title: 'Create first kit',
+      description: 'Build an onboarding or event kit.',
+      complete: Boolean(summary?.onboarding?.firstKitCreated),
+      to: '/brand/kits',
+      icon: Gift,
+    },
+  ], [selectedStore, summary]);
+
+  const completedSteps = onboardingSteps.filter((step) => step.complete).length;
+
+  const pipeline = [
+    { label: 'In production', value: summary?.orders?.inProduction ?? 0, icon: Package },
+    { label: 'Printing', value: summary?.orders?.printing ?? 0, icon: Printer },
+    { label: 'Packaging', value: summary?.orders?.packaging ?? 0, icon: PackageOpen },
+    { label: 'Shipped', value: summary?.orders?.shipped ?? 0, icon: Truck },
   ];
 
-  const recentOrders = useMemo(() => {
-    return [...orders]
-      .sort((a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime())
-      .slice(0, 5);
-  }, [orders]);
+  if (!hasStore && !storesLoading) {
+    return (
+      <DashboardLayout>
+        <div className="mx-auto max-w-4xl py-16">
+          <Card className="p-10 text-center">
+            <Store className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <h1 className="text-2xl font-semibold">Create your first swag store</h1>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+              Your dashboard will show products, production, wallet balance, team setup, and onboarding progress once a store exists.
+            </p>
+            <Button className="mt-6" onClick={() => navigate(stores.length ? '/stores' : '/create-store')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create swag store
+            </Button>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout >
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex-1">
-            <div className="flex items-center gap-4 mb-2">
-              {storesLoading ? (
-                <Skeleton className="h-9 w-64" />
-              ) : (
-                <h1 className="text-3xl font-bold">Welcome back!</h1>
-              )}
-            </div>
-            {storesLoading ? (
-              <Skeleton className="h-4 w-96 mt-2" />
-            ) : (
-              <p className="text-muted-foreground">
-                {selectedStore
-                  ? `Here's what's happening with ${selectedStore.brandProfile?.companyName || selectedStore.storeName} today.`
-                  : "Select a store from the sidebar to view its dashboard."}
-              </p>
-            )}
+    <DashboardLayout>
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">{storeName}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              A simple home view for setup, wallet, products, and production progress.
+            </p>
           </div>
-          <Link to="/products">
-            <Button size="lg" className="gap-2">
-              <Plus className="h-5 w-5" />
-              Create New Product
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate('/products')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Design product
             </Button>
-          </Link>
+            <Button onClick={() => navigate('/brand/kits')}>
+              Create kit
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Grid */}
-        {(selectedStore || storesLoading) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                    {spLoading || storesLoading ? (
-                      <Skeleton className="h-9 w-24 mt-1" />
-                    ) : (
-                      <p className="text-3xl font-bold">{stat.value}</p>
-                    )}
-                  </div>
-                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {(selectedStore || storesLoading) && (
-          <Card className="mb-8">
-            <div className="flex items-center justify-between border-b px-6 py-5">
-              <div>
-                <h2 className="text-lg font-semibold">Recent Orders</h2>
-                <p className="text-sm text-muted-foreground">A quick view of the latest orders that may need attention.</p>
-              </div>
-              <Button variant="outline" onClick={() => navigate('/orders')}>
-                Open Full Orders View
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-            <div className="divide-y">
-              {spLoading || storesLoading ? (
-                <div className="px-6 py-8 text-sm text-muted-foreground">Loading recent orders...</div>
-              ) : recentOrders.length === 0 ? (
-                <div className="px-6 py-8 text-sm text-muted-foreground">No recent orders for this store yet.</div>
-              ) : (
-                recentOrders.map((order: any) => (
-                  <button
-                    key={order._id || order.id}
-                    type="button"
-                    onClick={() => navigate(`/orders/${order._id || order.id}`)}
-                    className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/30"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">#{String(order._id || order.id).slice(-8).toUpperCase()}</p>
-                        <Badge className={order.shipment?.trackingNumber || order.shipment?.trackingUrl ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>
-                          {order.shipment?.trackingNumber || order.shipment?.trackingUrl ? 'Tracking Ready' : 'Missing Tracking'}
-                        </Badge>
-                      </div>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {order.customerEmail || 'No email'} • {order.items?.[0]?.productName || 'Order item'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <Badge className={order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : order.status === 'in-production' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'}>
-                        {order.status}
-                      </Badge>
-                      <p className="mt-1 text-sm font-semibold">₹{Number(order.total || 0).toFixed(2)}</p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </Card>
-        )}
-
-
-        {/* No Stores Message or Loading state */}
-        {!selectedStore && !storesLoading && (
-          <Card className="p-12 text-center mb-8">
-            {stores.length === 0 ? (
-              <>
-                <Store className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-2xl font-bold mb-2">No Stores Yet</h2>
-                <p className="text-muted-foreground mb-6">
-                  You haven't connected any stores to ShelfMerch.
-                </p>
-                <Link to="/connect-store">
-                  <Button size="lg" className="gap-2">
-                    <Plus className="h-5 w-5" />
-                    Connect Your First Store
-                  </Button>
-                </Link>
-              </>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="p-5">
+            <p className="text-sm text-muted-foreground">Plan</p>
+            {loading || storesLoading ? (
+              <Skeleton className="mt-3 h-8 w-32" />
             ) : (
-              <>
-                <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h2 className="text-2xl font-bold mb-2">No Store Selected</h2>
-                <p className="text-muted-foreground mb-6">
-                  Select a store from the sidebar to view its dashboard.
-                </p>
-              </>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-2xl font-semibold">{summary?.plan?.name || 'Free'}</span>
+                <Badge variant="outline">{summary?.plan?.serviceFeePercent ?? 15}% service fee</Badge>
+              </div>
             )}
           </Card>
-        )}
 
-        {/* Products Display (Store Products from backend) */}
-        {(selectedStore || storesLoading) ? (
-          (spLoading || (storesLoading && storeProducts.length === 0)) ? (
-            <Card className="p-0 overflow-hidden">
-              <div className="px-6 pt-6 pb-4">
-                <Skeleton className="h-7 w-48 mb-2" />
-                <Skeleton className="h-4 w-96" />
+          <Card className="p-5">
+            <p className="text-sm text-muted-foreground">Company wallet</p>
+            {loading || storesLoading ? (
+              <Skeleton className="mt-3 h-8 w-32" />
+            ) : (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-2xl font-semibold">{formatMoney(summary?.wallet?.balanceRupees)}</span>
+                <Button size="sm" variant="outline" onClick={() => navigate('/wallet/top-up')}>Top up</Button>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full border-t">
-                  <thead className="bg-muted/60">
-                    <tr className="text-left">
-                      <th className="px-6 py-3 w-12"><Skeleton className="h-4 w-4" /></th>
-                      <th className="px-2 py-3"><Skeleton className="h-4 w-24" /></th>
-                      <th className="px-2 py-3 hidden md:table-cell"><Skeleton className="h-4 w-20" /></th>
-                      <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></th>
-                      <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></th>
-                      <th className="px-2 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-20" /></th>
-                      <th className="px-2 py-3 text-right"><Skeleton className="h-4 w-24 ml-auto" /></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-6 py-4"><Skeleton className="h-4 w-4" /></td>
-                        <td className="px-2 py-4">
-                          <div className="flex items-center gap-3">
-                            <Skeleton className="h-14 w-14 rounded-md" />
-                            <div className="space-y-2">
-                              <Skeleton className="h-4 w-32" />
-                              <Skeleton className="h-3 w-20" />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-2 py-4 hidden md:table-cell"><Skeleton className="h-4 w-20" /></td>
-                        <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-16" /></td>
-                        <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></td>
-                        <td className="px-2 py-4 hidden lg:table-cell"><Skeleton className="h-4 w-20" /></td>
-                        <td className="px-2 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <Skeleton className="h-8 w-16" />
-                            <Skeleton className="h-8 w-16" />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          ) : storeProducts.length > 0 ? (
-            <Card className="p-0 overflow-hidden">
-              <div className="px-6 pt-6 pb-4 flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold">Your Products</h2>
-                  {spLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Manage drafts saved from the designer. Publish them to your storefront when ready.
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <p className="text-sm text-muted-foreground">Team and employees</p>
+            {loading || storesLoading ? (
+              <Skeleton className="mt-3 h-8 w-40" />
+            ) : (
+              <div className="mt-3">
+                <p className="text-2xl font-semibold">
+                  {summary?.team?.total ?? 0} team / {summary?.employees?.total ?? 0} employees
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Employee limit: {formatLimit(summary?.plan?.maxEmployees)}
                 </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full border-t text-sm">
-                  {/* ... existing table header ... */}
-                  <thead className="bg-muted/60 text-muted-foreground">
-                    <tr className="text-left">
-                      {/* <th className="px-6 py-3"><Checkbox
-                        checked={selectedProducts.length === storeProducts.length && storeProducts.length > 0}
-                        onCheckedChange={(checked) => setSelectedProducts(Boolean(checked) ? storeProducts.map((sp: any) => sp._id) : [])}
-                        aria-label="Select all products"
-                      /></th> */}
-                      <th className="px-8 py-3 font-medium">Product</th>
-                      <th className="px-1 py-3 font-medium hidden md:table-cell">Created</th>
-                      <th className="px-2 py-3 font-medium hidden lg:table-cell">Price</th>
-                      <th className="px-2 py-3 font-medium hidden lg:table-cell">Mockup</th>
-                      <th className="px-2 py-3 font-medium hidden lg:table-cell">Inventory</th>
-                      <th className="px-2 py-3 font-medium text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y text-muted-foreground/80">
-                    {tableData.map((sp: any) => {
-                      // Extract previewImagesByView - it's an object with mockup IDs as keys and image URLs as values
-                      const previewImagesByView = sp.designData?.previewImagesByView || sp.previewImagesByView || {};
-                      const previewImageUrls = Object.values(previewImagesByView).filter((url): url is string =>
-                        typeof url === 'string' && url.length > 0
-                      );
-                      const mockup = previewImageUrls[0] || undefined;
-                      const isSelected = selectedProducts.includes(sp._id);
-                      const rowKey = sp._displayVariantId ? `${sp._id}-${sp._displayVariantId}` : sp._id;
+            )}
+          </Card>
+        </div>
 
-                      return (
-                        <tr key={rowKey} className="hover:bg-muted/20 transition-colors">
-                          {/* <td className="px-6 py-3 align-middle">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) => setSelectedProducts(prev => Boolean(checked) ? [...new Set([...prev, sp._id])] : prev.filter(id => id !== sp._id))}
-                              aria-label={`Select ${sp.displayTitle || 'Untitled'}`}
-                            />
-                          </td> */}
-                          <td className="px-8 py-4 align-middle">
-                            <div
-                              className="flex items-center gap-3 cursor-pointer"
-                              onClick={() => handleEditProduct(sp)}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  handleEditProduct(sp);
-                                }
-                              }}
-                              role="button"
-                              tabIndex={0}
-                            >
-                              <div className="h-14 w-14 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
-                                {mockup ? (
-                                  <img src={mockup} alt={sp.displayTitle || 'Untitled'} className="h-full w-full object-cover" />
-                                ) : (
-                                  <Package className="h-6 w-6 text-muted-foreground" />
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-medium text-foreground leading-tight line-clamp-1">{sp.displayTitle || 'Untitled'}</p>
-                                {sp.displayVariant && (
-                                  <p className="text-xs font-semibold text-primary">{sp.displayVariant}</p>
-                                )}
-                                <p className="text-xs text-muted-foreground line-clamp-1">Status: {sp.status}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-2 py-4 align-middle hidden md:table-cell">
-                            {new Date(sp.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-2 py-4 align-middle hidden lg:table-cell">
-                            ₹{Number(sp.displayPrice || 0).toFixed(2)}
-                          </td>
-                          <td className="px-2 py-4 align-middle hidden lg:table-cell">
-                            {mockup ? 'Preview saved' : 'No mockup'}
-                          </td>
-                          <td className="px-2 py-4 align-middle hidden lg:table-cell">
-                            {(() => {
-                              const variants = sp.variantsSummary || [];
-                              const oosCount = variants.filter((v: any) => v.isActive === false).length;
-                              if (oosCount > 0) {
-                                return (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setProductForOos(sp);
-                                      setOosDialogOpen(true);
-                                    }}
-                                    className="text-xs font-semibold text-destructive hover:underline"
-                                  >
-                                    {oosCount} out of stock
-                                  </button>
-                                );
-                              }
-                              return <span className="text-xs text-green-600">All in stock</span>;
-                            })()}
-                          </td>
-                          <td className="px-2 py-4 align-middle">
-                            <div className="flex justify-end gap-2 text-foreground">
-                              {sp.status === 'draft' ? (
-                                <Button size="sm" variant="outline" onClick={() => handlePublishClick(sp)}>Publish</Button>
-                              ) : (
-                                <Button size="sm" variant="secondary" onClick={() => updateStoreProduct(sp._id, { status: 'draft' })}>Mark Draft</Button>
-                              )}
-                              <Button size="sm" variant="outline" onClick={() => updateStoreProduct(sp._id, { isActive: !sp.isActive })}>
-                                {sp.isActive ? 'Deactivate' : 'Activate'}
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditProduct(sp);
-                              }}>
-                                Edit
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => deleteStoreProduct(sp._id)}>Delete</Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <Card className="p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Getting started</h2>
+                <p className="text-sm text-muted-foreground">{completedSteps}/5 steps complete</p>
               </div>
-              {selectedProducts.length > 0 && (
-                <div className="border-t bg-muted/40 px-6 py-4 text-sm text-muted-foreground flex flex-wrap items-center gap-3">
-                  <span>{selectedProducts.length} selected</span>
-                  <span className="text-xs">Use the actions above to publish, deactivate, or delete.</span>
-                </div>
-              )}
-            </Card>
-          ) : (
-            <Card className="p-12 text-center">
-              <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-2xl font-bold mb-2">No products yet</h2>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Start by creating your first product. Choose from our catalog and customize it with your designs.
-              </p>
-              <Link to="/products">
-                <Button size="lg">
-                  Browse Product Catalog
-                </Button>
-              </Link>
-            </Card>
-          )
-        ) : null}
+              <Badge className={completedSteps === 5 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}>
+                {completedSteps === 5 ? 'Ready' : 'In setup'}
+              </Badge>
+            </div>
 
-        {/* Publish Dialog */}
-        <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Publish Product</DialogTitle>
-              <DialogDescription>
-                Choose which stores to publish "{productToPublish?.title}" to.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-3">
-              {stores.map(store => {
-                const storeId = store.id || store._id || '';
+            <div className="mt-5 space-y-3">
+              {onboardingSteps.map((step) => {
+                const Icon = step.icon;
                 return (
-                  <div key={storeId} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`store-${storeId}`}
-                      checked={targetStoreIds.includes(storeId)}
-                      onCheckedChange={(checked) => {
-                        setTargetStoreIds(prev => {
-                          if (checked) return [...prev, storeId];
-                          return prev.filter(id => id !== storeId);
-                        });
-                      }}
-                    />
-                    <label
-                      htmlFor={`store-${storeId}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-                    >
-                      <span>{store.storeName}</span>
-                      {selectedStore && (selectedStore.id === storeId || selectedStore._id === storeId) && (
-                        <Badge variant="secondary" className="text-xs">Current</Badge>
-                      )}
-                    </label>
-                  </div>
+                  <button
+                    key={step.title}
+                    type="button"
+                    onClick={() => navigate(step.to)}
+                    className="flex w-full items-center gap-3 rounded-md border p-3 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-full ${step.complete ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                      {step.complete ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{step.title}</span>
+                      <span className="block text-sm text-muted-foreground">{step.description}</span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </button>
                 );
               })}
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>Cancel</Button>
-              <Button onClick={confirmPublish} disabled={targetStoreIds.length === 0}>
-                Publish to {targetStoreIds.length} Store{targetStoreIds.length !== 1 ? 's' : ''}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </Card>
 
-        {/* Out of Stock Variants Dialog – Printify-style */}
-        <Dialog open={oosDialogOpen} onOpenChange={setOosDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Out of stock variants</DialogTitle>
-              <DialogDescription>
-                These variants are out of stock for "{productForOos?.displayTitle || productForOos?.title}"
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-2">
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="font-semibold">Size</TableHead>
-                      <TableHead className="font-semibold">Color</TableHead>
-                      <TableHead className="font-semibold">Alternative providers</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(productForOos?.variantsSummary || [])
-                      .filter((v: any) => v.isActive === false)
-                      .map((v: any, idx: number) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-medium">{v.size}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-3.5 h-3.5 rounded-full border border-border flex-shrink-0"
-                                style={{ backgroundColor: v.colorHex || '#ccc' }}
-                              />
-                              <span>{v.color}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">–</TableCell>
-                        </TableRow>
-                      ))}
-                    {(productForOos?.variantsSummary || []).filter((v: any) => v.isActive === false).length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
-                          No out-of-stock variants
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold">Product health</h2>
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <div className="rounded-md border p-4">
+                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="mt-2 text-2xl font-semibold">{summary?.products?.total ?? 0}</p>
+                </div>
+                <div className="rounded-md border p-4">
+                  <p className="text-sm text-muted-foreground">Live</p>
+                  <p className="mt-2 text-2xl font-semibold">{summary?.products?.live ?? 0}</p>
+                </div>
+                <div className="rounded-md border p-4">
+                  <p className="text-sm text-muted-foreground">Draft</p>
+                  <p className="mt-2 text-2xl font-semibold">{summary?.products?.draft ?? 0}</p>
+                </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOosDialogOpen(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Free plan allows {formatLimit(summary?.plan?.maxActiveProducts ?? 10)} live products.
+              </p>
+            </Card>
+
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Production</h2>
+                <Button variant="outline" size="sm" onClick={() => navigate('/orders')}>Orders</Button>
+              </div>
+              <div className="mt-5 space-y-3">
+                {pipeline.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="flex items-center justify-between rounded-md border p-3">
+                      <div className="flex items-center gap-3">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </div>
+                      <span className="text-lg font-semibold">{item.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

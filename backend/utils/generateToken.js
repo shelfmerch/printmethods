@@ -76,6 +76,8 @@ const sendTokenResponse = async (user, statusCode, res) => {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
+          companyName: user.companyName || '',
+          emailDomain: user.emailDomain || '',
           phoneNumber: user.phoneNumber,
           phone: user.phoneNumber, // For compatibility
           role: user.role,
@@ -97,4 +99,3 @@ module.exports = {
   generateRefreshToken,
   sendTokenResponse
 };
-

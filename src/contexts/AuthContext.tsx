@@ -7,6 +7,8 @@ export type UserRole = 'superadmin' | 'merchant' | 'user';
 export interface User {
   id: string;
   email: string;
+  companyName?: string;
+  emailDomain?: string;
   phone?: string; // Keep phone for compatibility, mapped from phoneNumber
   phoneNumber?: string; // Add phoneNumber to match backend
   name: string;
@@ -23,9 +25,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, companyName: string) => Promise<void>;
   loginWithOtp: (otpType: 'email' | 'phone', identifier: string, otp: string) => Promise<void>;
-  signupComplete: (name: string) => Promise<void>;
+  signupComplete: (name: string, companyName?: string) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
   isMerchant: boolean;
@@ -50,6 +52,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser({
               id: response.user.id,
               email: response.user.email,
+              companyName: response.user.companyName,
+              emailDomain: response.user.emailDomain,
               phone: response.user.phoneNumber || response.user.phone, // Deprecated: Use phoneNumber
               phoneNumber: response.user.phoneNumber,
               name: response.user.name,
@@ -105,9 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = async (email: string, password: string, name: string, companyName: string) => {
     try {
-      const response = await authApi.register(name, email, password);
+      const response = await authApi.register(name, email, password, companyName);
       if (response.success) {
         // Don't set user or token - user needs to verify email first
         // The response will have a message about checking email
@@ -132,6 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: response.user.id,
           email: response.user.email,
+          companyName: response.user.companyName,
+          emailDomain: response.user.emailDomain,
           phone: response.user.phoneNumber || response.user.phone, // Deprecated
           phoneNumber: response.user.phoneNumber,
           name: response.user.name,
@@ -150,9 +156,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signupComplete = async (name: string) => {
+  const signupComplete = async (name: string, companyName?: string) => {
     try {
-      const response = await authApi.updateProfile(name);
+      const response = await authApi.updateProfile(name, companyName);
       if (response.success) {
         // Refresh user to get full object
         await refreshUser();
@@ -185,6 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: response.user.id,
           email: response.user.email,
+          companyName: response.user.companyName,
+          emailDomain: response.user.emailDomain,
           phone: response.user.phoneNumber || response.user.phone, // Deprecated
           phoneNumber: response.user.phoneNumber,
           name: response.user.name,

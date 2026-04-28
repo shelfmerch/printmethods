@@ -33,6 +33,23 @@ const getRazorpayInstance = () => {
 
 const { verifyStoreToken } = require('../middleware/auth');
 
+const buildShipmentAudit = (status, customer) => ({
+  statusUpdatedAt: new Date(),
+  statusHistory: [
+    {
+      status,
+      at: new Date(),
+      note: status === 'paid' ? 'Order paid and confirmed' : 'Order created',
+      actor: {
+        id: customer?._id,
+        role: 'customer',
+        name: customer?.name || '',
+        email: customer?.email || '',
+      },
+    },
+  ],
+});
+
 /**
  * Helper to generate Fulfillment Invoice for the Merchant
  * Automatically deducts from merchant's wallet if sufficient balance
@@ -408,6 +425,7 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
       totalPaid: total,
       productionCost: productionCostValue,
       calculatedProfit,
+      shipment: buildShipmentAudit('on-hold', customer),
       // Default to cod for direct placement if not specified
       payment: {
         method: 'cod'
@@ -687,6 +705,7 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
       totalPaid: total,
       productionCost: productionCostTotal,
       calculatedProfit,
+      shipment: buildShipmentAudit('paid', customer),
       payment: {
         method: 'razorpay',
         razorpayOrderId: razorpay_order_id,

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { UserPlus, Trash2, Loader2, RefreshCw, Mail } from 'lucide-react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,7 @@ const BrandTeam = () => {
   };
 
   return (
+    <DashboardLayout>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -205,6 +207,7 @@ const BrandTeam = () => {
         </Card>
       )}
     </div>
+    </DashboardLayout>
   );
 };
 

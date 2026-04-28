@@ -4619,6 +4619,9 @@ import { CatalogToolbar } from '@/components/admin/CatalogToolbar';
 import { BaseProductsTable } from '@/components/admin/BaseProductsTable';
 import logo from '@/assets/logo.webp';
 import { ShopifyOrdersTab } from '@/components/admin/ShopifyOrdersTab';
+import { AdminOrderManagement } from '@/components/admin/AdminOrderManagement';
+import { AdminQuotations } from '@/components/admin/AdminQuotations';
+import { AdminSupportTickets } from '@/components/admin/AdminSupportTickets';
 
 const Admin = () => {
   const { user, logout } = useAuth();
@@ -4627,6 +4630,8 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState(() => {
     // Check URL params for tab
     const tabParam = searchParams.get('tab');
+    if (window.location.pathname === '/admin/quotations') return 'quotations';
+    if (window.location.pathname === '/admin/support-tickets') return 'support';
     return tabParam || 'overview';
   });
   const [selectedTimeRange, setSelectedTimeRange] = useState('month');
@@ -4894,7 +4899,7 @@ const Admin = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       if (user?.role !== 'superadmin') return;
-      if (activeTab !== 'orders') return;
+      if (activeTab !== '__legacy_orders') return;
 
       setIsLoadingOrders(true);
       setOrdersError(null);
@@ -5500,6 +5505,14 @@ const Admin = () => {
             <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Platform
             </p>
+            <Button
+              variant={activeTab === 'quotations' ? 'secondary' : 'ghost'}
+              className={cn("w-full justify-start", activeTab === 'quotations' && "bg-secondary font-semibold")}
+              onClick={() => setActiveTab('quotations')}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Quotations
+            </Button>
             <Button
               variant={activeTab === 'shopify-orders' ? 'secondary' : 'ghost'}
               className={cn("w-full justify-start", activeTab === 'shopify-orders' && "bg-secondary font-semibold")}
@@ -6304,7 +6317,9 @@ const Admin = () => {
 
 
           {/* Orders Tab */}
-          {activeTab === 'orders' && (
+          {activeTab === 'orders' && <AdminOrderManagement />}
+          {activeTab === 'quotations' && <AdminQuotations />}
+          {activeTab === '__legacy_orders' && (
             <>
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -7866,7 +7881,8 @@ const Admin = () => {
           )}
 
           {/* Support Tab */}
-          {activeTab === 'support' && (
+          {activeTab === 'support' && <AdminSupportTickets />}
+          {activeTab === '__legacy_support' && (
             <>
               <div className="flex items-center justify-between mb-8">
                 <div>

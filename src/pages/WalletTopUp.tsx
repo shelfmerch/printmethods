@@ -1,20 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import logo from "@/assets/logo.webp";
 import {
-    Package,
-    Store,
-    TrendingUp,
-    ShoppingBag,
-    Users,
-    Settings,
-    LogOut,
-    FileText,
     CreditCard,
     ArrowLeft,
     Wallet,
@@ -23,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { walletApi } from '@/lib/api';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 declare global {
     interface Window {
@@ -31,8 +23,7 @@ declare global {
 }
 
 const WalletTopUp = () => {
-    const { user, logout, isAdmin } = useAuth();
-    const navigate = useNavigate();
+    const { user } = useAuth();
     const [amount, setAmount] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [walletBalance, setWalletBalance] = useState<{ balancePaise: number; balanceRupees: string } | null>(null);
@@ -183,97 +174,7 @@ const WalletTopUp = () => {
     const quickAmounts = [500, 1000, 2000, 5000];
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Sidebar - Reusing Orders sidebar logic */}
-            <aside className="fixed left-0 top-0 h-full w-64 border-r bg-card p-6">
-                <Link to="/" className="flex items-center space-x-2 mb-8">
-                    {/* <span className="font-heading text-xl font-bold text-foreground">
-                        Shelf<span className="text-primary">Merch</span>
-                    </span> */}
-                    <img
-                        src={logo}
-                        alt="logo"
-                        className="w-40 rounded-3xl shadow-2xl"
-                    />
-                </Link>
-
-                <nav className="space-y-2">
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/dashboard">
-                            <Package className="mr-2 h-4 w-4" />
-                            My Products
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/orders">
-                            <ShoppingBag className="mr-2 h-4 w-4" />
-                            Orders
-                        </Link>
-                    </Button>
-                    <Button variant="secondary" className="w-full justify-start" asChild>
-                        <Link to="/wallet">
-                            <Wallet className="mr-2 h-4 w-4" />
-                            Wallet
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/invoices">
-                            <FileText className="mr-2 h-4 w-4" />
-                            Invoices
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/customers">
-                            <Users className="mr-2 h-4 w-4" />
-                            Customers
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/stores">
-                            <Store className="mr-2 h-4 w-4" />
-                            My Stores
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/analytics">
-                            <TrendingUp className="mr-2 h-4 w-4" />
-                            Analytics
-                        </Link>
-                    </Button>
-                    {isAdmin && (
-                        <Button variant="ghost" className="w-full justify-start" asChild>
-                            <Link to="/admin">
-                                <Users className="mr-2 h-4 w-4" />
-                                Admin Panel
-                            </Link>
-                        </Button>
-                    )}
-                    <Button variant="ghost" className="w-full justify-start" asChild>
-                        <Link to="/settings">
-                            <Settings className="mr-2 h-4 w-4" />
-                            Settings
-                        </Link>
-                    </Button>
-                </nav>
-
-                <div className="absolute bottom-6 left-6 right-6">
-                    <div className="border-t pt-4 space-y-2">
-                        <p className="text-sm text-muted-foreground">Signed in as</p>
-                        <p className="text-sm font-medium">{user?.email}</p>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start text-destructive hover:text-destructive"
-                            onClick={logout}
-                        >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Log out
-                        </Button>
-                    </div>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="ml-64 p-8">
+        <DashboardLayout>
                 <div className="max-w-2xl mx-auto">
                     <div className="mb-8">
                         <Button variant="ghost" asChild className="mb-4 pl-0 hover:bg-transparent hover:text-primary">
@@ -396,10 +297,8 @@ const WalletTopUp = () => {
                         </Card>
                     </div>
                 </div>
-            </main>
-        </div>
+        </DashboardLayout>
     );
 };
 
 export default WalletTopUp;
-

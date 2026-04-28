@@ -10,6 +10,25 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const { uploadToS3 } = require('../utils/s3Upload');
 const { compositeMockup, compositeMockupFromCanvas } = require('../utils/compositeMockup');
 const { v4: uuidv4 } = require('uuid');
+const { assertWithinPlanLimit } = require('../utils/planLimits');
+
+async function assertCanAddLiveProduct(store, excludeProductId = null) {
+  const filter = {
+    storeId: store._id,
+    status: 'published',
+    isActive: true,
+  };
+  if (excludeProductId) filter._id = { $ne: excludeProductId };
+
+  const liveCount = await StoreProduct.countDocuments(filter);
+  assertWithinPlanLimit({
+    planId: store.subscriptionPlan,
+    resource: 'active products',
+    currentCount: liveCount,
+    attemptedAdd: 1,
+    limitKey: 'maxActiveProducts',
+  });
+}
 
 // @route   POST /api/store-products
 // @desc    Create or update a store product with design data, and optional variants
@@ -78,6 +97,10 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
     // Authorization: merchants can only write to their own stores
     if (req.user.role !== 'superadmin' && String(store.merchant) !== String(req.user._id)) {
       return res.status(403).json({ success: false, message: 'Not authorized to modify this store' });
+    }
+
+    if ((!existingSp || existingSp.status !== 'published' || existingSp.isActive === false) && status === 'published') {
+      await assertCanAddLiveProduct(store, existingSp?._id);
     }
 
     let cleanDesignData = undefined;
@@ -205,7 +228,14 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
     });
   } catch (error) {
     console.error('Error saving store product:', error);
-    return res.status(500).json({ success: false, message: 'Failed to save store product', error: error.message });
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.code === 'PLAN_LIMIT_EXCEEDED' ? error.message : 'Failed to save store product',
+      code: error.code,
+      plan: error.plan,
+      limit: error.limit,
+      error: error.message,
+    });
   }
 });
 
@@ -445,6 +475,14 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
     // Merchants can only access their own stores; superadmin can access all
     if (req.user.role !== 'superadmin' && String(store.merchant) !== String(req.user._id)) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    const willBeLive =
+      (updates.status === 'published' || sp.status === 'published') &&
+      (typeof updates.isActive === 'boolean' ? updates.isActive : sp.isActive) !== false;
+    const currentlyLive = sp.status === 'published' && sp.isActive !== false;
+    if (!currentlyLive && willBeLive) {
+      await assertCanAddLiveProduct(store, sp._id);
     }
 
     return res.json({ success: true, data: sp });
@@ -870,7 +908,14 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
     });
   } catch (error) {
     console.error('Error updating store product:', error);
-    return res.status(500).json({ success: false, message: 'Failed to update store product' });
+    return res.status(error.status || 500).json({
+      success: false,
+      message: error.code === 'PLAN_LIMIT_EXCEEDED' ? error.message : 'Failed to update store product',
+      code: error.code,
+      plan: error.plan,
+      limit: error.limit,
+      error: error.message,
+    });
   }
 });
 

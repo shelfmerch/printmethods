@@ -3,6 +3,7 @@ const router = express.Router();
 const Store = require('../models/Store');
 const StoreProduct = require('../models/StoreProduct');
 const { protect } = require('../middleware/auth');
+const { normalizePlanId, assertWithinPlanLimit } = require('../utils/planLimits');
 
 // Helper to generate slug from name
 const generateSlug = (name) => {
@@ -38,8 +39,8 @@ const mapStoreToFrontend = (storeDoc, includeBuilder = false) => {
     builderLastPublishedAt: store.builderLastPublishedAt || null,
     brandProfile: store.brandProfile || null,
     accessMode: store.accessMode || 'public',
-    subscriptionPlan: store.subscriptionPlan || 'trial',
-    subscriptionStatus: store.subscriptionStatus || 'trial',
+    subscriptionPlan: normalizePlanId(store.subscriptionPlan),
+    subscriptionStatus: store.subscriptionStatus || 'active',
     subscriptionExpiry: store.subscriptionExpiry || null,
     companyWalletId: store.companyWalletId || null,
   };
@@ -155,6 +156,25 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
+    if (user.role !== 'superadmin') {
+      const currentStores = await Store.find({ merchant: user._id, isActive: true, type: 'native' })
+        .select('subscriptionPlan')
+        .lean();
+      const strongestPlan = currentStores.some((store) => normalizePlanId(store.subscriptionPlan) === 'enterprise')
+        ? 'enterprise'
+        : currentStores.some((store) => normalizePlanId(store.subscriptionPlan) === 'growth')
+          ? 'growth'
+          : 'free';
+
+      assertWithinPlanLimit({
+        planId: strongestPlan,
+        resource: 'swag stores',
+        currentCount: currentStores.length,
+        attemptedAdd: 1,
+        limitKey: 'maxStores',
+      });
+    }
+
     let baseSlug = generateSlug(name.trim());
     if (!baseSlug) {
       baseSlug = `store-${Date.now().toString(36)}`;
@@ -192,6 +212,7 @@ router.post('/', protect, async (req, res) => {
           companyName: brandProfile.companyName || name.trim(),
           website: brandProfile.website,
           emailDomain: brandProfile.emailDomain,
+          country: brandProfile.country || country || 'India',
           industry: brandProfile.industry,
           headcount: brandProfile.headcount,
           regions: brandProfile.regions || ['India'],
@@ -203,8 +224,8 @@ router.post('/', protect, async (req, res) => {
           },
         },
       }),
-      subscriptionPlan: 'trial',
-      subscriptionStatus: 'trial',
+      subscriptionPlan: 'free',
+      subscriptionStatus: 'active',
       // Do NOT set domain here; leave it undefined so it doesn't trip unique index
       isActive: true,
       isConnected: false,
@@ -219,9 +240,10 @@ router.post('/', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating store:', error);
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       success: false,
       message: 'Failed to create store',
+      ...(error.code === 'PLAN_LIMIT_EXCEEDED' ? { message: error.message, code: error.code, plan: error.plan, limit: error.limit } : {}),
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
@@ -734,8 +756,4 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 module.exports = router;
-
-
-
-
 

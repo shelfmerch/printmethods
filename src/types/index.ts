@@ -1,4 +1,4 @@
-export type OrderStatus = 'on-hold' | 'in-production' | 'shipped' | 'delivered' | 'canceled' | 'cancelled' | 'refunded';
+export type OrderStatus = 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'canceled' | 'cancelled' | 'refunded';
 
 export type StoreTheme = 'modern' | 'classic' | 'minimal';
 
@@ -115,6 +115,26 @@ export interface Order {
   tax: number;
   total: number;
   status: OrderStatus;
+  shipment?: {
+    carrier?: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
+    shippedAt?: string;
+    deliveredAt?: string;
+    statusUpdatedAt?: string;
+    internalNotes?: string;
+    statusHistory?: Array<{
+      status: OrderStatus;
+      at: string;
+      note?: string;
+      actor?: {
+        id?: string;
+        role?: string;
+        name?: string;
+        email?: string;
+      };
+    }>;
+  };
   shippingAddress: ShippingAddress;
   createdAt: string;
   updatedAt: string;
@@ -141,6 +161,13 @@ export interface Store {
   settings?: {
     primaryColor?: string;
     accentColor?: string;
+  };
+  brandProfile?: {
+    companyName?: string;
+    emailDomain?: string;
+    country?: string;
+    industry?: string;
+    headcount?: number;
   };
   useBuilder?: boolean;
   builder?: StoreBuilder;

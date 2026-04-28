@@ -17,56 +17,65 @@ const PricingPage = () => {
   const pricingPlans = [
     {
       name: 'Free',
-      price: isMonthly ? '0 ₹/month' : '0 ₹ /month (billed annually)',
-      priceYearly: '0 ₹ /month (billed annually)',
-      description: 'For merchants starting a business.',
+      price: isMonthly ? '₹0/month' : '₹0/month',
+      priceYearly: '₹0/month',
+      description: 'For small teams launching their first swag store.',
       featuresMonthly: [
-        '2 stores per account',
-        'Unlimited product designs',
-        'Own Domain',
+        '1 swag store',
+        'Up to 50 employees',
+        '10 live products in your swag store',
+        'Standard service fee on sends and orders',
       ],
       featuresYearly: [
-        '5 stores per account',
-        'Unlimited product designs',
+        '1 swag store',
+        'Up to 50 employees',
+        '10 live products in your swag store',
+        'Standard service fee on sends and orders',
       ],
       cta: 'Start for free',
       ctaVariant: 'default' as const,
       popular: false,
     },
     {
-      name: 'Premium',
-      price: isMonthly ? '99 ₹/month' : '83 ₹ /month (billed annually)',
-      priceYearly: '83 ₹ /month (billed annually)',
-      description: 'For merchants starting a business.',
+      name: 'Growth',
+      price: isMonthly ? '₹4,999/month' : '₹4,166/month (billed annually)',
+      priceYearly: '₹4,166/month (billed annually)',
+      description: 'For HR and ops teams running recurring swag programs.',
       featuresMonthly: [
-        '10 stores per account',
-        'Unlimited product designs',
-        'Order management with Shelf Merch Connect',
+        '5 swag stores',
+        'Up to 500 employees',
+        '250 live products across stores',
+        'Unlimited kits and campaigns',
+        'Lower service fee on sends and orders',
       ],
       featuresYearly: [
-        '10 stores per account',
-        'Unlimited product designs',
-        'Order management with Shelf Merch Connect',
+        '5 swag stores',
+        'Up to 500 employees',
+        '250 live products across stores',
+        'Unlimited kits and campaigns',
+        'Lower service fee on sends and orders',
       ],
-      cta: 'Start for free',
+      cta: 'Talk to activate',
       ctaVariant: 'default' as const,
       popular: true,
     },
     {
       name: 'Enterprise',
       price: 'Custom Pricing',
-      description: 'For merchants starting a business.',
+      description: 'For large teams, multi-region programs, and custom terms.',
       featuresMonthly: [
-        'Unlimited stores per account',
-        'Unlimited product designs',
-        'Additional discounts on all products',
+        'Unlimited swag stores',
+        'Unlimited employees and live products',
+        'SSO, API access, and custom domains',
+        'Net terms and custom procurement support',
         'Dedicated Account Manager',
-        'Dedicated Designer Support',
       ],
       featuresYearly: [
-        'Unlimited stores per account',
-        'Unlimited product designs',
-        'Additional discounts on all products',
+        'Unlimited swag stores',
+        'Unlimited employees and live products',
+        'SSO, API access, and custom domains',
+        'Net terms and custom procurement support',
+        'Dedicated Account Manager',
       ],
       cta: "Let's Talk",
       ctaVariant: 'outline' as const,
@@ -108,11 +117,11 @@ const PricingPage = () => {
             {/* Left Content */}
             <div className="space-y-6">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                Find the plan to build your business
+                Pricing for company swag stores
               </h1>
 
               <p className="text-lg text-foreground leading-relaxed max-w-xl">
-                Plans for every creator — find the right fit to save you money and scale up your business more quickly.
+                Start free, then scale your employee gifting, swag store, kits, wallet, and fulfillment workflows as your team grows.
               </p>
 
               <Button className="bg-primary hover:bg-brand-green-hover text-primary-foreground font-semibold px-6 py-3 rounded-lg">
@@ -140,7 +149,7 @@ const PricingPage = () => {
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-                Start for free, then scale with unmatched pricing
+                Start free, then scale when swag becomes operational
               </h2>
 
               {/* Toggle Switch */}
@@ -182,9 +191,9 @@ const PricingPage = () => {
                   <div className="mb-6">
                     <div className="flex items-center gap-2 mb-4">
                       {plan.name === 'Free' && <Heart className="h-5 w-5 text-foreground fill-foreground" />}
-                      {plan.name === 'Premium' && (
+                      {plan.name === 'Growth' && (
                         <div className="w-5 h-5 rounded-full bg-foreground flex items-center justify-center">
-                          <span className="text-xs font-bold text-background">P</span>
+                          <span className="text-xs font-bold text-background">G</span>
                         </div>
                       )}
                       {plan.name === 'Enterprise' && <Building2 className="h-5 w-5 text-foreground" />}
@@ -202,6 +211,10 @@ const PricingPage = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       if (plan.name === 'Enterprise' && plan.cta === "Let's Talk") {
+                        navigate('/support/contact-us');
+                        return;
+                      }
+                      if (plan.name === 'Growth') {
                         navigate('/support/contact-us');
                         return;
                       }
@@ -223,6 +236,9 @@ const PricingPage = () => {
                       </li>
                     ))}
                   </ul>
+                  <p className="mt-6 text-sm text-foreground/70">
+                    Product cost, shipping, packaging, taxes, and any one-off customization are billed separately.
+                  </p>
                 </div>
               ))}
             </div>
@@ -236,7 +252,7 @@ const PricingPage = () => {
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-8">
-                Included in every Premium plan
+                Included when your swag workflow grows
               </h2>
             </div>
 

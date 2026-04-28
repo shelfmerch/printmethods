@@ -3,6 +3,53 @@ const router = express.Router();
 const StoreOrder = require('../models/StoreOrder');
 const Store = require('../models/Store');
 const { protect, authorize } = require('../middleware/auth');
+const ALLOWED_STATUSES = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'];
+
+const buildActor = (user) => ({
+  id: user?._id,
+  role: user?.role || '',
+  name: user?.name || '',
+  email: user?.email || '',
+});
+
+const appendStatusHistory = (order, status, user, note = '') => {
+  if (!order.shipment) order.shipment = {};
+  const history = Array.isArray(order.shipment.statusHistory) ? order.shipment.statusHistory : [];
+  order.shipment.statusHistory = [
+    ...history,
+    {
+      status,
+      at: new Date(),
+      note,
+      actor: buildActor(user),
+    },
+  ];
+  order.shipment.statusUpdatedAt = new Date();
+  if (status === 'shipped' && !order.shipment.shippedAt) {
+    order.shipment.shippedAt = new Date();
+  }
+  if (status === 'delivered' && !order.shipment.deliveredAt) {
+    order.shipment.deliveredAt = new Date();
+  }
+};
+
+const assertOrderAccess = async (order, user) => {
+  if (!order) {
+    return { allowed: false, status: 404, message: 'Order not found' };
+  }
+
+  if (user.role === 'superadmin') {
+    return { allowed: true };
+  }
+
+  const storeId = order.storeId?._id || order.storeId;
+  const store = await Store.findById(storeId).select('merchant');
+  if (!store || String(store.merchant) !== String(user._id)) {
+    return { allowed: false, status: 403, message: 'Not authorized to access this order' };
+  }
+
+  return { allowed: true };
+};
 
 // @route   GET /api/store-orders
 // @desc    List store orders for current merchant (all their stores)
@@ -49,11 +96,9 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
     }
 
     // Merchants can only see orders for their own stores
-    if (user.role !== 'superadmin') {
-      const store = await Store.findById(order.storeId);
-      if (!store || String(store.merchant) !== String(user._id)) {
-        return res.status(403).json({ success: false, message: 'Not authorized to view this order' });
-      }
+    const access = await assertOrderAccess(order, user);
+    if (!access.allowed) {
+      return res.status(access.status).json({ success: false, message: access.message });
     }
 
     return res.json({ success: true, data: order });
@@ -69,26 +114,76 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
 router.patch('/:id/status', protect, authorize('superadmin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body || {};
+    const { status, note = '' } = req.body || {};
 
-    // Keep in sync with StoreOrder schema enum
-    const allowedStatuses = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'];
-    if (!status || !allowedStatuses.includes(status)) {
+    if (!status || !ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid order status' });
     }
 
     const order = await StoreOrder.findById(id);
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+    const access = await assertOrderAccess(order, req.user);
+    if (!access.allowed) {
+      return res.status(access.status).json({ success: false, message: access.message });
     }
 
     order.status = status;
+    appendStatusHistory(order, status, req.user, note);
     await order.save();
 
     return res.json({ success: true, data: order });
   } catch (error) {
     console.error('Error updating store order status:', error);
     return res.status(500).json({ success: false, message: 'Failed to update order status' });
+  }
+});
+
+// @route   PATCH /api/store-orders/:id/shipment
+// @desc    Update shipment fields for a store order
+// @access  Private (superadmin)
+router.patch('/:id/shipment', protect, authorize('superadmin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      carrier = '',
+      trackingNumber = '',
+      trackingUrl = '',
+      shippedAt,
+      deliveredAt,
+      internalNotes = '',
+      status,
+      note = '',
+    } = req.body || {};
+
+    const order = await StoreOrder.findById(id);
+    const access = await assertOrderAccess(order, req.user);
+    if (!access.allowed) {
+      return res.status(access.status).json({ success: false, message: access.message });
+    }
+
+    if (status && !ALLOWED_STATUSES.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid order status' });
+    }
+
+    if (!order.shipment) order.shipment = {};
+    order.shipment.carrier = carrier;
+    order.shipment.trackingNumber = trackingNumber;
+    order.shipment.trackingUrl = trackingUrl;
+    order.shipment.internalNotes = internalNotes;
+    order.shipment.statusUpdatedAt = new Date();
+    order.shipment.shippedAt = shippedAt ? new Date(shippedAt) : order.shipment.shippedAt;
+    order.shipment.deliveredAt = deliveredAt ? new Date(deliveredAt) : order.shipment.deliveredAt;
+
+    const nextStatus = status || (order.shipment.deliveredAt ? 'delivered' : order.shipment.shippedAt ? 'shipped' : order.status);
+    if (nextStatus !== order.status || note) {
+      order.status = nextStatus;
+      appendStatusHistory(order, nextStatus, req.user, note || 'Shipment updated');
+    }
+
+    await order.save();
+    return res.json({ success: true, data: order });
+  } catch (error) {
+    console.error('Error updating store order shipment:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update shipment details' });
   }
 });
 

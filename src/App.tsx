@@ -478,6 +478,8 @@ import BrandKitBuilder from "./pages/BrandKitBuilder";
 import BrandKitDetail from "./pages/BrandKitDetail";
 import BrandKitSendWizard from "./pages/BrandKitSendWizard";
 import KitRedeem from "./pages/KitRedeem";
+import BrandDraftOrders from "./pages/BrandDraftOrders";
+import BrandSupportTickets from "./pages/BrandSupportTickets";
 import BrandTeam from "./pages/BrandTeam";
 import BrandEmployees from "./pages/BrandEmployees";
 import CreditAllocation from "./pages/CreditAllocation";
@@ -764,6 +766,22 @@ const App = () => {
                       }
                     />
                     <Route
+                      path="/admin/quotations"
+                      element={
+                        <ProtectedRoute requireAdmin>
+                          <Admin />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/support-tickets"
+                      element={
+                        <ProtectedRoute requireAdmin>
+                          <Admin />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/dashboard/shopify"
                       element={
                         <ProtectedRoute>
@@ -889,6 +907,22 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <BrandBilling />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/draft-orders"
+                      element={
+                        <ProtectedRoute>
+                          <BrandDraftOrders />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/brand/support-tickets"
+                      element={
+                        <ProtectedRoute>
+                          <BrandSupportTickets />
                         </ProtectedRoute>
                       }
                     />

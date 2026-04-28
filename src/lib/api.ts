@@ -323,11 +323,155 @@ export const storeOrdersApi = {
   // Update order status (superadmin only)
   updateStatus: async (
     id: string,
-    status: 'on-hold' | 'in-production' | 'shipped' | 'delivered' | 'refunded' | 'cancelled'
+    status: 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'refunded' | 'cancelled',
+    note?: string
   ) => {
     return apiRequest<any>(`/store-orders/${encodeURIComponent(id)}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, note }),
+    });
+  },
+  updateShipment: async (
+    id: string,
+    shipment: {
+      carrier?: string;
+      trackingNumber?: string;
+      trackingUrl?: string;
+      shippedAt?: string;
+      deliveredAt?: string;
+      internalNotes?: string;
+      status?: 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'refunded' | 'cancelled';
+      note?: string;
+    }
+  ) => {
+    return apiRequest<any>(`/store-orders/${encodeURIComponent(id)}/shipment`, {
+      method: 'PATCH',
+      body: JSON.stringify(shipment),
+    });
+  },
+};
+
+export const directOrdersApi = {
+  list: async () => {
+    return apiRequest<any[]>('/direct-orders');
+  },
+  getById: async (id: string) => {
+    return apiRequest<any>(`/direct-orders/${encodeURIComponent(id)}`);
+  },
+  updateStatus: async (
+    id: string,
+    status: 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'refunded' | 'cancelled',
+    note?: string
+  ) => {
+    return apiRequest<any>(`/direct-orders/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, note }),
+    });
+  },
+  updateShipment: async (
+    id: string,
+    shipment: {
+      carrier?: string;
+      trackingNumber?: string;
+      trackingUrl?: string;
+      shippedAt?: string;
+      deliveredAt?: string;
+      internalNotes?: string;
+      status?: 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'refunded' | 'cancelled';
+      note?: string;
+    }
+  ) => {
+    return apiRequest<any>(`/direct-orders/${encodeURIComponent(id)}/shipment`, {
+      method: 'PATCH',
+      body: JSON.stringify(shipment),
+    });
+  },
+};
+
+export const quotationsApi = {
+  create: async (payload: any) => apiRequest<any>('/quotations/create', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  list: async (status?: string) => apiRequest<any[]>(`/quotations${status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : ''}`),
+  getById: async (id: string) => apiRequest<any>(`/quotations/${encodeURIComponent(id)}`),
+  uploadPO: async (id: string, payload: { purchaseOrderUrl?: string; purchaseOrderNumber?: string }) => apiRequest<any>(`/quotations/${encodeURIComponent(id)}/upload-po`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  createAdvance: async (id: string, amountPaise: number) => apiRequest<any>(`/quotations/${encodeURIComponent(id)}/razorpay/advance-create`, {
+    method: 'POST',
+    body: JSON.stringify({ amountPaise }),
+  }),
+  verifyAdvance: async (id: string, payload: any) => apiRequest<any>(`/quotations/${encodeURIComponent(id)}/razorpay/advance-verify`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  confirmPayment: async (id: string, note?: string) => apiRequest<any>(`/quotations/${encodeURIComponent(id)}/confirm-payment`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  }),
+};
+
+export const supportTicketsApi = {
+  list: async (status?: string) => apiRequest<any[]>(`/support-tickets${status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : ''}`),
+  getById: async (id: string) => apiRequest<any>(`/support-tickets/${encodeURIComponent(id)}`),
+  create: async (payload: any) => apiRequest<any>('/support-tickets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+  sendMessage: async (id: string, text: string) => apiRequest<any>(`/support-tickets/${encodeURIComponent(id)}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  }),
+  updateStatus: async (id: string, status: string) => apiRequest<any>(`/support-tickets/${encodeURIComponent(id)}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  }),
+};
+
+export const adminDirectOrdersApi = {
+  list: async (params?: { status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.status && params.status !== 'all') qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return apiRequest<{ orders: any[]; total: number; page: number; limit: number }>(`/admin/direct-orders${qs.toString() ? `?${qs.toString()}` : ''}`);
+  },
+  getById: async (id: string) => {
+    return apiRequest<any>(`/admin/direct-orders/${encodeURIComponent(id)}`);
+  },
+  updateStatus: async (
+    id: string,
+    payload: {
+      status: 'in-production' | 'shipped' | 'delivered' | 'cancelled';
+      trackingNumber?: string;
+      carrier?: string;
+      trackingUrl?: string;
+      note?: string;
+    }
+  ) => {
+    return apiRequest<any>(`/admin/direct-orders/${encodeURIComponent(id)}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+export const adminKitFulfillmentApi = {
+  getProductionQueue: async () => {
+    return apiRequest<any[]>('/admin/kit-fulfillment/production-queue');
+  },
+  getLogos: async (catalogProductId: string) => {
+    return apiRequest<any[]>(`/admin/kit-fulfillment/logos?catalogProductId=${encodeURIComponent(catalogProductId)}`);
+  },
+  markRedemptionShipped: async (
+    redemptionId: string,
+    payload: { trackingNumber: string; carrier?: string; trackingUrl?: string; note?: string }
+  ) => {
+    return apiRequest<any>(`/admin/kit-fulfillment/redemption/${encodeURIComponent(redemptionId)}/ship`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     });
   },
 };
@@ -630,6 +774,52 @@ export const walletApi = {
         razorpaySignature,
       }),
     });
+  },
+};
+
+export const brandDashboardApi = {
+  getSummary: async (brandId: string) => {
+    return apiRequest<{
+      store: {
+        id: string;
+        name: string;
+        subscriptionPlan: string;
+        subscriptionStatus: string;
+      };
+      plan: {
+        id: string;
+        name: string;
+        priceMonthlyPaise: number | null;
+        priceMonthlyUsdCents: number | null;
+        maxStores: number | null;
+        maxEmployees: number | null;
+        maxActiveProducts: number | null;
+        maxKits: number | null;
+        serviceFeePercent: number;
+      };
+      products: { total: number; draft: number; live: number };
+      orders: {
+        total: number;
+        needsAction: number;
+        inProduction: number;
+        printing: number;
+        packaging: number;
+        readyToShip: number;
+        shipped: number;
+        delivered: number;
+      };
+      team: { members: number };
+      employees: { total: number };
+      wallet: { balancePaise: number; balanceRupees: string; currency: string };
+      kits: { total: number; paidSends: number };
+      onboarding: {
+        storeCreated: boolean;
+        firstProductDesigned: boolean;
+        teamMembersAdded: boolean;
+        walletToppedUp: boolean;
+        firstKitCreated: boolean;
+      };
+    }>(`/brand-dashboard/${encodeURIComponent(brandId)}/summary`);
   },
 };
 
@@ -1343,7 +1533,7 @@ const apiRequest = async <T = any>(
 
 // Auth API methods
 export const authApi = {
-  register: async (name: string, email: string, password: string) => {
+  register: async (name: string, email: string, password: string, companyName: string) => {
     // Validate inputs before sending
     if (!email || !email.trim()) {
       throw new ApiError('Email is required', 400);
@@ -1354,6 +1544,9 @@ export const authApi = {
     if (!password || password.length < 6) {
       throw new ApiError('Password must be at least 6 characters', 400);
     }
+    if (!companyName || !companyName.trim()) {
+      throw new ApiError('Company name is required', 400);
+    }
 
     const response = await apiRequest<{
       success: boolean;
@@ -1362,6 +1555,8 @@ export const authApi = {
         id: string;
         name: string;
         email: string;
+        companyName?: string;
+        emailDomain?: string;
         role: string;
         createdAt: string;
         isEmailVerified: boolean;
@@ -1372,6 +1567,7 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({
         name: name.trim(),
+        companyName: companyName.trim(),
         email: email.trim().toLowerCase().replace(/^@+/, ''), // Remove any leading @ that might have been added
         password
       }),
@@ -1392,6 +1588,8 @@ export const authApi = {
         id: string;
         name: string;
         email: string;
+        companyName?: string;
+        emailDomain?: string;
         phone?: string;
         phoneNumber?: string;
         role: string;
@@ -1434,6 +1632,8 @@ export const authApi = {
         id: string;
         name: string;
         email: string;
+        companyName?: string;
+        emailDomain?: string;
         phone?: string;
         phoneNumber?: string;
         role: string;
@@ -1510,7 +1710,7 @@ export const authApi = {
     });
   },
 
-  updateProfile: async (name: string) => {
+  updateProfile: async (name: string, companyName?: string) => {
     return apiRequest<{
       success: boolean;
       message: string;
@@ -1518,12 +1718,14 @@ export const authApi = {
         id: string;
         name: string;
         email: string;
+        companyName?: string;
+        emailDomain?: string;
         role: string;
         upiId?: string;
       };
     }>('/auth/update-profile', {
       method: 'PUT',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, companyName }),
     });
   },
 
@@ -2129,10 +2331,12 @@ export const storeApi = {
     name: string;
     theme?: string;
     description?: string;
+    country?: string;
     brandProfile?: {
       companyName?: string;
       website?: string;
       emailDomain?: string;
+      country?: string;
       industry?: string;
       headcount?: number;
       regions?: string[];
@@ -3100,4 +3304,3 @@ export const developerPatApi = {
 
 
 export { getToken, removeTokens, apiRequest };
-

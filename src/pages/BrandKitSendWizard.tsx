@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, CheckCircle2, Mail, PackageCheck, SendHorizonal, Truck } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, FileText, Mail, MapPin, PackageCheck, SendHorizonal, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Header, Footer } from '@/components/home/';
 import KitItemPreview from '@/components/kits/KitItemPreview';
 import { useStore } from '@/contexts/StoreContext';
 import { kitsApi } from '@/lib/kits';
+import { RAW_API_URL } from '@/config';
+import {
+  buildKitSelections,
+  getActiveKitVariants,
+  getVariantColors,
+  getVariantSizes,
+  isValidKitVariantSelection,
+  KitItemSelection,
+  productRequiresVariantSelection,
+  sumSelectionQuantityForProduct,
+} from '@/lib/kitVariants';
 import { Kit, KitProduct } from '@/types/kits';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,8 +39,19 @@ type OverageDecision = {
   mode: 'order_full_moq';
 };
 
-const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
-const colorOptions = ['Black', 'White', 'Navy', 'Blue', 'Grey'];
+type DeliveryMode = 'redeem' | 'surprise' | 'single_location';
+
+type SingleLocationAddress = {
+  fullName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+};
 
 const productFromItem = (item: any): KitProduct | undefined =>
   typeof item.catalogProductId === 'string' ? undefined : item.catalogProductId;
@@ -47,18 +69,33 @@ const BrandKitSendWizard = () => {
   const brandId = selectedStore?.id || (selectedStore as any)?._id;
   const [kit, setKit] = useState<Kit | null>(null);
   const [step, setStep] = useState(1);
-  const [deliveryMode, setDeliveryMode] = useState<'redeem' | 'surprise'>('redeem');
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('redeem');
   const [emailsText, setEmailsText] = useState('');
-  const [globalQty, setGlobalQty] = useState(1);
   const [surpriseRecipients, setSurpriseRecipients] = useState<any[]>([
     { recipientEmail: '', recipientName: '', address: {}, selections: [] },
   ]);
+  const [singleLocationQuantity, setSingleLocationQuantity] = useState(1);
+  const [singleLocationType, setSingleLocationType] = useState<'office' | 'event' | 'other'>('office');
+  const [singleLocationAddress, setSingleLocationAddress] = useState<SingleLocationAddress>({
+    fullName: '',
+    email: '',
+    phone: '',
+    address1: '',
+    address2: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'India',
+  });
+  const [singleLocationNotes, setSingleLocationNotes] = useState('');
+  const [singleLocationSelections, setSingleLocationSelections] = useState<KitItemSelection[]>([]);
   const [fromName, setFromName] = useState(selectedStore?.storeName || selectedStore?.name || '');
   const [message, setMessage] = useState('Thank you for being part of our team. Please redeem your gift.');
   const [sendInviteAt, setSendInviteAt] = useState<'immediate' | 'scheduled'>('immediate');
   const [scheduledAt, setScheduledAt] = useState('');
   const [overageDecisions, setOverageDecisions] = useState<OverageDecision[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [quoting, setQuoting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -74,7 +111,11 @@ const BrandKitSendWizard = () => {
   }, [id]);
 
   const recipients = useMemo(() => parseEmails(emailsText), [emailsText]);
-  const recipientCount = deliveryMode === 'surprise' ? surpriseRecipients.filter((recipient) => recipient.recipientEmail).length : recipients.length;
+  const recipientCount = deliveryMode === 'single_location'
+    ? Math.max(0, Number(singleLocationQuantity || 0))
+    : deliveryMode === 'surprise'
+      ? surpriseRecipients.filter((recipient) => recipient.recipientEmail).length
+      : recipients.length;
 
   const moqWarnings = useMemo(() => {
     if (!kit || !recipientCount) return [];
@@ -94,7 +135,49 @@ const BrandKitSendWizard = () => {
       .filter(Boolean) as Array<{ productId: string; productName: string; minimumQuantity: number; overageQty: number; accepted: boolean }>;
   }, [kit, overageDecisions, recipientCount]);
 
-  const canAdvanceRecipients = recipientCount > 0 && moqWarnings.every((warning) => warning.accepted);
+  const kitProducts = useMemo(
+    () => (kit?.items.map(productFromItem).filter(Boolean) || []) as KitProduct[],
+    [kit]
+  );
+  const variantProducts = useMemo(() => kitProducts.filter(productRequiresVariantSelection), [kitProducts]);
+  const fixedProducts = useMemo(() => kitProducts.filter((product) => !productRequiresVariantSelection(product)), [kitProducts]);
+  const packagingProduct = useMemo(() => {
+    const packaging = kit?.packaging;
+    if (packaging?.mode !== 'catalog_product' || typeof packaging.catalogProductId === 'string') return null;
+    return packaging.catalogProductId;
+  }, [kit]);
+
+  const surpriseSelectionsComplete = useMemo(() => {
+    if (deliveryMode !== 'surprise') return true;
+    const filledRecipients = surpriseRecipients.filter((recipient) => recipient.recipientEmail);
+    if (!filledRecipients.length) return false;
+    return filledRecipients.every((recipient) =>
+      variantProducts.every((product) =>
+        isValidKitVariantSelection(
+          product,
+          (recipient.selections || []).find((selection: KitItemSelection) => selection.catalogProductId === product._id)
+        )
+      )
+    );
+  }, [deliveryMode, surpriseRecipients, variantProducts]);
+
+  const singleLocationComplete = useMemo(() => {
+    if (deliveryMode !== 'single_location') return true;
+    if (!recipientCount || !singleLocationAddress.fullName || !singleLocationAddress.address1 || !singleLocationAddress.city || !singleLocationAddress.country) {
+      return false;
+    }
+    return variantProducts.every((product) =>
+      sumSelectionQuantityForProduct(product._id, singleLocationSelections) === recipientCount &&
+      singleLocationSelections
+        .filter((selection) => selection.catalogProductId === product._id)
+        .every((selection) => isValidKitVariantSelection(product, selection) && Number(selection.quantity || 0) > 0)
+    );
+  }, [deliveryMode, recipientCount, singleLocationAddress, singleLocationSelections, variantProducts]);
+
+  const canAdvanceRecipients = recipientCount > 0 &&
+    surpriseSelectionsComplete &&
+    singleLocationComplete &&
+    moqWarnings.every((warning) => warning.accepted);
 
   // Minimum schedule date = today + max production days across all kit items
   const minScheduleDate = useMemo(() => {
@@ -108,45 +191,100 @@ const BrandKitSendWizard = () => {
     return d.toISOString().split('T')[0]; // YYYY-MM-DD
   }, [kit]);
 
+  const productQuantity = (product: KitProduct) => {
+    if (deliveryMode !== 'single_location') return recipientCount;
+    if (!productRequiresVariantSelection(product)) return recipientCount;
+    return sumSelectionQuantityForProduct(product._id, singleLocationSelections);
+  };
+
   const itemCostTotal = useMemo(() => {
     if (!kit || !recipientCount) return 0;
     return kit.items.reduce((sum, item) => {
       const product = productFromItem(item);
       if (!product) return sum;
+      const quantity = Math.max(0, productQuantity(product));
       const minimumQuantity = product.stocks?.minimumQuantity || 1;
-      const useMoq = product.fulfillmentType === 'inventory' && recipientCount < minimumQuantity &&
+      const useMoq = product.fulfillmentType === 'inventory' && quantity < minimumQuantity &&
         overageDecisions.some((decision) => decision.catalogProductId === product._id);
-      return sum + Number(product.basePrice || 0) * (useMoq ? minimumQuantity : recipientCount);
+      return sum + Number(product.basePrice || 0) * (useMoq ? minimumQuantity : quantity);
     }, 0);
-  }, [kit, overageDecisions, recipientCount]);
+  }, [deliveryMode, kit, overageDecisions, recipientCount, singleLocationSelections]);
 
-  const serviceFee = itemCostTotal * 0.15;
-  const tax = (itemCostTotal + serviceFee) * 0.18;
-  const total = itemCostTotal + serviceFee + tax;
+  const packagingCost = Number(packagingProduct?.basePrice || 0) * recipientCount;
+  const billableSubtotal = itemCostTotal + packagingCost;
+  const serviceFee = billableSubtotal * 0.15;
+  const tax = (billableSubtotal + serviceFee) * 0.18;
+  const total = billableSubtotal + serviceFee + tax;
 
   const updateSurpriseRecipient = (index: number, patch: any) => {
     setSurpriseRecipients((current) => current.map((recipient, i) => i === index ? { ...recipient, ...patch } : recipient));
+  };
+
+  const updateRecipientSelection = (recipientIndex: number, product: KitProduct, patch: Partial<KitItemSelection>) => {
+    setSurpriseRecipients((current) => current.map((recipient, index) => {
+      if (index !== recipientIndex) return recipient;
+      const selections = recipient.selections || [];
+      const existing = selections.find((selection: KitItemSelection) => selection.catalogProductId === product._id);
+      const nextSelection = {
+        catalogProductId: product._id,
+        quantity: 1,
+        ...existing,
+        ...patch,
+      };
+      if (patch.size && existing?.color) {
+        const validColors = getVariantColors(product, patch.size);
+        if (!validColors.includes(existing.color)) {
+          nextSelection.color = '';
+        }
+      }
+      const withoutProduct = selections.filter((selection: KitItemSelection) => selection.catalogProductId !== product._id);
+      return { ...recipient, selections: [...withoutProduct, nextSelection] };
+    }));
+  };
+
+  const updateSingleLocationAddress = (patch: Partial<SingleLocationAddress>) => {
+    setSingleLocationAddress((current) => ({ ...current, ...patch }));
+  };
+
+  const updateSingleLocationVariantQuantity = (product: KitProduct, size: string, color: string, quantity: number) => {
+    setSingleLocationSelections((current) => {
+      const withoutVariant = current.filter((selection) =>
+        !(selection.catalogProductId === product._id && selection.size === size && selection.color === color)
+      );
+      if (!quantity || quantity < 1) return withoutVariant;
+      return [
+        ...withoutVariant,
+        {
+          catalogProductId: product._id,
+          size,
+          color,
+          quantity,
+        },
+      ];
+    });
   };
 
   const buildSurprisePayload = () => surpriseRecipients
     .filter((recipient) => recipient.recipientEmail)
     .map((recipient) => ({
       ...recipient,
-      selections: kit?.items.map((item) => {
-        const product = productFromItem(item);
-        return {
-          catalogProductId: product?._id,
-          color: recipient.color || 'Black',
-          size: recipient.size || 'M',
-          quantity: 1,
-        };
-      }).filter((entry) => entry.catalogProductId) || [],
+      selections: buildKitSelections(kitProducts, recipient.selections || []),
     }));
+
+  const buildSingleLocationSelections = () =>
+    singleLocationSelections
+      .filter((selection) => Number(selection.quantity || 0) > 0)
+      .map((selection) => ({
+        catalogProductId: selection.catalogProductId,
+        size: selection.size,
+        color: selection.color,
+        quantity: Number(selection.quantity || 0),
+      }));
 
   const payNow = async () => {
     if (!kit || !brandId) return;
     if (!canAdvanceRecipients) {
-      toast.error('Resolve MOQ requirements before checkout');
+      toast.error('Resolve delivery requirements before checkout');
       setStep(2);
       return;
     }
@@ -157,8 +295,13 @@ const BrandKitSendWizard = () => {
         kitId: kit._id,
         brandId,
         deliveryMode,
-        recipientEmails: recipients,
-        surpriseRecipients: buildSurprisePayload(),
+        recipientEmails: deliveryMode === 'redeem' ? recipients : [],
+        surpriseRecipients: deliveryMode === 'surprise' ? buildSurprisePayload() : [],
+        singleLocationQuantity: deliveryMode === 'single_location' ? recipientCount : undefined,
+        singleLocationType: deliveryMode === 'single_location' ? singleLocationType : undefined,
+        singleLocationAddress: deliveryMode === 'single_location' ? singleLocationAddress : undefined,
+        singleLocationNotes: deliveryMode === 'single_location' ? singleLocationNotes : undefined,
+        singleLocationSelections: deliveryMode === 'single_location' ? buildSingleLocationSelections() : undefined,
         fromName,
         message,
         sendInviteAt,
@@ -209,9 +352,63 @@ const BrandKitSendWizard = () => {
     }
   };
 
+  const downloadKitQuotation = async () => {
+    if (!kit || !brandId) return;
+    if (!canAdvanceRecipients) {
+      toast.error('Resolve delivery requirements before checkout');
+      setStep(2);
+      return;
+    }
+    setQuoting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const items = kitProducts.map((product) => ({
+        catalogProductId: product._id,
+        productName: product.name,
+        quantity: recipientCount,
+        unitPrice: Number(product.basePrice || 0),
+        uploadedDesignUrls: kit.items
+          .filter((item) => typeof item.catalogProductId !== 'string' && item.catalogProductId._id === product._id)
+          .map((item) => item.uploadedLogoUrl)
+          .filter(Boolean),
+      }));
+      const res = await fetch(`${RAW_API_URL}/api/quotations/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          items,
+          deliveryMode: 'single_address',
+          shippingInfo: deliveryMode === 'single_location' ? singleLocationAddress : undefined,
+          deliveryNote: `${kit.name} kit send quotation. Delivery mode: ${deliveryMode}. ${singleLocationNotes || ''}`,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Failed to create quotation');
+      const pdf = await fetch(`${RAW_API_URL}/api/quotation-pdf/${data.data.orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!pdf.ok) throw new Error('Failed to download quotation PDF');
+      const blob = await pdf.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${data.data.quotationNumber}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Quotation ${data.data.quotationNumber} downloaded. Find it in Draft Orders.`);
+      navigate('/brand/draft-orders');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to download quotation');
+    } finally {
+      setQuoting(false);
+    }
+  };
+
   const steps = [
     { label: 'Items', icon: PackageCheck },
-    { label: 'Recipients', icon: Mail },
+    { label: 'Delivery', icon: Mail },
     { label: 'Experience', icon: CalendarClock },
     { label: 'Checkout', icon: Truck },
   ];
@@ -299,16 +496,16 @@ const BrandKitSendWizard = () => {
           {step === 2 && (
             <Card>
               <CardHeader>
-                <CardTitle>Recipients</CardTitle>
+                <CardTitle>Delivery</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <RadioGroup value={deliveryMode} onValueChange={(value: 'redeem' | 'surprise') => setDeliveryMode(value)} className="grid gap-4 md:grid-cols-2">
+                <RadioGroup value={deliveryMode} onValueChange={(value: DeliveryMode) => setDeliveryMode(value)} className="grid gap-4 lg:grid-cols-3">
                   <label className={`rounded-xl border p-4 ${deliveryMode === 'redeem' ? 'border-primary bg-primary/5' : ''}`}>
                     <div className="flex items-start gap-3">
                       <RadioGroupItem value="redeem" />
                       <div>
                         <div className="font-semibold">Recipients Redeem</div>
-                        <p className="mt-1 text-sm text-muted-foreground">Recipients choose size, color, and shipping address from a private link.</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Recipients choose size, color, and shipping address for applicable products from a private link.</p>
                       </div>
                     </div>
                   </label>
@@ -321,14 +518,19 @@ const BrandKitSendWizard = () => {
                       </div>
                     </div>
                   </label>
+                  <label className={`rounded-xl border p-4 ${deliveryMode === 'single_location' ? 'border-primary bg-primary/5' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <RadioGroupItem value="single_location" />
+                      <div>
+                        <div className="font-semibold">Single Location</div>
+                        <p className="mt-1 text-sm text-muted-foreground">Ship all kit units to one office, event venue, or single address.</p>
+                      </div>
+                    </div>
+                  </label>
                 </RadioGroup>
 
                 {deliveryMode === 'redeem' ? (
-                  <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
-                    <div className="space-y-2">
-                      <Label htmlFor="global-qty">Quantity</Label>
-                      <Input id="global-qty" type="number" min={1} value={globalQty} onChange={(event) => setGlobalQty(Number(event.target.value) || 1)} />
-                    </div>
+                  <div className="grid gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="emails">Emails</Label>
                       <Textarea
@@ -341,7 +543,7 @@ const BrandKitSendWizard = () => {
                       <p className="text-sm text-muted-foreground">{recipients.length} recipient{recipients.length === 1 ? '' : 's'} parsed</p>
                     </div>
                   </div>
-                ) : (
+                ) : deliveryMode === 'surprise' ? (
                   <div className="space-y-4">
                     {surpriseRecipients.map((recipient, index) => (
                       <div key={index} className="grid gap-3 rounded-xl border p-4 md:grid-cols-3">
@@ -352,17 +554,163 @@ const BrandKitSendWizard = () => {
                         <Input placeholder="City" value={recipient.address?.city || ''} onChange={(event) => updateSurpriseRecipient(index, { address: { ...recipient.address, city: event.target.value } })} />
                         <Input placeholder="State" value={recipient.address?.state || ''} onChange={(event) => updateSurpriseRecipient(index, { address: { ...recipient.address, state: event.target.value } })} />
                         <Input placeholder="Zip code" value={recipient.address?.zipCode || ''} onChange={(event) => updateSurpriseRecipient(index, { address: { ...recipient.address, zipCode: event.target.value } })} />
-                        <select className="h-10 rounded-md border bg-background px-3" value={recipient.size || 'M'} onChange={(event) => updateSurpriseRecipient(index, { size: event.target.value })}>
-                          {sizeOptions.map((size) => <option key={size}>{size}</option>)}
-                        </select>
-                        <select className="h-10 rounded-md border bg-background px-3" value={recipient.color || 'Black'} onChange={(event) => updateSurpriseRecipient(index, { color: event.target.value })}>
-                          {colorOptions.map((color) => <option key={color}>{color}</option>)}
-                        </select>
+                        <div className="space-y-3 md:col-span-3">
+                          <div className="text-sm font-semibold">Item choices</div>
+                          {variantProducts.map((product) => {
+                            const selection = (recipient.selections || []).find((entry: KitItemSelection) => entry.catalogProductId === product._id);
+                            const sizes = getVariantSizes(product);
+                            const colors = getVariantColors(product, selection?.size);
+                            return (
+                              <div key={product._id} className="grid gap-3 rounded-lg border bg-muted/20 p-3 md:grid-cols-[1fr_160px_160px] md:items-center">
+                                <div>
+                                  <div className="text-sm font-medium">{product.name}</div>
+                                  <div className="text-xs text-muted-foreground">Size and color required</div>
+                                </div>
+                                <select
+                                  className="h-10 rounded-md border bg-background px-3"
+                                  value={selection?.size || ''}
+                                  onChange={(event) => updateRecipientSelection(index, product, { size: event.target.value })}
+                                >
+                                  <option value="">Select size</option>
+                                  {sizes.map((size) => <option key={size} value={size}>{size}</option>)}
+                                </select>
+                                <select
+                                  className="h-10 rounded-md border bg-background px-3"
+                                  value={selection?.color || ''}
+                                  onChange={(event) => updateRecipientSelection(index, product, { color: event.target.value })}
+                                  disabled={!selection?.size}
+                                >
+                                  <option value="">Select color</option>
+                                  {colors.map((color) => <option key={color} value={color}>{color}</option>)}
+                                </select>
+                              </div>
+                            );
+                          })}
+                          {fixedProducts.map((product) => (
+                            <div key={product._id} className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-muted-foreground">No size/color needed</span>
+                            </div>
+                          ))}
+                          {!variantProducts.length && (
+                            <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                              No kit items need size or color.
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                     <Button variant="outline" onClick={() => setSurpriseRecipients((current) => [...current, { recipientEmail: '', recipientName: '', address: {}, selections: [] }])}>
                       Add recipient
                     </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="single-location-quantity">Total quantity</Label>
+                        <Input
+                          id="single-location-quantity"
+                          type="number"
+                          min={1}
+                          value={singleLocationQuantity}
+                          onChange={(event) => setSingleLocationQuantity(Math.max(0, Number(event.target.value || 0)))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="single-location-type">Location type</Label>
+                        <select
+                          id="single-location-type"
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={singleLocationType}
+                          onChange={(event) => setSingleLocationType(event.target.value as 'office' | 'event' | 'other')}
+                        >
+                          <option value="office">Office address</option>
+                          <option value="event">Event location</option>
+                          <option value="other">Other single location</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        No redemption links are created for this mode.
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 rounded-xl border p-4 md:grid-cols-3">
+                      <Input placeholder="Contact name" value={singleLocationAddress.fullName} onChange={(event) => updateSingleLocationAddress({ fullName: event.target.value })} />
+                      <Input placeholder="Contact email" value={singleLocationAddress.email} onChange={(event) => updateSingleLocationAddress({ email: event.target.value })} />
+                      <Input placeholder="Phone" value={singleLocationAddress.phone} onChange={(event) => updateSingleLocationAddress({ phone: event.target.value })} />
+                      <Input placeholder="Address" value={singleLocationAddress.address1} onChange={(event) => updateSingleLocationAddress({ address1: event.target.value })} />
+                      <Input placeholder="Address line 2" value={singleLocationAddress.address2} onChange={(event) => updateSingleLocationAddress({ address2: event.target.value })} />
+                      <Input placeholder="City" value={singleLocationAddress.city} onChange={(event) => updateSingleLocationAddress({ city: event.target.value })} />
+                      <Input placeholder="State" value={singleLocationAddress.state} onChange={(event) => updateSingleLocationAddress({ state: event.target.value })} />
+                      <Input placeholder="Zip code" value={singleLocationAddress.zipCode} onChange={(event) => updateSingleLocationAddress({ zipCode: event.target.value })} />
+                      <Input placeholder="Country" value={singleLocationAddress.country} onChange={(event) => updateSingleLocationAddress({ country: event.target.value })} />
+                      <Textarea
+                        className="md:col-span-3"
+                        placeholder="Delivery notes, event timing, loading dock instructions, or office floor"
+                        rows={3}
+                        value={singleLocationNotes}
+                        onChange={(event) => setSingleLocationNotes(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-3 rounded-xl border p-4">
+                      <div>
+                        <div className="font-semibold">Item quantity breakdown</div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Variant products must add up to {recipientCount || 0} unit{recipientCount === 1 ? '' : 's'} each.
+                        </p>
+                      </div>
+                      {variantProducts.map((product) => {
+                        const productTotal = sumSelectionQuantityForProduct(product._id, singleLocationSelections);
+                        return (
+                          <div key={product._id} className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <div className="text-sm font-medium">{product.name}</div>
+                                <div className="text-xs text-muted-foreground">Choose quantities by available size and color.</div>
+                              </div>
+                              <Badge variant={productTotal === recipientCount ? 'default' : 'outline'}>
+                                {productTotal}/{recipientCount || 0}
+                              </Badge>
+                            </div>
+                            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                              {getActiveKitVariants(product).map((variant) => {
+                                const existing = singleLocationSelections.find((selection) =>
+                                  selection.catalogProductId === product._id &&
+                                  selection.size === variant.size &&
+                                  selection.color === variant.color
+                                );
+                                return (
+                                  <label key={`${product._id}-${variant.size}-${variant.color}`} className="grid grid-cols-[1fr_96px] items-center gap-3 rounded-md border bg-background p-2 text-sm">
+                                    <span>{variant.size} / {variant.color}</span>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      value={existing?.quantity || ''}
+                                      placeholder="0"
+                                      onChange={(event) => updateSingleLocationVariantQuantity(product, variant.size, variant.color, Number(event.target.value || 0))}
+                                    />
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {fixedProducts.map((product) => (
+                        <div key={product._id} className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-sm">
+                          <span className="font-medium">{product.name}</span>
+                          <span className="text-muted-foreground">Quantity: {recipientCount || 0}, no size/color needed</span>
+                        </div>
+                      ))}
+                      {!variantProducts.length && (
+                        <div className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                          No kit items need size or color. Every selected item will ship in the total quantity above.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -453,11 +801,15 @@ const BrandKitSendWizard = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Complete payment to create the send, reserve MOQ overages, and create recipient redemption links.
+                    Complete payment to create this send, reserve MOQ overages, and prepare fulfillment.
                   </p>
                   <Button className="w-full" size="lg" onClick={payNow} disabled={processing || !recipientCount}>
                     <SendHorizonal className="mr-2 h-4 w-4" />
                     Pay now
+                  </Button>
+                  <Button className="w-full" size="lg" variant="outline" onClick={downloadKitQuotation} disabled={processing || quoting || !recipientCount}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Download Quotation
                   </Button>
                 </CardContent>
               </Card>
@@ -466,8 +818,15 @@ const BrandKitSendWizard = () => {
                   <CardTitle>Order Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  <div className="flex justify-between"><span>Recipients</span><span>{recipientCount}</span></div>
-                  <div className="flex justify-between"><span>Items cost</span><span>₹{itemCostTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between">
+                    <span>{deliveryMode === 'single_location' ? 'Kit units' : 'Recipients'}</span>
+                    <span>{recipientCount}</span>
+                  </div>
+                  <div className="flex justify-between"><span>Kit item cost</span><span>₹{itemCostTotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span>Packaging cost</span><span>₹{packagingCost.toFixed(2)}</span></div>
+                  {overageDecisions.length > 0 && (
+                    <div className="flex justify-between text-amber-700"><span>MOQ overage cost</span><span>Included above</span></div>
+                  )}
                   <div className="flex justify-between"><span>Service fee</span><span>₹{serviceFee.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span>Estimated tax</span><span>₹{tax.toFixed(2)}</span></div>
                   <div className="flex justify-between border-t pt-3 text-lg font-semibold"><span>Total</span><span>₹{total.toFixed(2)}</span></div>

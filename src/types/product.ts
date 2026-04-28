@@ -128,6 +128,7 @@ export interface ProductCatalogueData {
   categoryId: string;
   subcategoryIds: string[];
   basePrice: number; // Base price for the product
+  sampleAvailable?: boolean;
   tags: string[];
   productTypeCode: string; // e.g., "TSHIRT", "MUG", "CAP", "NOTEBOOK"
   attributes: Record<string, any>; // Dynamic attributes based on category/subcategory

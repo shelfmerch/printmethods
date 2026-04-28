@@ -4,7 +4,8 @@ const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const { protect } = require('../middleware/auth');
 const DirectOrder = require('../models/DirectOrder');
-const ALLOWED_STATUSES = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'];
+const CatalogProduct = require('../models/CatalogProduct');
+const ALLOWED_STATUSES = ['on-hold', 'quotation', 'po_received', 'partially_paid', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'];
 
 const getRazorpay = () => {
   const key_id = process.env.RAZORPAY_KEY_ID;
@@ -68,15 +69,30 @@ const assertDirectOrderAccess = (order, user) => {
 // @access Private (merchant/user must be logged in)
 router.post('/razorpay/create', protect, async (req, res) => {
   try {
-    const { items, shippingInfo, deliveryMode, deliveryCountries, deliveryNote } = req.body;
+    const { items, shippingInfo, deliveryMode, deliveryCountries, deliveryNote, orderType = 'direct' } = req.body;
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
     }
 
+    const normalizedItems = items.map((item) => ({ ...item }));
+    if (orderType === 'sample') {
+      const productIds = normalizedItems.map((item) => item.catalogProductId).filter(Boolean);
+      const products = await CatalogProduct.find({ _id: { $in: productIds } }).select('basePrice sampleAvailable').lean();
+      const productById = new Map(products.map((product) => [String(product._id), product]));
+      for (const item of normalizedItems) {
+        const product = productById.get(String(item.catalogProductId));
+        if (!product?.sampleAvailable) {
+          return res.status(400).json({ success: false, message: 'Sample is not available for one or more selected products' });
+        }
+        item.quantity = 1;
+        item.unitPrice = Number(product.basePrice || item.unitPrice || 0);
+      }
+    }
+
     // Compute totals server-side from catalog prices
     let subtotal = 0;
-    for (const item of items) {
+    for (const item of normalizedItems) {
       subtotal += item.unitPrice * item.quantity;
     }
     const total = subtotal; // shipping calculated separately if needed
@@ -90,7 +106,7 @@ router.post('/razorpay/create', protect, async (req, res) => {
       amount: Math.round(total * 100), // paise
       currency: 'INR',
       receipt: buildDirectReceipt(req.user._id),
-      notes: { userId: req.user._id.toString(), orderType: 'direct' },
+      notes: { userId: req.user._id.toString(), orderType },
     });
 
     // Save a pending order record
@@ -99,7 +115,8 @@ router.post('/razorpay/create', protect, async (req, res) => {
       customerEmail: req.user.email || shippingInfo?.email,
       customerName: req.user.name || shippingInfo?.fullName,
       customerPhone: req.user.phone || shippingInfo?.phone,
-      items,
+      orderType: orderType === 'sample' ? 'sample' : 'direct',
+      items: normalizedItems,
       subtotal,
       shipping: 0,
       tax: 0,
@@ -198,7 +215,7 @@ router.post('/razorpay/verify', protect, async (req, res) => {
 // @access Private
 router.get('/', protect, async (req, res) => {
   try {
-    const orders = await DirectOrder.find({ merchantId: req.user._id })
+    const orders = await DirectOrder.find({ merchantId: req.user._id, orderType: { $ne: 'quotation' } })
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();

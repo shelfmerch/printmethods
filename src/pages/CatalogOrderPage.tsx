@@ -52,12 +52,13 @@ interface Product {
   name: string;
   shortDescription?: string;
   basePrice: number;
+  sampleAvailable?: boolean;
   currency: string;
   minimumQuantity: number;
   galleryImages?: { url: string; isPrimary?: boolean }[];
   design?: {
     views: DesignView[];
-    physicalDimensions?: { width?: number; height?: number };
+    physicalDimensions?: { width?: number; height?: number; length?: number };
   };
   colors: { color: string; colorHex: string }[];
   sizes: string[];
@@ -88,6 +89,13 @@ const DEFAULT_TIERS: PricingTier[] = [
   { minQuantity: 20, discountType: 'percentage', discountValue: 6 },
   { minQuantity: 100, discountType: 'percentage', discountValue: 10 },
 ];
+
+const ADMIN_CANVAS_WIDTH = 800;
+const ADMIN_CANVAS_HEIGHT = 600;
+const ADMIN_CANVAS_PADDING = 40;
+const DEFAULT_PHYSICAL_WIDTH = 20;
+const DEFAULT_PHYSICAL_HEIGHT = 24;
+const DEFAULT_PHYSICAL_LENGTH = 18;
 
 const CatalogOrderPage = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -153,16 +161,42 @@ const CatalogOrderPage = () => {
     if (!designView || !designView.placeholders?.length) return null;
 
     const ph = designView.placeholders[0];
-    const physW = product.design.physicalDimensions?.width;
-    const physH = product.design.physicalDimensions?.height;
     const metrics = mockupMetrics[viewKey];
-    if (!physW || !physH || !ph.widthIn || !ph.heightIn || !metrics) return null;
+    if (!ph.widthIn || !ph.heightIn || !metrics) return null;
+
+    const physicalWidth = mapped === 'left' || mapped === 'right'
+      ? product.design.physicalDimensions?.length ?? DEFAULT_PHYSICAL_LENGTH
+      : product.design.physicalDimensions?.width ?? DEFAULT_PHYSICAL_WIDTH;
+    const physicalHeight = product.design.physicalDimensions?.height ?? DEFAULT_PHYSICAL_HEIGHT;
+
+    const effectiveCanvasWidth = ADMIN_CANVAS_WIDTH - (ADMIN_CANVAS_PADDING * 2);
+    const effectiveCanvasHeight = ADMIN_CANVAS_HEIGHT - (ADMIN_CANVAS_PADDING * 2);
+    const pxPerInch = Math.min(effectiveCanvasWidth / physicalWidth, effectiveCanvasHeight / physicalHeight);
+    if (!pxPerInch || !Number.isFinite(pxPerInch)) return null;
+
+    // Match the superadmin CanvasMockup sizing so the saved placeholder is
+    // translated from the admin canvas onto this rendered catalog mockup.
+    const adminImageScale = Math.min(
+      effectiveCanvasWidth / metrics.naturalWidth,
+      effectiveCanvasHeight / metrics.naturalHeight
+    );
+    const adminImageWidth = metrics.naturalWidth * adminImageScale;
+    const adminImageHeight = metrics.naturalHeight * adminImageScale;
+    const adminImageX = ADMIN_CANVAS_PADDING + (effectiveCanvasWidth - adminImageWidth) / 2;
+    const adminImageY = ADMIN_CANVAS_PADDING + (effectiveCanvasHeight - adminImageHeight) / 2;
 
     const scale = ph.scale && ph.scale > 0 ? ph.scale : 1;
-    const top = metrics.offsetY + metrics.renderedHeight * (ph.yIn / physH);
-    const left = metrics.offsetX + metrics.renderedWidth * (ph.xIn / physW);
-    const width = metrics.renderedWidth * ((ph.widthIn * scale) / physW);
-    const height = metrics.renderedHeight * ((ph.heightIn * scale) / physH);
+    const placeholderX = ADMIN_CANVAS_PADDING + ph.xIn * pxPerInch;
+    const placeholderY = ADMIN_CANVAS_PADDING + ph.yIn * pxPerInch;
+    const placeholderWidth = ph.widthIn * pxPerInch * scale;
+    const placeholderHeight = ph.heightIn * pxPerInch * scale;
+
+    const scaleX = metrics.renderedWidth / adminImageWidth;
+    const scaleY = metrics.renderedHeight / adminImageHeight;
+    const left = metrics.offsetX + (placeholderX - adminImageX) * scaleX;
+    const top = metrics.offsetY + (placeholderY - adminImageY) * scaleY;
+    const width = placeholderWidth * scaleX;
+    const height = placeholderHeight * scaleY;
 
     return {
       top: `${top}px`,
@@ -367,6 +401,35 @@ const CatalogOrderPage = () => {
     }
   };
 
+  const handleRequestSample = () => {
+    if (!product) return;
+    const firstVariant = product.variants[0];
+    const firstColor = product.colors[0];
+    const sampleItem = {
+      catalogProductId: product._id,
+      productName: product.name,
+      variantId: firstVariant?._id,
+      color: firstVariant?.color || firstColor?.color || '',
+      colorHex: firstVariant?.colorHex || firstColor?.colorHex || '',
+      size: firstVariant?.size || product.sizes[0] || '',
+      quantity: 1,
+      unitPrice: product.basePrice,
+      decorationMethodId: selectedMethod || undefined,
+      decorationMethodName: product.printMethods.find(m => m._id === selectedMethod)?.name,
+      uploadedDesignUrls: [],
+      primaryImage: getViewImage('front'),
+      sampleRequest: true,
+    };
+    localStorage.setItem('catalogCart', JSON.stringify([sampleItem]));
+    toast.success('Sample added to checkout');
+    if (!user) {
+      sessionStorage.setItem('returnTo', '/direct-checkout');
+      navigate('/auth');
+    } else {
+      navigate('/direct-checkout');
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -454,18 +517,7 @@ const CatalogOrderPage = () => {
                 </div>
               )}
 
-              {/* Fallback overlay (centered) when no placeholder data */}
-              {designPreviews[activeView] && !overlayStyle && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <img
-                    src={designPreviews[activeView]}
-                    alt="Your design"
-                    className="w-1/3 h-auto object-contain opacity-90 drop-shadow-md"
-                  />
-                </div>
-              )}
-
-              {designPreviews[activeView] && (
+              {designPreviews[activeView] && overlayStyle && (
                 <div className="absolute bottom-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
                   Design preview — {activeView}
                 </div>
@@ -710,6 +762,20 @@ const CatalogOrderPage = () => {
             </div>
 
             {/* CTA */}
+            {product.sampleAvailable && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">Sample available</p>
+                <p className="text-sm text-amber-800 mt-1">Request 1 sample unit before placing a full order.</p>
+                <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                  <Button variant="outline" onClick={handleRequestSample} className="bg-white">
+                    Request Sample
+                  </Button>
+                  <Button variant="ghost" onClick={handleAddToCart} disabled={adding || totalQty === 0}>
+                    Proceed with Full Order
+                  </Button>
+                </div>
+              </div>
+            )}
             <Button
               onClick={handleAddToCart}
               disabled={adding || totalQty === 0}
