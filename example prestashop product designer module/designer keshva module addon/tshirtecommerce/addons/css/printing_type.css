@@ -1,0 +1,36 @@
+#printTypeModal .modal-body {
+    display: inline-block;
+    overflow: auto;
+    width: 100%;
+    padding: 0;
+}
+.box_printing {
+    padding: 15px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+}
+.box_printing:hover{
+background: #f1f1f1;
+}
+.box_printing.active{
+	background: #f1f1f1;
+}
+#printing-type {
+    border-top: 1px solid #f1f1f1;
+    padding-top: 15px;
+}
+.printing-type-modal h3{border:none!important;margin:0!important;padding:0!important}
+.printing-type-modal img{max-width:70px;max-height:60px}
+small.print-description {
+    clear: both;
+    display: block;
+    text-align: left;
+    padding-bottom: 8px;
+    padding-top: 10px;
+}
+#printing-type label {
+    font-weight: 500;
+    width: 100%;
+}

@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { RAW_API_URL } from '@/config';
+import { fetchWithApiAuth } from '@/lib/api';
 
 const METHOD_CODES = [
   { value: 'dtf',         label: 'DTF (Direct to Film)' },
@@ -84,17 +84,21 @@ export default function PrintMethods() {
   const [form, setForm] = useState<PrintMethodForm>(EMPTY_FORM);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const token = localStorage.getItem('token');
+  const parseApiResponse = async (res: Response) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || `Request failed with status ${res.status}`);
+    }
+    return data;
+  };
 
   const fetchMethods = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${RAW_API_URL}/api/print-methods`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success) setMethods(data.data);
-    } catch { toast.error('Failed to load print methods'); }
+      const res = await fetchWithApiAuth('/print-methods');
+      const data = await parseApiResponse(res);
+      setMethods(data.data);
+    } catch (err: any) { toast.error(err.message || 'Failed to load print methods'); }
     finally { setLoading(false); }
   };
 
@@ -129,15 +133,14 @@ export default function PrintMethods() {
     setSaving(true);
     try {
       const url = editing
-        ? `${RAW_API_URL}/api/print-methods/${editing._id}`
-        : `${RAW_API_URL}/api/print-methods`;
-      const res = await fetch(url, {
+        ? `/print-methods/${editing._id}`
+        : '/print-methods';
+      const res = await fetchWithApiAuth(url, {
         method: editing ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
+      await parseApiResponse(res);
       toast.success(editing ? 'Updated' : 'Print method created');
       setDialogOpen(false);
       fetchMethods();
@@ -148,12 +151,10 @@ export default function PrintMethods() {
   const handleDelete = async (m: PrintMethod) => {
     if (!confirm(`Delete "${m.name}"? This will unlink it from products.`)) return;
     try {
-      const res = await fetch(`${RAW_API_URL}/api/print-methods/${m._id}`, {
+      const res = await fetchWithApiAuth(`/print-methods/${m._id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
+      await parseApiResponse(res);
       toast.success('Deleted');
       setMethods(prev => prev.filter(x => x._id !== m._id));
     } catch (err: any) { toast.error(err.message || 'Failed to delete'); }
@@ -161,13 +162,12 @@ export default function PrintMethods() {
 
   const toggleActive = async (m: PrintMethod) => {
     try {
-      const res = await fetch(`${RAW_API_URL}/api/print-methods/${m._id}`, {
+      const res = await fetchWithApiAuth(`/print-methods/${m._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: !m.active }),
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message);
+      const data = await parseApiResponse(res);
       setMethods(prev => prev.map(x => x._id === m._id ? data.data : x));
     } catch (err: any) { toast.error(err.message || 'Failed to update'); }
   };

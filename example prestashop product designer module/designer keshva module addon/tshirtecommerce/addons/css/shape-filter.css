@@ -1,0 +1,18 @@
+#svgIconList{float:left}
+#svgFilterModal .modal-body{text-align:center;padding: 0;}
+#filter-link-pop{text-align:left;margin-top:3px;margin-right:3px}
+#maskShapeMove{position:absolute;border:1px dashed #F5EBEB;z-index:100}
+#svgShapeWraper{position:relative;margin:0 auto}
+#svgFilterModal .modal-footer{z-index:99}
+#svgFilter{position:absolute;top:0;left:0}
+#svgOrg{position:absolute;top:0;left:0}
+#maskShapeOverlay{position:absolute;top:0;left:0;background-color:#000;opacity:.5;z-index:5}
+.shapCollection{width:30px;height:30px;cursor:pointer;margin-right:10px;border:1px solid #ccc;border-radius:3px}
+.StupidIE{width:100%;height:100%;position:absolute;top:0;left:0}
+#maskShapeMove .item-mask-move{position:absolute;top:-18px;left:-18px;cursor:move!important;background-color:#fff;height:18px;width:18px;border-radius:2px;border:1px solid #777;display:block;line-height:15px}
+#maskShapeMove .ui-resizable-se{background-color:#fff;height:18px;width:18px;border-radius:2px;border:1px solid #777;display:block}
+.shapeRatio{float:right;margin-right:25px;font-weight:400;cursor:pointer}
+#maskShapeMove .ui-resizable-e{background-color:transparent;background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAIxJREFUeNqMUDEOgCAMrA58CFZX3uDIU/iBX3D0DawkTCS8xhBYao84aOLgJZdy10sLTMxMgDHGSVmFizAKj5zzPpoIaa037z2nlLjWOio0/DFEDg5Ga42fgL6DbsYKay0ppegJaPjjCpI8seIL8NHHpFhKoS/cfkToCCFQ7/0VgIaP/q/XTX/+6RJgAEc6j4dkIiynAAAAAElFTkSuQmCC);background-position:center center;background-repeat:no-repeat;border:0 none;box-shadow:none;height:100%;right:-5px;top:0;width:9px}
+#maskShapeMove .ui-resizable-s{background-color:transparent;background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAIxJREFUeNqMUDEOgCAMrA58CFZX3uDIU/iBX3D0DawkTCS8xhBYao84aOLgJZdy10sLTMxMgDHGSVmFizAKj5zzPpoIaa037z2nlLjWOio0/DFEDg5Ga42fgL6DbsYKay0ppegJaPjjCpI8seIL8NHHpFhKoS/cfkToCCFQ7/0VgIaP/q/XTX/+6RJgAEc6j4dkIiynAAAAAElFTkSuQmCC);background-position:center center;background-repeat:no-repeat;border:0 none;bottom:-5px;box-shadow:none;height:9px;width:100%}
+#svgFilterModal .image_crop_scroll{width:100px;height:100px;z-index:-1;position:absolute;top:0;left:0}
+#svgFilterModal .select_crop_scroll{width:0;height:0;z-index:-1;overflow:scroll;position:absolute;top:0;left:0}

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/config';
+import { authenticatedApiFetch } from '@/lib/shopifyFetch';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -26,6 +27,18 @@ export class ApiError extends Error {
 // Get token from localStorage
 const getToken = (): string | null => {
   return localStorage.getItem('token');
+};
+
+export const fetchWithApiAuth = (
+  endpoint: string | URL,
+  options: RequestInit = {}
+): Promise<Response> => {
+  const endpointString = endpoint.toString();
+  const url = /^https?:\/\//i.test(endpointString)
+    ? endpointString
+    : `${API_BASE_URL}${endpointString.startsWith('/') ? endpointString : `/${endpointString}`}`;
+
+  return authenticatedApiFetch(url, options);
 };
 
 // Store Products API

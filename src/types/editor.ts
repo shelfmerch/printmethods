@@ -213,7 +213,20 @@ export interface Product {
     };
     displacementSettings?: DisplacementSettings;
   };
-  galleryImages?: Array<{ url: string; isPrimary?: boolean }>;
-  availableColors?: string[];
-  availableSizes?: string[];
-}
+    galleryImages?: Array<{ url: string; isPrimary?: boolean }>;
+    availableColors?: string[];
+    availableSizes?: string[];
+    allowedPrintMethodIds?: Array<string | {
+      _id?: string;
+      id?: string;
+      name?: string;
+      code?: string;
+      active?: boolean;
+      moq?: number;
+      hasColors?: boolean;
+      minColors?: number;
+      maxColors?: number;
+      baseRatePaisePerSqIn?: number;
+      colorRatePaise?: number;
+    }>;
+  }

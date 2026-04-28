@@ -1,0 +1,125 @@
+.is-selected{position:absolute;overflow:hidden;cursor:move;z-index:11}
+.mask_div{position:absolute;background-color:#000;opacity:.5;z-index:5;top:0;left:0;height:100%;width:100%}
+#crop-link-pop{margin-top:3px;margin-right:3px}
+#image_wraper{position:relative;margin:auto;width:700px;height:437px}
+#image_crop{position:absolute;width:700px;height:437px;z-index:10;top:-10px;left:-10px}
+#cropModal .modal-body{overflow:auto;background:#fff}
+#mask_select{position:absolute;border:1px dashed #F5EBEB;cursor:move;z-index:50}
+#mask_select .ui-resizable-handle{background-color:#fff;border:1px solid #777;border-radius:2px;display:block;height:22px;position:absolute;width:22px}
+#mask_select .item-mask-move {background-color: #fff;border: 1px solid #777;border-radius: 2px;display: block;height: 22px;position: absolute;width: 22px;color: #333;left: -22px;top: -22px;padding-top: 1px;line-height: 19px;padding-left: 1px;text-align: center;
+}
+#image_crop_scroll{width:100px;height:100px;z-index:-1;position:absolute;top:0;left:0}
+#select_crop_scroll{width:0;height:0;z-index:-1;overflow:scroll;position:absolute;top:0;left:0}
+#cropModal .proportion-area{float:left}
+#cropModal .proportion-area label{font-weight:400;cursor:pointer}
+#cropModal .proportion-area input{position:relative;top:2px;cursor:pointer}
+#mask_select .ui-resizable-e{background-color:transparent;background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAIxJREFUeNqMUDEOgCAMrA58CFZX3uDIU/iBX3D0DawkTCS8xhBYao84aOLgJZdy10sLTMxMgDHGSVmFizAKj5zzPpoIaa037z2nlLjWOio0/DFEDg5Ga42fgL6DbsYKay0ppegJaPjjCpI8seIL8NHHpFhKoS/cfkToCCFQ7/0VgIaP/q/XTX/+6RJgAEc6j4dkIiynAAAAAElFTkSuQmCC);background-position:center center;background-repeat:no-repeat;border:0 none;box-shadow:none;height:100%;right:-5px;top:0;width:9px}
+#mask_select .ui-resizable-s{background-color:transparent;background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAIxJREFUeNqMUDEOgCAMrA58CFZX3uDIU/iBX3D0DawkTCS8xhBYao84aOLgJZdy10sLTMxMgDHGSVmFizAKj5zzPpoIaa037z2nlLjWOio0/DFEDg5Ga42fgL6DbsYKay0ppegJaPjjCpI8seIL8NHHpFhKoS/cfkToCCFQ7/0VgIaP/q/XTX/+6RJgAEc6j4dkIiynAAAAAElFTkSuQmCC);background-position:center center;background-repeat:no-repeat;border:0 none;bottom:-5px;box-shadow:none;height:9px;width:100%}
+.mask-item.is_crop {
+    border: 0!important;
+    padding: 0!important;
+    margin: 0!important;
+    visibility: hidden;
+    opacity: 0!important;
+}
+.mask-item.is_crop .item-rotate-on {
+    display: none!important;
+}
+.wapper-item-crop {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    opacity: 0.7;
+}
+.area-item-crop {
+    position: absolute;
+    outline:1px dashed #fff;
+    z-index: 10000;
+    background-repeat: no-repeat;
+    cursor: move!important;
+    opacity: 1;
+}
+span.bg-item-crop {
+    position: absolute;
+    z-index: 1000;
+    background-size: 100% 100%;
+    border: 0;
+    cursor: move;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+}
+.hidden-crop {
+    opacity: 0;
+    visibility: hidden;
+}
+.area-item-crop > div.ui-resizable-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: none;
+}
+.area-item-crop > .ui-resizable-handle.ui-resizable-nw {
+    top: -10px;
+    left: -10px;
+}
+.area-item-crop > .ui-resizable-handle.ui-resizable-sw {
+    left: -10px;
+    bottom: -10px;
+    transform: rotate(270deg);
+}
+.area-item-crop > .ui-resizable-handle.ui-resizable-se {
+    right: -10px;
+    bottom: -10px;
+    transform: rotate(180deg);
+    text-indent: 0;
+}
+.area-item-crop > .ui-resizable-handle.ui-resizable-ne {
+    top: -10px;
+    right: -10px;
+    transform: rotate(90deg);
+    text-indent: 0;
+}
+.bg-item-crop > div.ui-resizable-handle {
+    background: #333;
+    border: 2px solid rgb(255, 255, 255);
+    border-radius: 100%;
+    box-shadow: 0 0 2px 0 rgba(0,0,0,.51);
+    display: block;
+    height: 12px;
+    position: absolute;
+    width: 12px;
+}
+.bg-item-crop::before {
+    content: '';
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+.drag-item.overflow-hidden svg {
+    overflow: hidden!important;
+}
+div#crop-toolbar.dg-options-toolbar {
+    display: block;
+    position: absolute;
+    top: -27px;
+    left: 10px;
+    margin: auto;
+}
+#crop-toolbar i:before {
+    color: #fff;
+    font-size: 11px;
+}
+#crop-toolbar button.btn.btn-default {
+    font-size: 11px;
+    height: 26px;
+    padding: 4px 6px;
+    border-color: #333;
+    background-color: #000;
+    color: #fff;
+}

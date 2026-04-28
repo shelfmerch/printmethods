@@ -1,0 +1,66 @@
+.image-shapes{position:fixed;overflow:auto;height: 100%;top:0;left:0;background-color:#fff;z-index:10000;right:0;margin:auto;text-align:center;display:none;bottom:0}
+div#admin-template.shape-builder{margin:0!important;}
+.main-shapes {
+    overflow: auto;
+    text-align: center;
+    display: inline-block;
+    margin-bottom: -4px;
+    position: relative;
+
+}
+.image-shapes .btn{margin-left:10px}
+.image-shapes > .panel{border-radius:0;overflow:hidden;border: 0;}
+.shapes-body {
+    float: left;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background-color: #666;
+        overflow: auto;
+}
+.image-shapes .active.btn-tools-shapes {
+    background-color: #000;
+    border:0;
+    color: #fff;
+}
+.image-shapes .active.btn-tools-shapes i::before{color: #fff;}
+.main-shapes canvas, .main-shapes svg{overflow:hidden;display:block;margin:auto;cursor:copy}
+.main-shapes.cursor-default canvas, .main-shapes.cursor-default svg{cursor:crosshair}
+.list-shapes {
+    float: left;
+    width: 100%;
+}
+.box-shape{position:relative;display:inline-block;float:left;margin:12px;border:1px solid #ddd;border-radius:3px;cursor:pointer}
+.list-shapes canvas, .list-shapes svg{height:150px;float:left;width:auto}
+.image-shapes .shapes-tools {
+    margin: auto;
+    display: inline-block;
+}
+.main-shapes.cursor-default svg {
+    position: absolute;
+    z-index: 100;
+    top: 0;
+    left: 0;
+}
+span.shape-remove {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    background-color: #ff0000;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    width: 22px;
+    height: 22px;
+    line-height: 20px;
+    border-radius: 0 3px 0 0;
+}
+.items-shapes{clear:both;display:block;overflow:hidden}
+span.shape-item{height:60px;float:left;overflow:hidden;margin:3px;border:1px solid #ddd;border-radius:3px;text-align:center;cursor:pointer}
+span.shape-item canvas,span.shape-item img,span.shape-item svg{width:auto;height:58px;display:inline-block;margin:auto}
+span.preview-shape{position:absolute;z-index:10000000}
+.preview-shape canvas, .preview-shape svg{float:left;opacity:.6;width: 100%;height: 100%;}
+span.shape-mask{position:absolute;top:0;left:0;background-color:#428bca;z-index:10000000;bottom:0;right:0;width:34px;margin:auto;border-radius:3px;color:#fff;font-size:16px;height:30px}
+span.shape-mask > span{border-right:1px solid #ddd;float:left;padding:4px 10px;cursor:pointer}
+span.shape-mask > span:last-child{border:0}
+.panel-black .panel-heading {background-color: #222;color: #fff;padding: 15px;border: 0;border-radius: 0;}

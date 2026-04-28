@@ -1,0 +1,29 @@
+/** area color change css */
+span.art-color-opp-desc {
+	cursor: pointer;
+}
+#artColorAreaChange .svgWraper {
+	text-align: center;
+}
+#artColorAreaChange .areaColorSel {
+	float: right;
+	margin-right: 10px;
+}
+#artColorAreaChange .selected-color {
+	width: 40px;
+	height: 34px;
+}
+.toolbar-action-area-colors .areaColorBtn {
+	padding-left: 15px;
+}
+.art-color-opp {
+	float: right;
+	margin-right: 15px;
+}
+.crosshairPoint {
+	cursor: crosshair;
+}
+.areaColorSel .popover-content {
+    padding: 0;
+    margin-top: -8px;
+}

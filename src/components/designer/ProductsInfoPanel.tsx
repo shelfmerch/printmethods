@@ -31,26 +31,32 @@ interface ProductVariant {
   isActive?: boolean;
 }
 
+interface PrintMethod {
+  _id?: string;
+  id?: string;
+  name?: string;
+  code?: string;
+  active?: boolean;
+  moq?: number;
+  hasColors?: boolean;
+  minColors?: number;
+  maxColors?: number;
+  baseRatePaisePerSqIn?: number;
+  colorRatePaise?: number;
+}
+
+interface CurrentPrintArea {
+  width: number;
+  height: number;
+  area: number;
+}
+
 // Store multiple sizes per color as Record<colorName, Set<size>>
 // But pass/receive as Record<colorName, string[]> for serialization
-
-interface PrintMethodOption {
-  _id: string;
-  name: string;
-  code: string;
-  moq: number;
-  baseRatePaisePerSqIn: number;
-  hasColors: boolean;
-  colorRatePaise: number;
-  minColors: number;
-  active: boolean;
-  description?: string;
-}
 
 interface Product {
   _id?: string;
   id?: string;
-  basePrice?: number;
   catalogue?: {
     name?: string;
     description?: string;
@@ -69,7 +75,7 @@ interface Product {
   availableColors?: string[];
   availableSizes?: string[];
   variants?: ProductVariant[];
-  allowedPrintMethodIds?: PrintMethodOption[];
+  allowedPrintMethodIds?: Array<PrintMethod | string>;
 }
 
 // Helper function to convert color name to hex code
@@ -161,7 +167,7 @@ export const ProductInfoPanel: React.FC<{
   PX_PER_INCH = 10,
   selectedPrintMethodId = null,
   onPrintMethodChange,
-  designAreaSqIn,
+  designAreaSqIn = 0,
   selectedPrintMethodsByView = {},
   designAreaByView = {},
   currentView = 'front',
@@ -282,6 +288,67 @@ export const ProductInfoPanel: React.FC<{
       });
     }, [allAvailableColors, product?.variants]);
 
+    const activePrintMethods = useMemo(() => {
+      return (product?.allowedPrintMethodIds || [])
+        .filter((method) => {
+          if (!method || typeof method === 'string') return !!method;
+          return method.active !== false;
+        });
+    }, [product?.allowedPrintMethodIds]);
+
+    const getPrintMethodId = (method: PrintMethod | string): string => {
+      return typeof method === 'string' ? method : (method._id || method.id || method.code || method.name || '');
+    };
+
+    const getPrintMethodLabel = (method: PrintMethod | string): string => {
+      if (typeof method === 'string') return method;
+      const name = method.name || method.code || method._id || method.id || 'Print method';
+      return method.code && method.name && method.code !== method.name ? `${method.name} (${method.code})` : name;
+    };
+
+    const getPrintMethodName = (method: PrintMethod | string): string => {
+      return typeof method === 'string' ? method : (method.name || method.code || 'Print method');
+    };
+
+    const getPrintMethodCode = (method: PrintMethod | string): string | null => {
+      return typeof method === 'string' ? null : (method.code || null);
+    };
+
+    const currentPrintArea = useMemo<CurrentPrintArea>(() => {
+      const view = product?.design?.views?.find(v => v.key === currentView);
+      const placeholdersForView = view?.placeholders || [];
+      if (placeholdersForView.length === 0) {
+        return { width: 0, height: 0, area: Math.max(0, designAreaByView[currentView] || designAreaSqIn || 0) };
+      }
+
+      const totalArea = placeholdersForView.reduce((sum, placeholder) => {
+        return sum + ((placeholder.widthIn || 0) * (placeholder.heightIn || 0));
+      }, 0);
+      const first = placeholdersForView[0];
+      return {
+        width: first.widthIn || 0,
+        height: first.heightIn || 0,
+        area: totalArea,
+      };
+    }, [product?.design?.views, currentView, designAreaByView, designAreaSqIn]);
+
+    const chargeableArea = Math.max(
+      0,
+      designAreaByView[currentView] || designAreaSqIn || currentPrintArea.area || 0
+    );
+
+    const getPrintMethodCost = (method: PrintMethod | string, area: number): number | null => {
+      if (typeof method === 'string') return null;
+      const areaCharge = (method.baseRatePaisePerSqIn ?? 0) * area;
+      const extraColors = method.hasColors ? Math.max(0, 1 - (method.minColors ?? 1)) : 0;
+      const colorCharge = method.hasColors ? ((method.colorRatePaise ?? 0) * extraColors) : 0;
+      return Math.round(areaCharge + colorCharge) / 100;
+    };
+
+    const selectedPrintMethod = activePrintMethods.find(method => getPrintMethodId(method) === selectedPrintMethodId);
+    const selectedMethodCost = selectedPrintMethod ? getPrintMethodCost(selectedPrintMethod, chargeableArea) : null;
+    const selectedSidesCount = Object.values(selectedPrintMethodsByView).filter(Boolean).length;
+
     if (isLoading) {
       return (
         <div className="flex items-center justify-center py-8">
@@ -340,10 +407,10 @@ export const ProductInfoPanel: React.FC<{
                         // <Checkbox>
 
                         className={`
-                        flex items-center gap-2 p-2 rounded-md border-2
+                        flex items-center gap-3 px-3 py-3 rounded-md border-2 cursor-pointer transition-all
                         ${isColorSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                            ? 'border-[#22c55e] bg-[#22c55e]/5'
+                            : 'border-border hover:border-[#22c55e]/60 hover:bg-muted/50'
                           }
                       `}
                         onClick={() => setExpandedColor(isExpanded ? null : color)}
@@ -355,7 +422,7 @@ export const ProductInfoPanel: React.FC<{
                             borderColor: color === 'White' || color === 'Clear' ? '#E5E7EB' : 'rgba(0, 0, 0, 0.2)',
                           }}
                         />
-                        <span className="text-sm font-medium flex-1">{color}</span>
+                        <span className="text-base font-medium flex-1">{color}</span>
                         {sizesForColor.length > 0 && (
                           <div className="p-1">
                             {isExpanded ? (
@@ -472,154 +539,86 @@ export const ProductInfoPanel: React.FC<{
             </div>
           )}
 
-
-
-
-          {/* PRINT METHOD Section */}
-          {product.allowedPrintMethodIds && product.allowedPrintMethodIds.length > 0 && (() => {
-            const allMethods = product.allowedPrintMethodIds!;
-            const blankCost = product.basePrice ?? product.catalogue?.basePrice ?? 0;
-
-            // Helper: compute print cost for a method + area
-            const computePrintCost = (pm: PrintMethodOption, area: number) => {
-              const areaCharge = (pm.baseRatePaisePerSqIn ?? 0) * area;
-              const extraColors = pm.hasColors ? Math.max(0, 1 - (pm.minColors ?? 1)) : 0;
-              const colorCharge = pm.hasColors ? ((pm.colorRatePaise ?? 0) * extraColors) : 0;
-              return Math.round(areaCharge + colorCharge) / 100;
-            };
-
-            // Get placeholder area for a specific view key
-            const getPlaceholderArea = (viewKey: string) => {
-              const viewData = (product.design?.views ?? []).find(v => v.key === viewKey);
-              if (!viewData) return 0;
-              return (viewData.placeholders ?? []).reduce((s, ph) => s + ((ph.widthIn ?? 0) * (ph.heightIn ?? 0)), 0);
-            };
-
-            // Views that have a selected method
-            const configuredViews = Object.entries(selectedPrintMethodsByView)
-              .filter(([, methodId]) => methodId != null)
-              .map(([viewKey, methodId]) => {
-                const pm = allMethods.find(m => m._id === methodId);
-                if (!pm) return null;
-                const area = (designAreaByView[viewKey] ?? 0) > 0
-                  ? designAreaByView[viewKey]
-                  : getPlaceholderArea(viewKey);
-                const printCost = computePrintCost(pm, area);
-                return { viewKey, pm, area, printCost };
-              })
-              .filter(Boolean) as Array<{ viewKey: string; pm: PrintMethodOption; area: number; printCost: number }>;
-
-            const totalPrintCost = configuredViews.reduce((s, v) => s + v.printCost, 0);
-            const grandTotal = blankCost + totalPrintCost;
-
-            // Current view area
-            const currentAreaActual = designAreaSqIn ?? 0;
-            const currentAreaFallback = getPlaceholderArea(currentView);
-            const currentArea = currentAreaActual > 0 ? currentAreaActual : currentAreaFallback;
-            const currentAreaIsActual = currentAreaActual > 0;
-            const approxSide = Math.sqrt(currentArea);
-
-            return (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Printer className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-sm font-semibold uppercase text-foreground">PRINT METHOD</Label>
-                </div>
-
-                {/* Cost summary — shown when at least one view has a selection */}
-                {configuredViews.length > 0 && (
-                  <div className="rounded-lg border bg-muted/30 overflow-hidden text-xs">
-                    <div className="px-3 py-2 bg-muted/50 font-semibold text-[11px] uppercase tracking-wide text-muted-foreground">
-                      Cost Breakdown (per piece)
-                    </div>
-                    <div className="divide-y divide-border">
-                      <div className="flex justify-between px-3 py-2 text-muted-foreground">
-                        <span>Blank garment</span>
-                        <span className="font-medium text-foreground">₹{blankCost.toFixed(2)}</span>
-                      </div>
-                      {configuredViews.map(({ viewKey, pm, printCost }) => (
-                        <div key={viewKey} className="flex justify-between px-3 py-2">
-                          <span className="text-muted-foreground capitalize">
-                            {viewKey} <span className="text-foreground font-medium">· {pm.name}</span>
-                          </span>
-                          <span className="font-medium text-foreground">₹{printCost.toFixed(2)}</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between px-3 py-2.5 bg-primary/5 font-semibold text-primary">
-                        <span>Total</span>
-                        <span>₹{grandTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Current view section */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      {currentView} side
-                    </span>
-                    {currentArea > 0 && (
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-mono ${
-                        currentAreaIsActual
-                          ? 'border-blue-200 bg-blue-50 text-blue-700'
-                          : 'border-muted bg-muted/40 text-muted-foreground'
-                      }`}>
-                        {approxSide.toFixed(1)}" × {approxSide.toFixed(1)}"
-                        {currentAreaIsActual ? ' · your design' : ' · max area'}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2">
-                    {allMethods.filter(pm => pm.active !== false && (selectedPrintMethodId === null || selectedPrintMethodId === pm._id)).map(pm => {
-                      const isSelected = selectedPrintMethodId === pm._id;
-                      const printCostRupees = computePrintCost(pm, currentArea);
-
-                      return (
-                        <button
-                          key={pm._id}
-                          type="button"
-                          onClick={() => onPrintMethodChange?.(isSelected ? null : pm._id)}
-                          className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors w-full ${
-                            isSelected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50'
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{pm.name}</span>
-                              <span className="text-xs bg-muted rounded px-1.5 py-0.5 uppercase font-mono">{pm.code}</span>
-                              {pm.moq > 1 && <span className="text-xs text-muted-foreground">MOQ: {pm.moq}</span>}
-                            </div>
-                            {pm.description && (
-                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{pm.description}</p>
-                            )}
-                            {printCostRupees > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1.5">
-                                Print cost: <span className={`font-semibold ${isSelected ? 'text-primary' : 'text-foreground'}`}>₹{printCostRupees.toFixed(2)}</span>
-                              </p>
-                            )}
-                          </div>
-                          {isSelected && (
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <Badge className="text-xs">Selected</Badge>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); onPrintMethodChange?.(null); }}
-                                className="text-[10px] text-muted-foreground underline hover:text-foreground"
-                              >
-                                Change
-                              </button>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+          {activePrintMethods.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Printer className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-base font-semibold uppercase text-foreground">
+                  PRINT METHOD
+                </Label>
               </div>
-            );
-          })()}
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {currentView} side
+                </span>
+                {currentPrintArea.width > 0 && currentPrintArea.height > 0 && (
+                  <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+                    {currentPrintArea.width.toFixed(1)}&quot; x {currentPrintArea.height.toFixed(1)}&quot; · max area
+                  </Badge>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {activePrintMethods.map((method) => {
+                  const methodId = getPrintMethodId(method);
+                  if (!methodId) return null;
+
+                  const isSelected = selectedPrintMethodId === methodId;
+                  const cost = getPrintMethodCost(method, chargeableArea);
+                  const code = getPrintMethodCode(method);
+
+                  return (
+                    <button
+                      key={methodId}
+                      type="button"
+                      onClick={() => onPrintMethodChange?.(isSelected ? null : methodId)}
+                      className={`w-full rounded-md border p-4 text-left transition-all ${
+                        isSelected
+                          ? 'border-[#22c55e] bg-[#22c55e]/5'
+                          : 'border-border bg-background hover:border-[#22c55e]/70'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-semibold text-foreground">
+                          {getPrintMethodName(method)}
+                        </span>
+                        {code && (
+                          <Badge variant="secondary" className="rounded px-2 py-0.5 text-[11px] font-medium">
+                            {code}
+                          </Badge>
+                        )}
+                        {typeof method !== 'string' && method.moq ? (
+                          <span className="text-xs text-muted-foreground">MOQ: {method.moq}</span>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
+                        <span>Print cost:</span>
+                        <span className="font-bold text-foreground">
+                          {cost !== null ? `Rs ${cost.toFixed(2)}` : 'Unavailable'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activePrintMethods.length > 1 && !selectedPrintMethodId && (
+                <p className="text-xs text-muted-foreground">
+                  Choose a print method for this side to include it in product pricing.
+                </p>
+              )}
+
+              {selectedMethodCost !== null && selectedPrintMethodId && (
+                <p className="text-xs text-muted-foreground">
+                  Current side decoration cost is Rs {selectedMethodCost.toFixed(2)}.
+                </p>
+              )}
+            </div>
+          )}
+
+
+
 
         </div>
       </div>

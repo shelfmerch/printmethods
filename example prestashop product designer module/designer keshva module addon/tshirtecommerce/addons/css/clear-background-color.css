@@ -1,0 +1,32 @@
+#clear-color-link-pop{
+	margin-top: 3px;
+	margin-right: 3px;
+}
+#clear_color_image_wraper{
+	margin: 0 auto;
+}
+#clear-backgound-color-select {
+	float: right;
+    right: 20px;
+}
+#dataSel {
+	display: none;
+}
+#dropdownMenu1 {
+	height: 30px;
+    width: 30px;
+    margin-right: 10px;
+}
+#loadOriginImageClearColor {
+	margin-right: 20px;
+}
+.selectColorAble{
+	cursor:crosshair;
+}
+.clearColorCaption {
+	float: left;
+    font-style: italic;
+}
+#dg-modal .modal-header .pull-right {
+    padding-right: 30px;
+}
