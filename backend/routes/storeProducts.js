@@ -477,14 +477,6 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const willBeLive =
-      (updates.status === 'published' || sp.status === 'published') &&
-      (typeof updates.isActive === 'boolean' ? updates.isActive : sp.isActive) !== false;
-    const currentlyLive = sp.status === 'published' && sp.isActive !== false;
-    if (!currentlyLive && willBeLive) {
-      await assertCanAddLiveProduct(store, sp._id);
-    }
-
     return res.json({ success: true, data: sp });
   } catch (error) {
     console.error('Error fetching store product by id:', error);
