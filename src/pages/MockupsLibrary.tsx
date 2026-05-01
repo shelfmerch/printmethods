@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Stage, Layer, Image as KonvaImage, Shape } from 'react-konva';
 import { productApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AlertTriangle, ArrowLeft, Check, Loader2, Sparkles, ChevronRight, Package, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { RAW_API_URL } from '@/config';
+import { fetchWithApiAuth } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
@@ -19,6 +20,144 @@ interface LocationState {
 }
 
 const normalizeColorKey = (c: string) => c.toLowerCase().replace(/\s+/g, '-');
+
+/** Load an HTMLImageElement, trying crossOrigin first then falling back. */
+function useKonvaImage(url: string | undefined) {
+    const [img, setImg] = useState<HTMLImageElement | null>(null);
+    useEffect(() => {
+        if (!url) { setImg(null); return; }
+        let cancelled = false;
+        const load = (crossOrigin: boolean) => {
+            const el = new window.Image();
+            if (crossOrigin) el.crossOrigin = 'anonymous';
+            el.onload  = () => { if (!cancelled) setImg(el); };
+            el.onerror = () => { if (!cancelled && crossOrigin) load(false); };
+            el.src = url;
+        };
+        load(true);
+        return () => { cancelled = true; };
+    }, [url]);
+    return img;
+}
+
+/** Compute letter-box rect (object-fit: contain) for an image inside a container. */
+function letterBox(
+    img: HTMLImageElement | null,
+    stage: { width: number; height: number },
+) {
+    if (!img || !stage.width || !stage.height) return null;
+    const scale = Math.min(stage.width / img.naturalWidth, stage.height / img.naturalHeight);
+    const w = img.naturalWidth  * scale;
+    const h = img.naturalHeight * scale;
+    return { x: (stage.width - w) / 2, y: (stage.height - h) / 2, w, h };
+}
+
+/**
+ * Renders a mockup through a Konva Stage using the SAME 3-layer pipeline
+ * as the DesignEditor Preview tab:
+ *
+ *   Layer 1  — server-composited mockup (garment + design already merged by server)
+ *   Layer 2  — realism passes driven by the REAL garment-only image (mockup.imageUrl):
+ *               Pass 1  multiply  @ 0.20  garment colour/shadows bleed through design
+ *               Pass 2  soft-light @ 0.18 surface sheen and highlights
+ *
+ * DesignEditor does:  garment-base + design-elements + garment-multiply/soft-light
+ * MockupsLibrary does: composite   +                  garment-multiply/soft-light
+ *
+ * By driving the blend passes with the separate garment image (not self-blending
+ * the composite) we get the same "fabric bleeds through print" realism.
+ * Falls back to self-blend when garmentSrc is unavailable.
+ */
+const MockupKonva = ({
+    src,
+    garmentSrc,
+    alt,
+    className,
+}: {
+    src: string;
+    garmentSrc?: string;
+    alt: string;
+    className?: string;
+}) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+
+    const compositeImg = useKonvaImage(src);
+    // Use real garment image when available; fall back to composite for self-blend
+    const garmentImg   = useKonvaImage(garmentSrc || src);
+
+    // Measure container via ResizeObserver
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            setStageSize({ width, height });
+        });
+        ro.observe(el);
+        setStageSize({ width: el.offsetWidth, height: el.offsetHeight });
+        return () => ro.disconnect();
+    }, []);
+
+    const compositeRect = useMemo(() => letterBox(compositeImg, stageSize), [compositeImg, stageSize]);
+    const garmentRect   = useMemo(() => letterBox(garmentImg,   stageSize), [garmentImg,   stageSize]);
+
+    return (
+        <div ref={containerRef} className={className} aria-label={alt} style={{ width: '100%', height: '100%' }}>
+            {stageSize.width > 0 && stageSize.height > 0 && (
+                <Stage width={stageSize.width} height={stageSize.height}>
+
+                    {/* Layer 1 — server-composited mockup (garment + design) */}
+                    <Layer>
+                        {compositeImg && compositeRect && (
+                            <KonvaImage
+                                image={compositeImg}
+                                x={compositeRect.x}
+                                y={compositeRect.y}
+                                width={compositeRect.w}
+                                height={compositeRect.h}
+                            />
+                        )}
+                    </Layer>
+
+                    {/* Layer 2 — realism passes using the real garment-only image,
+                        identical sceneFunc structure to DesignEditorPage.tsx */}
+                    {garmentImg && garmentRect && (
+                        <Layer listening={false}>
+                            {/* Pass 1 — multiply: garment colour and shadows bleed through the design */}
+                            <Shape
+                                sceneFunc={(ctx, shape) => {
+                                    ctx.save();
+                                    ctx.globalCompositeOperation = 'multiply';
+                                    ctx.globalAlpha = 0.20;
+                                    ctx.drawImage(garmentImg, garmentRect.x, garmentRect.y, garmentRect.w, garmentRect.h);
+                                    ctx.restore();
+                                    ctx.fillStrokeShape(shape);
+                                }}
+                                fill="transparent"
+                                perfectDrawEnabled={false}
+                            />
+                            {/* Pass 2 — soft-light: surface sheen and highlights */}
+                            <Shape
+                                sceneFunc={(ctx, shape) => {
+                                    ctx.save();
+                                    ctx.globalCompositeOperation = 'soft-light';
+                                    ctx.globalAlpha = 0.18;
+                                    ctx.drawImage(garmentImg, garmentRect.x, garmentRect.y, garmentRect.w, garmentRect.h);
+                                    ctx.restore();
+                                    ctx.fillStrokeShape(shape);
+                                }}
+                                fill="transparent"
+                                perfectDrawEnabled={false}
+                            />
+                        </Layer>
+                    )}
+
+                </Stage>
+            )}
+        </div>
+    );
+};
 
 const MockupsLibrary = () => {
     const navigate = useNavigate();
@@ -56,9 +195,8 @@ const MockupsLibrary = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                const token = localStorage.getItem('token');
-                const resp = await fetch(`${RAW_API_URL}/api/storeproducts/${storeProductId}`, {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                const resp = await fetchWithApiAuth(`/storeproducts/${storeProductId}`, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' },
                     credentials: 'include',
                 });
                 if (!resp.ok) { setError('Failed to load store product'); return; }
@@ -193,14 +331,13 @@ const MockupsLibrary = () => {
         if (!storeProductId) return;
         setGeneratingColors(prev => new Set([...prev, colorKey]));
         try {
-            const token = localStorage.getItem('token');
-            const resp = await fetch(
-                `${RAW_API_URL}/api/storeproducts/${storeProductId}/generate-mockups`,
+            const resp = await fetchWithApiAuth(
+                `/storeproducts/${storeProductId}/generate-mockups`,
                 {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                        'ngrok-skip-browser-warning': 'true',
                     },
                     credentials: 'include',
                     body: JSON.stringify({
@@ -455,16 +592,15 @@ const MockupsLibrary = () => {
                                                                         </div>
                                                                     )}
 
-                                                                    <div className="aspect-[4/3] relative bg-white overflow-hidden">
-                                                                        {imgUrl ? (
-                                                                            <img
-                                                                                src={imgUrl}
-                                                                                alt={`${color} ${viewKey}`}
-                                                                                className="w-full h-full object-contain"
-                                                                                loading="lazy"
-                                                                                decoding="async"
-                                                                            />
-                                                                        ) : (
+                                                    <div className="aspect-[4/3] relative bg-white overflow-hidden">
+                                                        {imgUrl ? (
+                                                            <MockupKonva
+                                                                src={imgUrl}
+                                                                garmentSrc={mockup.imageUrl}
+                                                                alt={`${color} ${viewKey}`}
+                                                                className="w-full h-full"
+                                                            />
+                                                        ) : (
                                                                             <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-slate-50">
                                                                                 {isGenerating ? (
                                                                                     <>
