@@ -3,7 +3,7 @@ require('dotenv').config();
 const axios = require('axios');
 
 const API_URL = 'http://127.0.0.1:5000/api';
-const EMAIL = 'tester@shelfmerch.com';
+const EMAIL = 'tester@techvibz.org';
 const PASSWORD = 'Password@123';
 const STORE_SLUG = 'tester-store';
 

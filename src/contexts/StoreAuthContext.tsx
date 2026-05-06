@@ -84,11 +84,15 @@ export const StoreAuthProvider: React.FC<{ children: React.ReactNode; subdomain?
         }
 
         try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
             const resp = await fetch(`${API_BASE}/store-auth/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
-                }
-            });
+                },
+                signal: controller.signal,
+                credentials: 'include',
+            }).finally(() => clearTimeout(timeout));
             const data = await resp.json();
             if (resp.ok && data.success) {
                 setCustomer(data.customer);
@@ -98,6 +102,8 @@ export const StoreAuthProvider: React.FC<{ children: React.ReactNode; subdomain?
             }
         } catch (err) {
             console.error('Auth check failed', err);
+            // Avoid infinite loading when backend is down/hanging
+            setCustomer(null);
         } finally {
             setIsLoading(false);
         }

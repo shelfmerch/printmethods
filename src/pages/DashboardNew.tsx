@@ -354,7 +354,7 @@ const DashboardNew = () => {
                       <div>
                         <h2 className="text-2xl font-bold mb-2">{store.storeName}</h2>
                         <p className="text-muted-foreground flex items-center gap-2">
-                          <span className="font-mono">{store.subdomain}.shelfmerch.com</span>
+                          <span className="font-mono">{store.subdomain}.techvibz.org</span>
                         </p>
                       </div>
                       <div className="flex gap-2">

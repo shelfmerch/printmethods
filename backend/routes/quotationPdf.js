@@ -38,7 +38,7 @@ router.get('/:id', protect, async (req, res) => {
     doc.fontSize(14).font('Helvetica-Bold').text('ShelfMerch', 48, 86);
     doc.fontSize(9).font('Helvetica').fillColor('#555')
       .text('Hyderabad, India', 48, 106)
-      .text('support@shelfmerch.com', 48, 120);
+      .text('support@techvibz.org', 48, 120);
 
     doc.fillColor('#111').fontSize(10)
       .text(`Quotation No: ${quotationNumber}`, 350, 58, { align: 'right' })

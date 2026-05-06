@@ -156,7 +156,7 @@ const StoreFrontendNew = () => {
 
     // Simulate URL rewriting - show custom domain in address bar
     if (window.location.pathname.startsWith('/store/')) {
-      const customDomain = `${subdomain}.shelfmerch.com`;
+      const customDomain = `${subdomain}.techvibz.org`;
       // Update document title and meta tags
       document.title = `${subdomain.charAt(0).toUpperCase() + subdomain.slice(1)} - ShelfMerch Store`;
 
@@ -241,7 +241,7 @@ const StoreFrontendNew = () => {
           <p className="text-muted-foreground mb-6">
             The store "{subdomain}" does not exist.
           </p>
-          <Link to="/">
+          <Link to={buildStorePath('/', subdomain || undefined)}>
             <Button>Go to ShelfMerch</Button>
           </Link>
         </div>

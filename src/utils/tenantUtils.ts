@@ -3,7 +3,7 @@
  * Extracts tenant (store) slug from hostname for multi-tenant subdomain support
  */
 
-const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'shelfmerch.in';
+const BASE_DOMAIN = (import.meta.env.VITE_BASE_DOMAIN || 'techvibz.org').toLowerCase();
 const RESERVED_SUBDOMAINS = ['www', 'shelfmerch', 'admin', 'api', 'app'];
 
 /**
@@ -12,9 +12,9 @@ const RESERVED_SUBDOMAINS = ['www', 'shelfmerch', 'admin', 'api', 'app'];
  * @returns The tenant slug or null if not a tenant subdomain
  * 
  * Examples:
- * - "xyz.shelfmerch.in" -> "xyz"
- * - "www.shelfmerch.in" -> null (reserved)
- * - "shelfmerch.in" -> null (root domain)
+ * - "xyz.techvibz.org" -> "xyz"
+ * - "www.techvibz.org" -> null (reserved / apex)
+ * - "techvibz.org" -> null (root domain)
  * - "localhost" -> null
  * - "xyz.localhost" -> "xyz" (dev support)
  */
@@ -39,34 +39,21 @@ export function extractTenantFromHost(hostname: string): string | null {
     return null;
   }
 
-  // Handle production domain
-  const domainParts = hostnameLower.split('.');
-  
-  // Must have at least 2 parts
-  if (domainParts.length < 2) {
+  const baseSuffix = `.${BASE_DOMAIN}`;
+
+  if (hostnameLower === BASE_DOMAIN || hostnameLower === `www.${BASE_DOMAIN}`) {
     return null;
   }
 
-  // Check if it matches our base domain
-  const isBaseDomain = hostnameLower === BASE_DOMAIN || 
-                       hostnameLower.endsWith('.' + BASE_DOMAIN);
-
-  if (!isBaseDomain) {
-    // Not our domain, but could be a subdomain pattern
-    if (domainParts.length >= 2) {
-      const potentialSubdomain = domainParts[0];
-      if (potentialSubdomain && !RESERVED_SUBDOMAINS.includes(potentialSubdomain)) {
-        return potentialSubdomain;
-      }
-    }
+  if (!hostnameLower.endsWith(baseSuffix)) {
     return null;
   }
 
-  // Extract subdomain from base domain
-  const subdomain = hostnameLower.replace('.' + BASE_DOMAIN, '').replace(BASE_DOMAIN, '');
-  
-  // If no subdomain or it's reserved, return null
-  if (!subdomain || RESERVED_SUBDOMAINS.includes(subdomain)) {
+  const subdomain = hostnameLower.slice(0, -baseSuffix.length);
+  if (
+    !subdomain ||
+    RESERVED_SUBDOMAINS.some((r) => subdomain === r || subdomain.startsWith(`${r}.`))
+  ) {
     return null;
   }
 
@@ -173,9 +160,9 @@ export function tenantBasePath(tenantSlug?: string | null): string {
  * @returns Full path (e.g., '/products' or '/store/merch/products')
  * 
  * Examples:
- * - On merch.shelfmerch.in: buildStorePath('/products') -> '/products'
+ * - On merch.techvibz.org: buildStorePath('/products') -> '/products'
  * - On localhost/store/merch: buildStorePath('/products') -> '/store/merch/products'
- * - On shelfmerch.in: buildStorePath('/products', 'merch') -> '/store/merch/products'
+ * - On techvibz.org: buildStorePath('/products', 'merch') -> '/store/merch/products'
  */
 export function buildStorePath(path: string, tenantSlug?: string | null): string {
   const basePath = tenantBasePath(tenantSlug);
@@ -194,14 +181,14 @@ export function buildStorePath(path: string, tenantSlug?: string | null): string
 export function buildStoreUrl(path: string, tenantSlug: string): string {
   if (!tenantSlug) return path;
   
-  const BASE_DOMAIN = import.meta.env.VITE_BASE_DOMAIN || 'shelfmerch.in';
+  const domain = (import.meta.env.VITE_BASE_DOMAIN || 'techvibz.org').toLowerCase();
   const isDev = import.meta.env.DEV;
   const protocol = isDev ? 'http' : 'https';
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   
   // In production, use subdomain
   if (!isDev) {
-    return `${protocol}://${tenantSlug}.${BASE_DOMAIN}${cleanPath}`;
+    return `${protocol}://${tenantSlug}.${domain}${cleanPath}`;
   }
   
   // In dev, use path-based

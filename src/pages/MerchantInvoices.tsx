@@ -133,7 +133,7 @@ const MerchantInvoices = () => {
             addLine('G2, Win-Win Towers, Siddhi Vinayak Nagar, Madhapur, Hyderabad, Telangana 500081', {
                 size: 9,
             });
-            addLine('Phone: 095158 88515 • support@shelfmerch.com', { size: 9 });
+            addLine('Phone: 095158 88515 • support@techvibz.org', { size: 9 });
 
             y += 20;
 
@@ -166,7 +166,7 @@ const MerchantInvoices = () => {
             addLine('ShelfMerch (Platform)', { size: 9 });
             addLine('G2, Win-Win Towers, Siddhi Vinayak Nagar, Madhapur,', { size: 9 });
             addLine('Hyderabad, Telangana 500081', { size: 9 });
-            addLine('support@shelfmerch.com • 095158 88515', { size: 9 });
+            addLine('support@techvibz.org • 095158 88515', { size: 9 });
 
             y += 12;
 
@@ -322,7 +322,7 @@ const MerchantInvoices = () => {
             // Footer
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            doc.text('System-generated invoice • For billing queries: support@shelfmerch.com', marginLeft, y);
+            doc.text('System-generated invoice • For billing queries: support@techvibz.org', marginLeft, y);
 
             doc.save(`${invoiceNumber}.pdf`);
             toast.success('Invoice PDF downloaded successfully');

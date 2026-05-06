@@ -697,7 +697,7 @@ const StoreProductsPage: React.FC = () => {
           <p className="text-muted-foreground mb-8">
             The store "{subdomain}" doesn't exist or may have been removed.
           </p>
-          <Link to="/">
+          <Link to={buildStorePath('/', subdomain || undefined)}>
             <Button size="lg" className="gap-2">
               <Home className="h-4 w-4" />
               Go to ShelfMerch

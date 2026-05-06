@@ -529,6 +529,8 @@ const queryClient = new QueryClient();
 
 
 const App = () => {
+  const tenantMode = isTenantSubdomain();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -545,59 +547,66 @@ const App = () => {
                       path="/shopify/app"
                       element={<ShopifyApp />}
                     />
-                    {/* Root route: Conditionally shows Index or StoreRoutes based on subdomain */}
-                    <Route path="/" element={<RootRoute />} />
-                    {/* Main site routes */}
-                    <Route path="/causes" element={<Causes />} />
-                    <Route path="/platform" element={<PlatformPage />} />
-                    <Route path="/products" element={<Products />} />
-                    <Route path="/categories" element={<AllCategories />} />
-                    <Route path="/category-subcategories/:categoryId" element={<CategorySubcategories />} />
-                    <Route path="/products/category/:slug" element={<CategoryProducts />} />
-                    <Route path="/products/:id" element={<ProductDetail />} />
-                    <Route path="/catalog" element={<CatalogBrowse />} />
-                    <Route path="/catalog/:productId" element={<CatalogOrderPage />} />
-                    <Route path="/direct-checkout" element={<DirectCheckout />} />
-                    <Route path="/redeem/:token" element={<KitRedeem />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/verify-email" element={<VerifyEmail />} />
-                    <Route path="/verify-phone" element={<VerifyPhone />} />
-                    <Route path="/pricing" element={<PricingPage />} />
-                    <Route path="/solutions/creators-agencies" element={<CreatorAgenciesPage />} />
-                    <Route path="/solutions/fashion-apparel" element={<FashionApparelPage />} />
-                    <Route path="/solutions/entertainment-media" element={<EntertainmentMediaPage />} />
-                    <Route path="/solutions/home-decor" element={<HomeDecorPage />} />
-                    <Route path="/solutions/customized-merch" element={<CustomizedMerchPage />} />
-                    <Route path="/solutions/enterprise-merch" element={<EnterpriseMerchPage />} />
-                    <Route path="/solutions/bulk-orders" element={<BulkOrdersPage />} />
-                    <Route path="/about/our-story" element={<OurStoryPage />} />
-                    <Route path="/about/careers" element={<CareersPage />} />
-                    <Route path="/support/help-center" element={<HelpCenterPage />} />
-                    <Route path="/support/policies" element={<PoliciesPage />} />
-                    <Route path="/support/production-shipping-times" element={<CurrentProductionShippingTimesPage />} />
-                    <Route path="/support/customer-support-policy" element={<CustomerSupportPolicyPage />} />
-                    <Route path="/support/content-guidelines" element={<ContentGuidelinesPage />} />
-                    <Route path="/support/contact-us" element={<ContactUsPage />} />
-                    <Route path="/terms-of-conditions" element={<TermsOfConditions />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/data-deletion-policy" element={<DataDeletionPolicy />} />
-                    <Route
-                      path="/designer/:id"
-                      element={<DesignerEditor />}
-                    />
-                    <Route
-                      path="/sponsor-widget"
-                      element={<SponsorWidgetPage />}
-                    />
-                    <Route
-                      path="/listing-editor/:id"
-                      element={
-                        <ProtectedRoute>
-                          <ListingEditor />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
+                    {/* Tenant subdomain: ONLY storefront routes */}
+                    {tenantMode ? (
+                      <Route path="/*" element={<StoreRoutes />} />
+                    ) : (
+                      <>
+                        {/* Root route: Conditionally shows Index or StoreRoutes based on subdomain */}
+                        <Route path="/" element={<RootRoute />} />
+                        {/* Main site routes */}
+                        <Route path="/causes" element={<Causes />} />
+                        <Route path="/platform" element={<PlatformPage />} />
+                        <Route path="/products" element={<Products />} />
+                        {/* Storefront routes (subdomain or /store/:subdomain) are handled by StoreRoutes via RootRoute. */}
+                        <Route path="/categories" element={<AllCategories />} />
+                        <Route path="/category-subcategories/:categoryId" element={<CategorySubcategories />} />
+                        <Route path="/products/category/:slug" element={<CategoryProducts />} />
+                        <Route path="/products/:id" element={<ProductDetail />} />
+                        <Route path="/catalog" element={<CatalogBrowse />} />
+                        <Route path="/catalog/:productId" element={<CatalogOrderPage />} />
+                        <Route path="/direct-checkout" element={<DirectCheckout />} />
+                        <Route path="/redeem/:token" element={<KitRedeem />} />
+                        {/* Auth for storefront is handled by StoreRoutes via RootRoute. */}
+                        <Route path="/auth" element={<Auth />} />
+                        <Route path="/verify-email" element={<VerifyEmail />} />
+                        <Route path="/verify-phone" element={<VerifyPhone />} />
+                        <Route path="/pricing" element={<PricingPage />} />
+                        <Route path="/solutions/creators-agencies" element={<CreatorAgenciesPage />} />
+                        <Route path="/solutions/fashion-apparel" element={<FashionApparelPage />} />
+                        <Route path="/solutions/entertainment-media" element={<EntertainmentMediaPage />} />
+                        <Route path="/solutions/home-decor" element={<HomeDecorPage />} />
+                        <Route path="/solutions/customized-merch" element={<CustomizedMerchPage />} />
+                        <Route path="/solutions/enterprise-merch" element={<EnterpriseMerchPage />} />
+                        <Route path="/solutions/bulk-orders" element={<BulkOrdersPage />} />
+                        <Route path="/about/our-story" element={<OurStoryPage />} />
+                        <Route path="/about/careers" element={<CareersPage />} />
+                        <Route path="/support/help-center" element={<HelpCenterPage />} />
+                        <Route path="/support/policies" element={<PoliciesPage />} />
+                        <Route path="/support/production-shipping-times" element={<CurrentProductionShippingTimesPage />} />
+                        <Route path="/support/customer-support-policy" element={<CustomerSupportPolicyPage />} />
+                        <Route path="/support/content-guidelines" element={<ContentGuidelinesPage />} />
+                        <Route path="/support/contact-us" element={<ContactUsPage />} />
+                        <Route path="/terms-of-conditions" element={<TermsOfConditions />} />
+                        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                        <Route path="/data-deletion-policy" element={<DataDeletionPolicy />} />
+                        <Route
+                          path="/designer/:id"
+                          element={<DesignerEditor />}
+                        />
+                        <Route
+                          path="/sponsor-widget"
+                          element={<SponsorWidgetPage />}
+                        />
+                        <Route
+                          path="/listing-editor/:id"
+                          element={
+                            <ProtectedRoute>
+                              <ListingEditor />
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
                       path="/dashboard"
                       element={
                         <ProtectedRoute>
@@ -982,10 +991,10 @@ const App = () => {
                         </ProtectedRoute>
                       }
                     />
-                    {/* Store routes - handles path-based routing (subdomain routing also handled here for non-root paths) */}
-                    <Route path="/*" element={<StoreRoutes />} />
                     <Route path="/order-confirmation" element={<OrderConfirmation />} />
                     <Route path="*" element={<NotFound />} />
+                      </>
+                    )}
                   </Routes>
                 </DataProvider>
               </StoreProvider>

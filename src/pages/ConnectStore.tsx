@@ -444,7 +444,7 @@ export default function ConnectStore() {
                             <Button
                                 size="lg"
                                 className="bg-slate-900 text-white hover:bg-slate-800 gap-2"
-                                onClick={() => window.open('https://api.shelfmerch.com/docs', '_blank')}
+                                onClick={() => window.open('https://api.techvibz.org/docs', '_blank')}
                             >
                                 <ExternalLink className="w-4 h-4" />
                                 View API Docs

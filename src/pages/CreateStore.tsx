@@ -104,7 +104,7 @@ const CreateStore = () => {
       }
 
       const store = response.data as StoreType;
-      toast.success(`${companyName}'s swag store is live at ${store.subdomain}.shelfmerch.com`, {
+      toast.success(`${companyName}'s swag store is live at ${store.subdomain}.techvibz.org`, {
         duration: 6000,
       });
       await refreshStores();

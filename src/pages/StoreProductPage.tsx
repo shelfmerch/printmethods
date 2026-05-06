@@ -660,7 +660,7 @@ const StoreProductPage = () => {
           The store you are looking for is unavailable or has not been published yet.
         </p>
         <Button asChild size="lg">
-          <Link to="/">Go back to ShelfMerch</Link>
+          <Link to={buildStorePath('/', subdomain || undefined)}>Go back to store</Link>
         </Button>
       </div>
     );
@@ -676,7 +676,7 @@ const StoreProductPage = () => {
         <p className="text-muted-foreground mb-6 max-w-md">
           This product might have been removed or is no longer available.
         </p>
-        <Button size="lg" onClick={() => navigate(`/store/${store.subdomain}`)}>
+        <Button size="lg" onClick={() => navigate(buildStorePath('/', store.subdomain))}>
           Back to store
         </Button>
       </div>
@@ -1334,9 +1334,7 @@ const StoreProductPage = () => {
           {section?.settings?.copyright || (
             <>
               © {new Date().getFullYear()} {store.storeName}. Powered by{' '}
-              <Link to="/" className="text-primary hover:underline font-medium">
-                ShelfMerch
-              </Link>
+              <span className="text-muted-foreground">ShelfMerch</span>
             </>
           )}
         </div>

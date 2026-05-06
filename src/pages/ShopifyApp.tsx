@@ -221,7 +221,7 @@ const ShopifyApp: React.FC = () => {
                         <div className="pt-4">
                             <Button
                                 className="w-full gap-2"
-                                onClick={() => window.open('https://app.shelfmerch.com/dashboard', '_blank')}
+                                onClick={() => window.open('https://app.techvibz.org/dashboard', '_blank')}
                             >
                                 Open ShelfMerch Dashboard
                                 <ExternalLink className="w-4 h-4" />

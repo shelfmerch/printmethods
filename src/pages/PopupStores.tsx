@@ -177,7 +177,7 @@ const PopupStores = () => {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-lg truncate">{store.storeName}</h3>
                     <p className="text-sm text-muted-foreground truncate">
-                      {store.subdomain}.shelfmerch.com
+                      {store.subdomain}.techvibz.org
                     </p>
                     {store.description && (
                       <p className="text-xs text-muted-foreground mt-2 line-clamp-2">

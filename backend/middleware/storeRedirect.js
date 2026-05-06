@@ -4,7 +4,7 @@
  * Example: /store/merch/products -> https://merch.shelfmerch.in/products
  */
 
-const BASE_DOMAIN = process.env.BASE_DOMAIN || 'shelfmerch.in';
+const BASE_DOMAIN = process.env.BASE_DOMAIN || 'techvibz.org';
 const isProduction = process.env.NODE_ENV === 'production';
 
 /**

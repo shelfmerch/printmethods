@@ -108,7 +108,7 @@
 //                       </p>
 //                       {selectedStore && (
 //                         <p className="text-xs text-muted-foreground truncate max-w-[120px]">
-//                           {selectedStore.subdomain}.shelfmerch.com
+//                           {selectedStore.subdomain}.techvibz.org
 //                         </p>
 //                       )}
 //                     </div>
@@ -137,7 +137,7 @@
 //                       <div className="flex flex-col">
 //                         <span className="font-medium">{store.storeName}</span>
 //                         <span className="text-xs text-muted-foreground">
-//                           {store.subdomain}.shelfmerch.com
+//                           {store.subdomain}.techvibz.org
 //                         </span>
 //                       </div>
 //                       {isSelected && <Check className="h-4 w-4" />}
@@ -397,7 +397,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       </p>
                       {activeStore && (
                         <p className="text-xs text-muted-foreground truncate max-w-[120px]">
-                          {activeStore.subdomain}.shelfmerch.com
+                          {activeStore.subdomain}.techvibz.org
                         </p>
                       )}
                     </div>
@@ -426,7 +426,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       <div className="flex flex-col">
                         <span className="font-medium">{store.storeName}</span>
                         <span className="text-xs text-muted-foreground">
-                          {store.subdomain}.shelfmerch.com
+                          {store.subdomain}.techvibz.org
                         </span>
                       </div>
                       {isSelected && <Check className="h-4 w-4 text-primary" />}

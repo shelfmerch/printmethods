@@ -4,75 +4,57 @@
  */
 
 // Reserved subdomains that should not be treated as tenant slugs
-const RESERVED_SUBDOMAINS = ['www', 'shelfmerch', 'admin', 'api'];
-const BASE_DOMAIN = process.env.BASE_DOMAIN || 'shelfmerch.com';
+const RESERVED_SUBDOMAINS = ['www', 'shelfmerch', 'admin', 'api', 'app'];
+const BASE_DOMAIN = (process.env.BASE_DOMAIN || 'techvibz.org').toLowerCase();
 
 /**
  * Extract tenant slug from hostname
- * @param {string} hostname - The hostname from the request (e.g., "xyz.shelfmerch.in:3000")
+ * @param {string} hostname - The hostname from the request (e.g., "xyz.techvibz.org:3000")
  * @returns {string | null} - The tenant slug or null if not a tenant subdomain
- * 
+ *
+ * Only hostnames under BASE_DOMAIN are treated as tenants (never guess from foreign domains).
+ *
  * Examples:
- * - "xyz.shelfmerch.in" -> "xyz"
- * - "xyz.shelfmerch.in:3000" -> "xyz"
- * - "www.shelfmerch.in" -> null (reserved)
- * - "shelfmerch.in" -> null (root domain)
+ * - "xyz.techvibz.org" -> "xyz"
+ * - "www.techvibz.org" -> null (apex / reserved)
+ * - "techvibz.org" -> null (root domain)
+ * - "techvibz.org" with BASE_DOMAIN still shelfmerch.in -> null (not our host)
  * - "localhost" -> null
- * - "xyz.localhost" -> "xyz" (dev support)
- * - "127.0.0.1" -> null
+ * - "xyz.localhost" -> "xyz" (dev)
  */
 function extractTenantFromHost(hostname) {
   if (!hostname || typeof hostname !== 'string') {
     return null;
   }
 
-  // Remove port if present (e.g., "xyz.shelfmerch.in:3000" -> "xyz.shelfmerch.in")
   const hostnameWithoutPort = hostname.split(':')[0].toLowerCase().trim();
 
-  // Handle localhost (dev environment)
   if (hostnameWithoutPort === 'localhost' || hostnameWithoutPort === '127.0.0.1') {
     return null;
   }
 
-  // Handle localhost subdomains for dev (e.g., "xyz.localhost")
   if (hostnameWithoutPort.endsWith('.localhost')) {
-    const subdomain = hostnameWithoutPort.replace('.localhost', '');
+    const localhostSuffix = '.localhost';
+    const subdomain = hostnameWithoutPort.slice(0, -localhostSuffix.length);
     if (subdomain && !RESERVED_SUBDOMAINS.includes(subdomain)) {
       return subdomain;
     }
     return null;
   }
 
-  // Handle production domain (shelfmerch.in or custom base domain)
-  const domainParts = hostnameWithoutPort.split('.');
-  
-  // Must have at least 2 parts (subdomain.domain or domain.tld)
-  if (domainParts.length < 2) {
+  const baseLower = BASE_DOMAIN;
+  const baseSuffix = `.${baseLower}`;
+
+  if (hostnameWithoutPort === baseLower || hostnameWithoutPort === `www.${baseLower}`) {
     return null;
   }
 
-  // Check if it matches our base domain
-  // Support both exact match and wildcard matching
-  const isBaseDomain = hostnameWithoutPort === BASE_DOMAIN || 
-                       hostnameWithoutPort.endsWith('.' + BASE_DOMAIN);
-
-  if (!isBaseDomain) {
-    // Not our domain, but could be a subdomain pattern
-    // Allow it if it has a subdomain part and is not reserved
-    if (domainParts.length >= 2) {
-      const potentialSubdomain = domainParts[0];
-      if (potentialSubdomain && !RESERVED_SUBDOMAINS.includes(potentialSubdomain)) {
-        return potentialSubdomain;
-      }
-    }
+  if (!hostnameWithoutPort.endsWith(baseSuffix)) {
     return null;
   }
 
-  // Extract subdomain from base domain
-  const subdomain = hostnameWithoutPort.replace('.' + BASE_DOMAIN, '').replace(BASE_DOMAIN, '');
-  
-  // If no subdomain or it's reserved, return null
-  if (!subdomain || RESERVED_SUBDOMAINS.includes(subdomain)) {
+  const subdomain = hostnameWithoutPort.slice(0, -baseSuffix.length);
+  if (!subdomain || RESERVED_SUBDOMAINS.some((r) => subdomain === r || subdomain.startsWith(`${r}.`))) {
     return null;
   }
 

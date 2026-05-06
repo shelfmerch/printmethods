@@ -71,7 +71,7 @@ Subscribe to real-time events: ${ALL_WEBHOOK_EVENTS.map(e => `\`${e}\``).join(',
       `,
             contact: {
                 name: 'ShelfMerch API Support',
-                url: 'https://shelfmerch.com/support',
+                url: 'https://techvibz.org/support',
             },
             license: {
                 name: 'MIT',

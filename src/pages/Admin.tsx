@@ -1594,7 +1594,7 @@
 //                                   <TableCell>
 //                                     <div className="font-medium">{store.storeName}</div>
 //                                     <div className="text-xs text-muted-foreground">
-//                                       {store.subdomain}.shelfmerch.com
+//                                       {store.subdomain}.techvibz.org
 //                                     </div>
 //                                   </TableCell>
 //                                   <TableCell>
@@ -5902,7 +5902,7 @@ const Admin = () => {
                                   <TableCell>
                                     <div className="font-medium">{store.storeName}</div>
                                     <div className="text-xs text-muted-foreground">
-                                      {store.subdomain}.shelfmerch.com
+                                      {store.subdomain}.techvibz.org
                                     </div>
                                   </TableCell>
                                   <TableCell>

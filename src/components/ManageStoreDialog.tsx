@@ -63,7 +63,7 @@ const ManageStoreDialog: React.FC<ManageStoreDialogProps> = ({ open, onClose, st
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground mb-1">Store URL</p>
-                <p className="font-mono font-semibold">{store.subdomain}.shelfmerch.com</p>
+                <p className="font-mono font-semibold">{store.subdomain}.techvibz.org</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Created</p>

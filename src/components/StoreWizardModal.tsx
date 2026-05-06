@@ -90,7 +90,7 @@ const StoreWizardModal: React.FC<StoreWizardModalProps> = ({ open, onClose }) =>
                   Your store URL will be:
                 </Label>
                 <p className="text-lg font-mono font-semibold text-primary">
-                  {subdomain || 'yourstore'}.shelfmerch.com
+                  {subdomain || 'yourstore'}.techvibz.org
                 </p>
               </div>
             )}
@@ -191,7 +191,7 @@ const StoreWizardModal: React.FC<StoreWizardModalProps> = ({ open, onClose }) =>
               <div>
                 <Label className="text-sm text-muted-foreground">Store URL</Label>
                 <p className="text-lg font-mono font-semibold text-primary">
-                  {subdomain}.shelfmerch.com
+                  {subdomain}.techvibz.org
                 </p>
               </div>
               <div>

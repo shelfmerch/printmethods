@@ -14,7 +14,7 @@ async function createTester() {
     const collection = mongoose.connection.collection('users');
     const storesCollection = mongoose.connection.collection('stores');
     
-    const email = 'tester@shelfmerch.com';
+    const email = 'tester@techvibz.org';
     const password = 'Password@123';
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);

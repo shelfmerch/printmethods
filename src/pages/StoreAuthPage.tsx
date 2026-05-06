@@ -74,10 +74,10 @@ const StoreAuthPage = () => {
 
     useEffect(() => {
         if (isAuthenticated && store) {
-            const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', store.subdomain);
-            navigate(redirectUrl, { state: location.state });
+            const redirectUrl = buildStorePath('/', store.subdomain);
+            navigate(redirectUrl, { replace: true });
         }
-    }, [isAuthenticated, store, navigate, location.state, redirectPath]);
+    }, [isAuthenticated, store, navigate]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -164,8 +164,8 @@ const StoreAuthPage = () => {
                 } else {
                     toast.success('Account created!');
                 }
-                const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', subdomain);
-                navigate(redirectUrl, { state: location.state });
+                const redirectUrl = buildStorePath('/', subdomain);
+                navigate(redirectUrl, { replace: true });
             }
         } catch (err) {
             toast.error('Verification failed');
@@ -177,7 +177,7 @@ const StoreAuthPage = () => {
 
     const handleGoogleSignIn = () => {
         if (!subdomain) return;
-        const redirectUrl = buildStorePath(redirectPath ? `/${redirectPath}` : '/', subdomain);
+        const redirectUrl = buildStorePath('/', subdomain);
         sessionStorage.setItem('storeAuthRedirect', redirectUrl);
         sessionStorage.setItem('storeAuthSubdomain', subdomain);
         window.location.href = `${API_BASE_URL}/auth/google`;

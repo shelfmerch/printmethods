@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { getProductImageGroups } from '@/utils/productImageUtils';
 import { useStoreAuth } from '@/contexts/StoreAuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -18,7 +18,7 @@ import {
     Clock,
     ShoppingBag
 } from 'lucide-react';
-import { buildStorePath } from '@/utils/tenantUtils';
+import { buildStorePath, getTenantSlugFromLocation } from '@/utils/tenantUtils';
 import StoreLayout from '@/components/storefront/StoreLayout';
 import { storeApi, storeCustomerOrdersApi } from '@/lib/api';
 import { Store } from '@/types';
@@ -85,7 +85,11 @@ interface OrderDetail {
 
 const StoreOrderDetailPage: React.FC = () => {
     const navigate = useNavigate();
-    const { subdomain, orderId } = useParams<{ subdomain: string; orderId: string }>();
+    const params = useParams<{ subdomain?: string; orderId: string }>();
+    const location = useLocation();
+    const subdomain =
+        getTenantSlugFromLocation(location, params) || params.subdomain || undefined;
+    const { orderId } = params;
     const { isAuthenticated, isLoading: authLoading } = useStoreAuth();
     const { cartCount, setIsCartOpen } = useCart();
 

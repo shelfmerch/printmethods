@@ -7,6 +7,9 @@
 export const IS_DEV = import.meta.env.DEV;
 export const IS_PROD = import.meta.env.PROD;
 
+// Base domain for subdomain tenancy (storefront)
+const BASE_DOMAIN = (import.meta.env.VITE_BASE_DOMAIN || 'techvibz.org').toLowerCase();
+
 // API Base URL - The backend endpoint (must point at the Express `/api/*` routes).
 // We normalize common misconfigs like `/app` (frontend mount) to `/api` (backend API prefix),
 // and we ensure absolute URLs include the `/api` suffix.
@@ -29,7 +32,18 @@ const normalizeApiBaseUrl = (value: string): string => {
 // In production, we favor VITE_API_BASE_URL for explicit targeting, falling back to relative /api.
 // In development, we use VITE_API_URL (full origin) with a localhost fallback.
 const API_BASE_URL_RAW = IS_PROD
-  ? (import.meta.env.VITE_API_BASE_URL || '/api')
+  ? (() => {
+    // On store subdomains we MUST use a relative base, otherwise the UI can "escape"
+    // to the apex domain for API calls (breaking tenant isolation and cookies).
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname.toLowerCase();
+      const isUnderBase = host === BASE_DOMAIN || host.endsWith(`.${BASE_DOMAIN}`);
+      const isApex = host === BASE_DOMAIN || host === `www.${BASE_DOMAIN}`;
+      if (isUnderBase && !isApex) return '/api';
+    }
+
+    return import.meta.env.VITE_API_BASE_URL || '/api';
+  })()
   : (import.meta.env.VITE_API_URL || 'http://localhost:5002/api');
 
 export const API_BASE_URL = normalizeApiBaseUrl(API_BASE_URL_RAW);
@@ -42,7 +56,7 @@ export const SHOPIFY_API_BASE_URL = import.meta.env.VITE_SHOPIFY_API_BASE_URL ||
 
 // Store Base URL - Where the storefronts are hosted
 // In development, this is typically localhost:8080 or similar
-// In production, this should be the main domain, e.g., https://shelfmerch.com
+// In production, this should be the main domain, e.g., https://techvibz.org
 export const STORE_BASE_URL = import.meta.env.VITE_STORE_BASE_URL || 'http://localhost:8080';
 
 // Helper to get raw API URL (without /api suffix if needed)

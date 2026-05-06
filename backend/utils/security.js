@@ -8,9 +8,9 @@ const WHITELISTED_DOMAINS = [
   'localhost:8085',
   'localhost:3000',
   'localhost:5000',
-  'shelfmerch.com',
-  'www.shelfmerch.com',
-  'app.shelfmerch.com',
+  'techvibz.org',
+  'www.techvibz.org',
+  'app.techvibz.org',
   'shelfmerch.in',
   'www.shelfmerch.in'
 ];
@@ -46,7 +46,7 @@ const getClientUrl = (req) => {
 
   // 3. Fallback to environment variables
   const fallback = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production'
-    ? 'https://shelfmerch.com'
+    ? 'https://techvibz.org'
     : 'http://localhost:8080');
 
   console.log(`⚠️ Using fallback client URL: ${fallback}`);

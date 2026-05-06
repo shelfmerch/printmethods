@@ -83,7 +83,7 @@ const ContactUsPage = () => {
                     <div className="space-y-2 text-foreground mb-4">
                       <p>G2, Win Win Towers, Hi-Tech City Road, Madhapur, Hyderabad, India - 500081.</p>
                       <p>Mobile: 9515888515</p>
-                      <p>Email: support@shelfmerch.com</p>
+                      <p>Email: support@techvibz.org</p>
                     </div>
                     {/* Google Maps placeholder */}
                     <div className="w-full h-64 bg-muted/30 rounded-lg flex items-center justify-center mb-2">
@@ -98,7 +98,7 @@ const ContactUsPage = () => {
                     <div className="space-y-2 text-foreground">
                       <p>S10, St Mark's Rd, Shanthala Nagar, Ashok Nagar, Bengaluru, India-560001.</p>
                       <p>Mobile: 9515888515</p>
-                      <p>Email: support@shelfmerch.com</p>
+                      <p>Email: support@techvibz.org</p>
                     </div>
                   </div>
                 </div>

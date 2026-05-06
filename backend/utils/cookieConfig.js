@@ -3,12 +3,12 @@
  * Handles cookie domain settings for multi-tenant subdomain architecture
  */
 
-const BASE_DOMAIN = process.env.BASE_DOMAIN || 'shelfmerch.in';
+const BASE_DOMAIN = process.env.BASE_DOMAIN || 'techvibz.org';
 const isProduction = process.env.NODE_ENV === 'production';
 
 /**
  * Get cookie options for setting cookies
- * In production: uses .shelfmerch.in to share cookies across subdomains
+ * In production: uses `.${BASE_DOMAIN}` to share cookies across subdomains
  * In development: host-only cookies (no domain)
  */
 function getCookieOptions(overrides = {}) {

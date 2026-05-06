@@ -354,7 +354,7 @@ const Stores = () => {
                             <td className="px-6 py-4">
                               <div>
                                 <div className="font-semibold text-foreground">{store.storeName}</div>
-                                <div className="text-sm text-muted-foreground">{store.subdomain}.shelfmerch.com</div>
+                                <div className="text-sm text-muted-foreground">{store.subdomain}.techvibz.org</div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -431,7 +431,7 @@ const Stores = () => {
                         <div key={store.id} className="p-4 space-y-4 hover:bg-muted/30 transition-colors">
                           <div>
                             <div className="font-semibold text-foreground mb-1">{store.storeName}</div>
-                            <div className="text-sm text-muted-foreground">{store.subdomain}.shelfmerch.com</div>
+                            <div className="text-sm text-muted-foreground">{store.subdomain}.techvibz.org</div>
                           </div>
                           <div className="flex items-center gap-3 flex-wrap">
                             <Badge className="bg-green-200 text-green-700 border-green-200 hover:bg-green-200">

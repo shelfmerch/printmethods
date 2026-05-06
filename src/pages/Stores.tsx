@@ -107,7 +107,7 @@ const Stores = () => {
                     </span>
                     {activeStore?.subdomain && (
                       <span className="text-muted-foreground">
-                        URL: <span className="font-medium text-foreground">{activeStore.subdomain}.shelfmerch.com</span>
+                        URL: <span className="font-medium text-foreground">{activeStore.subdomain}.techvibz.org</span>
                       </span>
                     )}
                   </div>

@@ -919,7 +919,14 @@ router.put(
 // @desc    Send OTP (Unified for Email & Phone)
 router.post('/otp/send', async (req, res) => {
   try {
-    const { otpType, email, phoneNumber } = req.body;
+    // Backward-compatible payload support:
+    // - New: { otpType: 'email'|'phone', email?, phoneNumber? }
+    // - Old: { type: 'email'|'phone', identifier: string }
+    let { otpType, email, phoneNumber, type, identifier: legacyIdentifier } = req.body || {};
+
+    otpType = otpType || type;
+    if (!email && legacyIdentifier && otpType === 'email') email = legacyIdentifier;
+    if (!phoneNumber && legacyIdentifier && otpType === 'phone') phoneNumber = legacyIdentifier;
 
     // Normalize and Validate
     let identifier;
@@ -981,7 +988,7 @@ router.post('/otp/send', async (req, res) => {
     let otp;
 
     if (otpType === 'email') {
-      const isReviewAccount = identifier === 'review@shelfmerch.com';
+      const isReviewAccount = identifier === 'review@techvibz.org';
       otp = isReviewAccount ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
       user.emailVerificationToken = otp;
       user.emailVerificationTokenExpiry = otpExpiry;
@@ -1059,7 +1066,7 @@ router.post('/otp/verify', async (req, res) => {
     }
 
     // Verify OTP
-    const isReviewAccount = otpType === 'email' && identifier === 'review@shelfmerch.com';
+    const isReviewAccount = otpType === 'email' && identifier === 'review@techvibz.org';
     let isValid = false;
     if (isReviewAccount) {
       isValid = otp === '123456';
@@ -1132,7 +1139,7 @@ router.post('/login/otp/init', async (req, res) => {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
       if (user) {
-        const isReviewAccount = user.email === 'review@shelfmerch.com';
+        const isReviewAccount = user.email === 'review@techvibz.org';
         const finalOtp = isReviewAccount ? '123456' : otp;
         user.emailVerificationToken = finalOtp;
         user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -1142,7 +1149,7 @@ router.post('/login/otp/init', async (req, res) => {
         }
       } else {
         // For new email users, we send the OTP
-        const isReviewAccount = identifier.toLowerCase() === 'review@shelfmerch.com';
+        const isReviewAccount = identifier.toLowerCase() === 'review@techvibz.org';
         if (!isReviewAccount) {
           await sendEmailOTP(identifier.toLowerCase(), otp, 'New User', 'signup');
         }
@@ -1154,7 +1161,7 @@ router.post('/login/otp/init', async (req, res) => {
         flow: 'otp',
         type: 'email',
         message: exists ? 'OTP sent to email' : 'Verification code sent to email',
-        serverOtp: identifier.toLowerCase() === 'review@shelfmerch.com' ? '123456' : otp
+        serverOtp: identifier.toLowerCase() === 'review@techvibz.org' ? '123456' : otp
       });
     } else {
       // Phone - Send OTP via MSG91
@@ -1208,7 +1215,7 @@ router.post('/login/otp/verify', async (req, res) => {
     let user;
 
     if (isEmail) {
-      const isReviewAccount = identifier.toLowerCase() === 'review@shelfmerch.com';
+      const isReviewAccount = identifier.toLowerCase() === 'review@techvibz.org';
       if (isReviewAccount && otp === '123456') {
         user = await User.findOne({ email: identifier.toLowerCase() });
         if (!user) {

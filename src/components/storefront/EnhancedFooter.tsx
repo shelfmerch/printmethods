@@ -15,6 +15,8 @@ const EnhancedFooter = ({ storeName, description, storeSlug }: EnhancedFooterPro
   const allProductsHref = storeSlug ? buildStorePath('/products', storeSlug) : '/products';
   const newArrivalsHref = storeSlug ? `${storeHome}#products` : '/#products';
   const aboutHref = storeSlug ? `${storeHome}#about` : '/#about';
+  const shippingHref = storeSlug ? buildStorePath('/support/production-shipping-times', storeSlug) : '/support/production-shipping-times';
+  const returnsHref = storeSlug ? buildStorePath('/support/policies', storeSlug) : '/support/policies';
 
   return (
     <footer className="bg-muted/50 border-t border-border py-16">
@@ -99,7 +101,7 @@ const EnhancedFooter = ({ storeName, description, storeSlug }: EnhancedFooterPro
             <ul className="space-y-3">
               <li>
                 <Link
-                  to="/support/production-shipping-times"
+                  to={shippingHref}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Shipping
@@ -107,7 +109,7 @@ const EnhancedFooter = ({ storeName, description, storeSlug }: EnhancedFooterPro
               </li>
               <li>
                 <Link
-                  to="/support/policies"
+                  to={returnsHref}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Returns

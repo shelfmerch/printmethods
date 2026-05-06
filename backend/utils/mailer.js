@@ -318,7 +318,7 @@ const sendMerchantOrderNotification = async (merchantEmail, order, storeName, at
       }).format(amount);
     };
 
-    const orderUrl = `${process.env.BASE_URL || 'https://shelfmerch.com'}/orders/${order._id}`;
+    const orderUrl = `${process.env.BASE_URL || 'https://techvibz.org'}/orders/${order._id}`;
 
     const itemsHtml = order.items.map(item => `
       <tr>

@@ -95,7 +95,7 @@ const StoreAboutPage = () => {
           navLinks={[
             { name: 'Products', href: buildStorePath('/products', store.subdomain) },
             { name: 'About', href: '#about' },
-            { name: 'Contact', href: '/support/contact-us' },
+            { name: 'Contact', href: buildStorePath('/support/contact-us', store.subdomain) },
           ]}
           cartItemCount={0}
           onCartClick={() => {}}

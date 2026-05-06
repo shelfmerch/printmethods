@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { getProductImageGroups } from '@/utils/productImageUtils';
 import { useStoreAuth } from '@/contexts/StoreAuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -14,9 +14,9 @@ import {
     ArrowLeft,
     ExternalLink
 } from 'lucide-react';
-import { buildStorePath } from '@/utils/tenantUtils';
+import { buildStorePath, getTenantSlugFromLocation } from '@/utils/tenantUtils';
 import StoreLayout from '@/components/storefront/StoreLayout';
-import { storeApi, storeCustomerOrdersApi } from '@/lib/api';
+import { ApiError, storeApi, storeCustomerOrdersApi } from '@/lib/api';
 import { Store } from '@/types';
 import { Badge } from '@/components/ui/badge';
 
@@ -51,15 +51,16 @@ interface StoreOrderSummary {
 
 const StoreOrdersPage: React.FC = () => {
     const navigate = useNavigate();
-    const { subdomain } = useParams<{ subdomain: string }>();
+    const params = useParams<{ subdomain?: string }>();
+    const location = useLocation();
+    const subdomain =
+        getTenantSlugFromLocation(location, params) || params.subdomain || undefined;
     const { customer, isAuthenticated, isLoading: authLoading } = useStoreAuth();
     const { cartCount, setIsCartOpen } = useCart(); // Connect to cart context
 
     const [store, setStore] = useState<Store | null>(null);
     const [orders, setOrders] = useState<StoreOrderSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     useEffect(() => {
         const loadStore = async () => {
@@ -81,12 +82,19 @@ const StoreOrdersPage: React.FC = () => {
                 }
             } catch (err) {
                 console.error('Failed to load orders', err);
+                if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+                    navigate(buildStorePath('/auth', subdomain), { replace: true });
+                }
             } finally {
                 setIsLoading(false);
             }
         };
 
         if (!authLoading) {
+            if (!isAuthenticated) {
+                setIsLoading(false);
+                return;
+            }
             loadOrders();
         }
     }, [subdomain, isAuthenticated, authLoading]);

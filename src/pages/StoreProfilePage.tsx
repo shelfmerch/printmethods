@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useStoreAuth, StoreCustomerAddress } from '@/contexts/StoreAuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import {
     Loader2,
     ArrowLeft
 } from 'lucide-react';
-import { buildStorePath } from '@/utils/tenantUtils';
+import { buildStorePath, getTenantSlugFromLocation } from '@/utils/tenantUtils';
 import AddressModal from '@/components/storefront/AddressModal';
 import { toast } from 'sonner';
 import StoreLayout from '@/components/storefront/StoreLayout';
@@ -30,7 +30,10 @@ import { Store } from '@/types';
 
 const StoreProfilePage: React.FC = () => {
     const navigate = useNavigate();
-    const { subdomain } = useParams<{ subdomain: string }>();
+    const params = useParams<{ subdomain?: string }>();
+    const location = useLocation();
+    const subdomain =
+        getTenantSlugFromLocation(location, params) || params.subdomain || undefined;
     const {
         customer,
         isAuthenticated,

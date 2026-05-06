@@ -130,7 +130,7 @@ router.get('/start', async (req, res) => {
       signed: true
     };
 
-    // Share cookie across subdomains when callback host differs from backend (e.g. app.shelfmerch.com vs api.shelfmerch.com)
+    // Share cookie across subdomains when callback host differs from backend (e.g. app.techvibz.org vs api.techvibz.org)
     let cookieDomain;
     if (publicBase) {
       try {

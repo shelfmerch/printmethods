@@ -2,14 +2,14 @@
 
 client_id = "f20b3bea09f6054f3e9e18b3d59739e0"
 name = "Shelf Merch Print On Demand"
-application_url = "https://app.shelfmerch.com/shopify/app"
+application_url = "https://app.techvibz.org/shopify/app"
 embedded = true
 
 [webhooks]
 api_version = "2026-01"
 
   [[webhooks.subscriptions]]
-  uri = "https://shelfmerch.com/api/shopify/gdpr"
+  uri = "https://techvibz.org/api/shopify/gdpr"
   compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
 [access_scopes]
@@ -20,6 +20,6 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://app.shelfmerch.com/api/shopify/oauth/callback",
-  "https://app.shelfmerch.com/api/shopify/callback"
+  "https://app.techvibz.org/api/shopify/oauth/callback",
+  "https://app.techvibz.org/api/shopify/callback"
 ]

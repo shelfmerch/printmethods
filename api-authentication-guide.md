@@ -50,7 +50,7 @@ Pass your API key in the `X-API-Key` HTTP header.
 
 **Example Request:**
 ```bash
-curl -X GET "https://api.shelfmerch.com/api/v1/shops" \
+curl -X GET "https://api.techvibz.org/api/v1/shops" \
      -H "X-API-Key: your_generated_api_key_here"
 ```
 
@@ -59,7 +59,7 @@ Pass your PAT in the `Authorization` header as a Bearer token.
 
 **Example Request:**
 ```bash
-curl -X GET "https://api.shelfmerch.com/api/v1/shops" \
+curl -X GET "https://api.techvibz.org/api/v1/shops" \
      -H "Authorization: Bearer your_generated_pat_here"
 ```
 
@@ -71,7 +71,7 @@ To verify your current identity and check which scopes your token or API key has
 
 **Example Request:**
 ```bash
-curl -X GET "https://api.shelfmerch.com/api/v1/auth/me/scopes" \
+curl -X GET "https://api.techvibz.org/api/v1/auth/me/scopes" \
      -H "X-API-Key: your_generated_api_key_here"
 ```
 
