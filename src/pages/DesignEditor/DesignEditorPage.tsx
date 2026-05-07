@@ -567,7 +567,7 @@ const DesignEditor: React.FC = () => {
     });
     if (activeMethods.length <= 1) return { isValid: true };
     const hasSelection = Object.values(selectedPrintMethodsByView).some(id => id != null);
-    if (!hasSelection) return { isValid: false, message: 'Please select a print method for at least one side' };
+    if (!hasSelection) return { isValid: false, message: 'Please select a print method for all sides' };
     return { isValid: true };
   }, [product?.allowedPrintMethodIds, selectedPrintMethodsByView]);
 

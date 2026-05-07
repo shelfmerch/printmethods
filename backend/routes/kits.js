@@ -9,7 +9,7 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const { assertBrandAccess } = require('../utils/brandAccess');
 const { attachVariantsToProducts } = require('../utils/kitVariantSelections');
 const { normalizePackaging, validatePackagingChoice } = require('../utils/kitFulfillment');
-const { assertWithinPlanLimit } = require('../utils/planLimits');
+// const { assertWithinPlanLimit } = require('../utils/planLimits');
 
 async function attachVariantsToKit(kit) {
   const kitObject = kit?.toObject ? kit.toObject() : kit;
@@ -55,16 +55,7 @@ router.get('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'brandId is required' });
     }
 
-    const store = await assertBrandAccess(req, brandId);
-
-    const currentKitCount = await Kit.countDocuments({ brandId });
-    assertWithinPlanLimit({
-      planId: store.subscriptionPlan,
-      resource: 'kits',
-      currentCount: currentKitCount,
-      attemptedAdd: 1,
-      limitKey: 'maxKits',
-    });
+    await assertBrandAccess(req, brandId);
 
     const kits = await Kit.find({ brandId }).sort({ updatedAt: -1 }).lean();
     const objectBrandId = mongoose.Types.ObjectId.isValid(String(brandId))
@@ -93,6 +84,22 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+async function assertCanPublishKit({ store, brandId, excludeKitId = null }) {
+  // Free plan rule: up to 3 *published* (live) kits.
+  if (String(store?.subscriptionPlan || 'free').toLowerCase() !== 'free') return;
+
+  const filter = { brandId, status: 'live' };
+  if (excludeKitId) filter._id = { $ne: excludeKitId };
+  const publishedKitCount = await Kit.countDocuments(filter);
+
+  if (publishedKitCount >= 3) {
+    const error = new Error('Free plan allows up to 3 kits. Upgrade to Growth or Enterprise to add more.');
+    error.status = 403;
+    error.code = 'PLAN_LIMIT_EXCEEDED';
+    throw error;
+  }
+}
+
 router.post('/', protect, async (req, res) => {
   try {
     const { brandId, name, status = 'draft', items = [] } = req.body;
@@ -100,7 +107,10 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'brandId and name are required' });
     }
 
-    await assertBrandAccess(req, brandId);
+    const store = await assertBrandAccess(req, brandId);
+    if (status === 'live') {
+      await assertCanPublishKit({ store, brandId });
+    }
 
     const packaging = await normalizeAndValidatePackaging(req.body.packaging);
 
@@ -148,7 +158,11 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Kit not found' });
     }
 
-    await assertBrandAccess(req, existing.brandId);
+    const store = await assertBrandAccess(req, existing.brandId);
+    const nextStatus = req.body.status ?? existing.status;
+    if (nextStatus === 'live' && existing.status !== 'live') {
+      await assertCanPublishKit({ store, brandId: existing.brandId, excludeKitId: existing._id });
+    }
 
     const packaging = req.body.packaging !== undefined
       ? await normalizeAndValidatePackaging(req.body.packaging)
@@ -158,7 +172,7 @@ router.put('/:id', protect, async (req, res) => {
       req.params.id,
       {
         name: req.body.name ?? existing.name,
-        status: req.body.status ?? existing.status,
+        status: nextStatus,
         items: Array.isArray(req.body.items) ? req.body.items : existing.items,
         packaging,
         sampleRequested: req.body.sampleRequested !== undefined ? Boolean(req.body.sampleRequested) : existing.sampleRequested,

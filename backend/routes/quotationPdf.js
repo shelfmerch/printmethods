@@ -98,15 +98,41 @@ router.get('/:id', protect, async (req, res) => {
     y += 16;
     doc.moveTo(360, y).lineTo(570, y).strokeColor('#dddddd').stroke();
     y += 12;
-    const gst = Number(quote.tax || 0);
-    [
-      ['Subtotal', quote.subtotal],
-      ['GST', gst],
-      ['Total', quote.total],
-    ].forEach(([label, value], index) => {
-      doc.font(index === 2 ? 'Helvetica-Bold' : 'Helvetica')
-        .fontSize(index === 2 ? 12 : 10)
-        .text(label, 400, y, { width: 70 })
+
+    // Pricing breakdown (must match /brand/kits/:id/send final-step math)
+    // Subtotal = total kit item cost (sum of items)
+    // Service Fee = 15% of subtotal
+    // Estimated Tax = 18% of (subtotal + service fee)
+    // Total = subtotal + packaging cost (if any) + service fee + estimated tax
+    const subtotal = Array.isArray(quote.items)
+      ? quote.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0), 0)
+      : Number(quote.subtotal || 0);
+
+    // Optional packaging cost (not always persisted on the quotation schema)
+    const packagingCost = Number(
+      quote.packagingCost ||
+      quote.packaging ||
+      quote.quotation?.packagingCost ||
+      0
+    ) || 0;
+
+    const serviceFee = subtotal * 0.15;
+    const estimatedTax = (subtotal + serviceFee) * 0.18;
+    const total = subtotal + packagingCost + serviceFee + estimatedTax;
+
+    const rows = [
+      ['Subtotal', subtotal],
+      ...(packagingCost > 0 ? [['Packaging cost', packagingCost]] : []),
+      ['Service fee', serviceFee],
+      ['Estimated tax', estimatedTax],
+      ['Total', total],
+    ];
+
+    rows.forEach(([label, value], index) => {
+      const isTotal = index === rows.length - 1;
+      doc.font(isTotal ? 'Helvetica-Bold' : 'Helvetica')
+        .fontSize(isTotal ? 12 : 10)
+        .text(label, 360, y, { width: 120 })
         .text(money(value), 490, y, { width: 80, align: 'right' });
       y += 18;
     });
