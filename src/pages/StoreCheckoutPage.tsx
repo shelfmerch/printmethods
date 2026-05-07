@@ -72,6 +72,12 @@ const StoreCheckoutPage: React.FC = () => {
   const [shipping, setShipping] = useState(0); // Will be calculated based on zip code
   const [shippingLoading, setShippingLoading] = useState(false);
   const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState<number | undefined>();
+  const [creditPreview, setCreditPreview] = useState<{
+    availablePaise: number;
+    walletAppliedPaise: number;
+    payablePaise: number;
+  } | null>(null);
+  const [creditLoading, setCreditLoading] = useState(false);
 
   // New states for validation and enhance UI
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -193,6 +199,11 @@ const StoreCheckoutPage: React.FC = () => {
   }, [cart, subtotal]);
 
   const total = subtotal + shipping;
+  const payablePaise = creditPreview ? creditPreview.payablePaise : Math.round(total * 100);
+  const walletAppliedRupees = (creditPreview?.walletAppliedPaise || 0) / 100;
+  const payableRupees = payablePaise / 100;
+  const formatRupees = (value: number) =>
+    `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   // Remove default shipping effect that sets it to ₹150
 
@@ -263,6 +274,29 @@ const StoreCheckoutPage: React.FC = () => {
     const timeoutId = setTimeout(calculateShipping, 400);
     return () => clearTimeout(timeoutId);
   }, [shippingInfo.zipCode, shippingInfo.country, cart]);
+
+  useEffect(() => {
+    const loadCreditPreview = async () => {
+      if (!subdomain || !isAuthenticated || !customer || total <= 0) {
+        setCreditPreview(null);
+        return;
+      }
+
+      setCreditLoading(true);
+      try {
+        const resp = await checkoutApi.getCreditPreview(subdomain, Math.round(total * 100));
+        setCreditPreview(resp.success && resp.data ? resp.data : null);
+      } catch (error) {
+        console.error('Failed to load employee credits:', error);
+        setCreditPreview(null);
+      } finally {
+        setCreditLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(loadCreditPreview, 250);
+    return () => clearTimeout(timeoutId);
+  }, [subdomain, isAuthenticated, customer, total]);
 
   const validateField = (name: string, value: string) => {
     let error = "";
@@ -461,12 +495,6 @@ const StoreCheckoutPage: React.FC = () => {
       }
     }
 
-    const ok = await loadRazorpayScript();
-    if (!ok) {
-      toast.error('Failed to load payment gateway. Please try again.');
-      return;
-    }
-
     try {
       setProcessing(true);
 
@@ -477,12 +505,43 @@ const StoreCheckoutPage: React.FC = () => {
         tax,
       });
 
-      if (!createResp.success || !createResp.data?.razorpayOrder) {
+      if (!createResp.success) {
         throw new Error(createResp.message || 'Failed to start payment');
       }
 
-      const { razorpayOrder } = createResp.data;
+      const { razorpayOrder } = createResp.data || {};
       const razorpayKeyId = (createResp.data as any)?.razorpayKeyId;
+
+      if (!razorpayOrder) {
+        const orderResp = await checkoutApi.placeOrder(store.subdomain, {
+          cart,
+          shippingInfo,
+          shipping,
+          tax,
+          useCredits: true,
+        });
+
+        if (!orderResp.success || !orderResp.data) {
+          throw new Error(orderResp.message || 'Failed to place credit order');
+        }
+
+        clearCart();
+        toast.success('Credits applied. Order placed.');
+        navigate('/order-confirmation', {
+          state: {
+            order: orderResp.data,
+            storeSlug: store?.subdomain || subdomain,
+          },
+        });
+        return;
+      }
+
+      const ok = await loadRazorpayScript();
+      if (!ok) {
+        toast.error('Failed to load payment gateway. Please try again.');
+        setProcessing(false);
+        return;
+      }
 
       const razorpayKey = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined;
 
@@ -581,6 +640,9 @@ const StoreCheckoutPage: React.FC = () => {
       const resp = await checkoutApi.placeOrder(store.subdomain, {
         cart,
         shippingInfo,
+        shipping,
+        tax,
+        useCredits: true,
       });
 
       if (!resp.success || !resp.data) {
@@ -983,7 +1045,7 @@ const StoreCheckoutPage: React.FC = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing payment
                     </>
                   ) : (
-                    'Continue to payment'
+                    payablePaise <= 0 ? 'Place order with credits' : 'Continue to payment'
                   )}
                 </Button>
               </div>
@@ -1063,13 +1125,32 @@ const StoreCheckoutPage: React.FC = () => {
                   </p>
                 )}
                 <Separator className="my-2" />
+                {(creditLoading || (creditPreview && creditPreview.availablePaise > 0)) && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Employee credits</span>
+                      <span>
+                        {creditLoading ? (
+                          <Loader2 className="h-3 w-3 animate-spin inline-block" />
+                        ) : (
+                          `-${formatRupees(walletAppliedRupees)}`
+                        )}
+                      </span>
+                    </div>
+                    {!creditLoading && creditPreview && (
+                      <p className="text-xs text-green-700 text-right">
+                        {formatRupees(creditPreview.availablePaise / 100)} available
+                      </p>
+                    )}
+                  </>
+                )}
                 <div className="flex justify-between text-base font-semibold">
-                  <span>Total</span>
+                  <span>{walletAppliedRupees > 0 ? 'Pay now' : 'Total'}</span>
                   <span>
                     {shippingLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin inline-block" />
                     ) : (
-                      `₹${total.toFixed(2)}`
+                      formatRupees(payableRupees)
                     )}
                   </span>
                 </div>

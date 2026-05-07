@@ -12,6 +12,9 @@ const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const FulfillmentInvoice = require('../models/FulfillmentInvoice');
 const User = require('../models/User');
+const BrandEmployee = require('../models/BrandEmployee');
+const Wallet = require('../models/Wallet');
+const WalletTransaction = require('../models/WalletTransaction');
 const walletService = require('../services/walletService');
 const { sendMerchantOrderNotification, sendCustomerOrderConfirmation } = require('../utils/mailer');
 const { generateOrderInvoicePDF } = require('../utils/pdfGenerator');
@@ -49,6 +52,123 @@ const buildShipmentAudit = (status, customer) => ({
     },
   ],
 });
+
+const findEmployeeCreditContext = async (store, customer) => {
+  if (!store || !customer?.email) {
+    return { employee: null, wallet: null, balancePaise: 0 };
+  }
+
+  const employee = await BrandEmployee.findOne({
+    brandId: store._id,
+    email: customer.email.toLowerCase(),
+    inviteStatus: { $in: ['active', 'pending'] },
+  });
+
+  if (!employee?.walletId) {
+    return { employee, wallet: null, balancePaise: 0 };
+  }
+
+  const wallet = await Wallet.findById(employee.walletId);
+  if (!wallet || wallet.status !== 'ACTIVE') {
+    return { employee, wallet: null, balancePaise: 0 };
+  }
+
+  return { employee, wallet, balancePaise: wallet.balancePaise || 0 };
+};
+
+const buildCreditPreview = async (store, customer, totalRupees) => {
+  const { employee, wallet, balancePaise } = await findEmployeeCreditContext(store, customer);
+  const orderTotalPaise = Math.max(0, Math.round((Number(totalRupees) || 0) * 100));
+  const walletAppliedPaise = employee && wallet ? Math.min(balancePaise, orderTotalPaise) : 0;
+
+  return {
+    employeeId: employee?._id || null,
+    walletId: wallet?._id || null,
+    availablePaise: balancePaise,
+    walletAppliedPaise,
+    payablePaise: Math.max(0, orderTotalPaise - walletAppliedPaise),
+  };
+};
+
+const debitEmployeeCreditWallet = async ({ wallet, employee, order, store, customer, amountPaise }) => {
+  if (!amountPaise || amountPaise <= 0) return null;
+
+  const idempotencyKey = `employee_credit_${order._id}_${employee._id}`;
+  const existingTxn = await WalletTransaction.findOne({ idempotencyKey });
+  if (existingTxn?.status === 'SUCCESS') {
+    return { wallet, transaction: existingTxn, alreadyProcessed: true };
+  }
+
+  const freshWallet = await Wallet.findOneAndUpdate(
+    { _id: wallet._id, status: 'ACTIVE', balancePaise: { $gte: amountPaise } },
+    { $inc: { balancePaise: -amountPaise } },
+    { new: false }
+  );
+
+  if (!freshWallet) {
+    throw new Error('Insufficient employee credit balance');
+  }
+
+  const balanceBefore = freshWallet.balancePaise;
+  const balanceAfter = balanceBefore - amountPaise;
+  const [transaction] = await WalletTransaction.create([
+    {
+      walletId: wallet._id,
+      userId: freshWallet.userId,
+      type: 'PURCHASE',
+      direction: 'DEBIT',
+      amountPaise,
+      balanceBeforePaise: balanceBefore,
+      balanceAfterPaise: balanceAfter,
+      status: 'SUCCESS',
+      source: 'ORDER',
+      referenceType: 'ORDER',
+      referenceId: order._id.toString(),
+      idempotencyKey,
+      description: `Employee credit used for store order ${order._id}`,
+      meta: {
+        employeeId: employee._id.toString(),
+        storeId: store._id.toString(),
+        customerId: customer._id.toString(),
+      },
+      completedAt: new Date(),
+    },
+  ]);
+
+  await BrandEmployee.findByIdAndUpdate(employee._id, {
+    $inc: { totalCreditUsedPaise: amountPaise },
+  });
+
+  return {
+    wallet: await Wallet.findById(wallet._id),
+    transaction,
+    alreadyProcessed: false,
+  };
+};
+
+const applyEmployeeCredits = async ({ order, store, customer, amountPaise }) => {
+  if (!amountPaise || amountPaise <= 0) return null;
+
+  const { employee, wallet } = await findEmployeeCreditContext(store, customer);
+  if (!employee || !wallet) {
+    throw new Error('Employee credits are no longer available');
+  }
+
+  const result = await debitEmployeeCreditWallet({
+    wallet,
+    employee,
+    order,
+    store,
+    customer,
+    amountPaise,
+  });
+
+  await StoreOrder.findByIdAndUpdate(order._id, {
+    'payment.walletAppliedPaise': amountPaise,
+  });
+
+  return result;
+};
 
 /**
  * Helper to generate Fulfillment Invoice for the Merchant
@@ -293,12 +413,39 @@ const sendOrderNotifications = async (order, store) => {
   }
 };
 
+// GET /api/store-checkout/:subdomain/credits?totalPaise=12345
+// Authenticated preview of employee credits that will auto-apply at checkout.
+router.get('/:subdomain/credits', verifyStoreToken, async (req, res) => {
+  try {
+    const { subdomain } = req.params;
+    const totalPaise = Math.max(0, Number.parseInt(req.query.totalPaise || '0', 10) || 0);
+
+    const store = await Store.findOne({ slug: subdomain, isActive: true }).lean();
+    if (!store) return res.status(404).json({ success: false, message: 'Store not found' });
+
+    const customerIdFromToken = req.customer?.customer?.id;
+    const storeIdFromToken = req.customer?.customer?.storeId;
+    if (!customerIdFromToken || String(storeIdFromToken) !== String(store._id)) {
+      return res.status(403).json({ success: false, message: 'Customer does not belong to this store' });
+    }
+
+    const customer = await StoreCustomer.findById(customerIdFromToken);
+    if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
+
+    const credits = await buildCreditPreview(store, customer, totalPaise / 100);
+    res.json({ success: true, data: credits });
+  } catch (error) {
+    console.error('Credit preview error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load employee credits' });
+  }
+});
+
 // POST /api/store-checkout/:subdomain
 // Authenticated endpoint used by storefront checkout to create an order
 router.post('/:subdomain', verifyStoreToken, async (req, res) => {
   try {
     const { subdomain } = req.params;
-    const { cart, shippingInfo } = req.body || {};
+    const { cart, shippingInfo, shipping: requestedShipping, useCredits = true } = req.body || {};
 
     if (!Array.isArray(cart) || cart.length === 0) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
@@ -386,10 +533,21 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
       }
     }
 
-    const shipping = cart.length > 0 ? 45 : 0; // Standard shipping or from checkout
+    const shipping = Number.isFinite(Number(requestedShipping)) ? Number(requestedShipping) : (cart.length > 0 ? 45 : 0);
     const gstPercentage = maxGstSlab;
     const gstAmount = subtotal * (gstPercentage / 100);
     const total = subtotal + shipping; // Customer only pays subtotal + shipping
+    const creditPreview = useCredits
+      ? await buildCreditPreview(store, customer, total)
+      : { walletAppliedPaise: 0, payablePaise: Math.round(total * 100), availablePaise: 0 };
+
+    if (creditPreview.walletAppliedPaise > 0 && creditPreview.payablePaise > 0) {
+      return res.status(402).json({
+        success: false,
+        message: 'Remaining balance requires online payment.',
+        data: { credits: creditPreview },
+      });
+    }
 
     const productionCostValue = totalProductionCost + shipping + gstAmount;
     const calculatedProfit = total - productionCostValue;
@@ -425,12 +583,33 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
       totalPaid: total,
       productionCost: productionCostValue,
       calculatedProfit,
-      shipment: buildShipmentAudit('on-hold', customer),
-      // Default to cod for direct placement if not specified
+      status: creditPreview.payablePaise === 0 && creditPreview.walletAppliedPaise > 0 ? 'paid' : 'on-hold',
+      shipment: buildShipmentAudit(creditPreview.payablePaise === 0 && creditPreview.walletAppliedPaise > 0 ? 'paid' : 'on-hold', customer),
       payment: {
-        method: 'cod'
+        method: creditPreview.payablePaise === 0 && creditPreview.walletAppliedPaise > 0 ? 'credits' : 'cod',
+        walletAppliedPaise: creditPreview.walletAppliedPaise,
+        payablePaise: creditPreview.payablePaise,
       }
     });
+
+    if (creditPreview.walletAppliedPaise > 0) {
+      try {
+        await applyEmployeeCredits({
+          order,
+          store,
+          customer,
+          amountPaise: creditPreview.walletAppliedPaise,
+        });
+      } catch (creditError) {
+        order.status = 'on-hold';
+        order.payment.failureReason = creditError.message;
+        await order.save();
+        return res.status(409).json({
+          success: false,
+          message: 'Could not apply employee credits. Please refresh checkout and try again.',
+        });
+      }
+    }
 
     // Trigger fulfillment invoice generation for the merchant
     await generateFulfillmentInvoice(order);
@@ -489,10 +668,31 @@ router.post('/:subdomain/razorpay/create-order', verifyStoreToken, async (req, r
       return res.status(403).json({ success: false, message: 'Customer does not belong to this store' });
     }
 
+    const customer = await StoreCustomer.findById(customerIdFromToken);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+
     const keyId = process.env.RAZORPAY_KEY_ID;
     console.log(`[Checkout] Creating Razorpay order. Key: ${keyId} (Len: ${keyId?.length})`);
 
-    // Check if Razorpay is configured
+    // Compute order totals
+    const { subtotal, shipping: finalShipping, tax: finalTax, total } = computeOrderTotals(cart, shipping, tax);
+    const credits = await buildCreditPreview(store, customer, total);
+    const amountInPaise = credits.payablePaise;
+
+    if (amountInPaise <= 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          razorpayOrder: null,
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          credits,
+          totals: { subtotal, shipping: finalShipping, tax: finalTax, total },
+        },
+      });
+    }
+
     const razorpay = getRazorpayInstance();
     if (!razorpay) {
       return res.status(500).json({
@@ -500,13 +700,6 @@ router.post('/:subdomain/razorpay/create-order', verifyStoreToken, async (req, r
         message: 'Payment gateway not configured. Please contact store owner.'
       });
     }
-
-    // Compute order totals
-    const { subtotal, shipping: finalShipping, tax: finalTax, total } = computeOrderTotals(cart, shipping, tax);
-
-    // Create Razorpay order
-    // Amount should be in smallest currency unit (paise for INR)
-    const amountInPaise = Math.round(total * 100);
 
     const razorpayOrder = await razorpay.orders.create({
       amount: amountInPaise,
@@ -530,6 +723,8 @@ router.post('/:subdomain/razorpay/create-order', verifyStoreToken, async (req, r
           receipt: razorpayOrder.receipt,
         },
         razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+        credits,
+        totals: { subtotal, shipping: finalShipping, tax: finalTax, total },
       },
     });
   } catch (error) {
@@ -668,6 +863,7 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
     const gstPercentage = maxGstSlab;
     const gstAmount = subtotal * (gstPercentage / 100);
     const total = subtotal + finalShipping; // Customer only pays subtotal + shipping
+    const credits = await buildCreditPreview(store, customer, total);
 
     const productionCostTotal = totalProductionCost + finalShipping + gstAmount;
     const calculatedProfit = total - productionCostTotal;
@@ -711,8 +907,29 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
+        walletAppliedPaise: credits.walletAppliedPaise,
+        payablePaise: credits.payablePaise,
       },
     });
+
+    let creditApplyFailed = false;
+    if (credits.walletAppliedPaise > 0) {
+      try {
+        await applyEmployeeCredits({
+          order,
+          store,
+          customer,
+          amountPaise: credits.walletAppliedPaise,
+        });
+      } catch (creditError) {
+        creditApplyFailed = true;
+        order.status = 'on-hold';
+        order.payment.failureReason = `Payment captured but employee credit failed: ${creditError.message}`;
+        order.shipment = buildShipmentAudit('on-hold', customer);
+        await order.save();
+        console.error('[Checkout] Payment captured but employee credit failed:', creditError);
+      }
+    }
 
     // Trigger fulfillment invoice generation for the merchant
     await generateFulfillmentInvoice(order);
@@ -721,7 +938,13 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
     await sendOrderNotifications(order, store);
 
     const populatedOrder = await StoreOrder.findById(order._id).populate('items.storeProductId').lean();
-    return res.status(201).json({ success: true, data: populatedOrder });
+    return res.status(201).json({
+      success: true,
+      data: populatedOrder,
+      message: creditApplyFailed
+        ? 'Payment captured, but employee credit application needs reconciliation.'
+        : undefined,
+    });
   } catch (error) {
     console.error('Razorpay verify-payment error:', error);
     return res.status(500).json({

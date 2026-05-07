@@ -1389,12 +1389,22 @@ router.post('/signup/otp/complete', async (req, res) => {
       try {
         const BrandEmployee = require('../models/BrandEmployee');
         const Wallet = require('../models/Wallet');
-        let wallet = await Wallet.findOne({ userId: user._id });
-        if (!wallet) wallet = await Wallet.create({ userId: user._id, currency: 'INR', balancePaise: 0 });
-        await BrandEmployee.updateMany(
-          { email: email.toLowerCase(), inviteStatus: 'pending' },
-          { userId: user._id, walletId: wallet._id, inviteStatus: 'active' }
-        );
+        const pendingEmployees = await BrandEmployee.find({
+          email: email.toLowerCase(),
+          inviteStatus: 'pending',
+        });
+        for (const employee of pendingEmployees) {
+          let walletId = employee.walletId;
+          if (!walletId) {
+            let wallet = await Wallet.findOne({ userId: user._id });
+            if (!wallet) wallet = await Wallet.create({ userId: user._id, currency: 'INR', balancePaise: 0 });
+            walletId = wallet._id;
+          }
+          employee.userId = user._id;
+          employee.walletId = walletId;
+          employee.inviteStatus = 'active';
+          await employee.save();
+        }
       } catch (linkErr) {
         console.error('BrandEmployee link-wallet error:', linkErr.message);
       }
@@ -1679,4 +1689,3 @@ router.delete('/tokens/personal/:id', protect, async (req, res) => {
 });
 
 module.exports = router;
-

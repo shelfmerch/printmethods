@@ -70,9 +70,9 @@ router.post('/:brandId', protect, async (req, res) => {
 
     // Find or create wallet for this email
     let user = await User.findOne({ email: normalizedEmail });
-    let walletId = null;
+    let walletId = existingEmployee?.walletId || null;
 
-    if (user) {
+    if (user && !walletId) {
       // Get or create their wallet
       let wallet = await Wallet.findOne({ userId: user._id });
       if (!wallet) {
@@ -142,8 +142,12 @@ router.post('/:brandId/bulk', protect, async (req, res) => {
       if (!emp.email) { results.errors.push({ email: emp.email, error: 'Missing email' }); continue; }
       try {
         const user = await User.findOne({ email: emp.email.toLowerCase() });
-        let walletId = null;
-        if (user) {
+        const existingEmployee = await BrandEmployee.findOne({
+          brandId: req.params.brandId,
+          email: emp.email.toLowerCase(),
+        });
+        let walletId = existingEmployee?.walletId || null;
+        if (user && !walletId) {
           let wallet = await Wallet.findOne({ userId: user._id });
           if (!wallet) wallet = await Wallet.create({ userId: user._id, currency: 'INR', balancePaise: 0 });
           walletId = wallet._id;
@@ -218,17 +222,28 @@ router.post('/link-wallet', async (req, res) => {
     const { email, userId } = req.body;
     if (!email || !userId) return res.status(400).json({ success: false });
 
-    // Find or create wallet
-    let wallet = await Wallet.findOne({ userId });
-    if (!wallet) wallet = await Wallet.create({ userId, currency: 'INR', balancePaise: 0 });
+    const pendingEmployees = await BrandEmployee.find({
+      email: email.toLowerCase(),
+      inviteStatus: 'pending',
+    });
 
-    // Link all pending employee records for this email
-    const result = await BrandEmployee.updateMany(
-      { email: email.toLowerCase(), inviteStatus: 'pending' },
-      { userId, walletId: wallet._id, inviteStatus: 'active' }
-    );
+    let linked = 0;
+    for (const employee of pendingEmployees) {
+      let walletId = employee.walletId;
+      if (!walletId) {
+        let wallet = await Wallet.findOne({ userId });
+        if (!wallet) wallet = await Wallet.create({ userId, currency: 'INR', balancePaise: 0 });
+        walletId = wallet._id;
+      }
 
-    res.json({ success: true, linked: result.modifiedCount });
+      employee.userId = userId;
+      employee.walletId = walletId;
+      employee.inviteStatus = 'active';
+      await employee.save();
+      linked++;
+    }
+
+    res.json({ success: true, linked });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

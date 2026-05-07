@@ -506,7 +506,7 @@ export const checkoutApi = {
   // Place an order for a public store by subdomain
   placeOrder: async (
     subdomain: string,
-    payload: { cart: any[]; shippingInfo: any }
+    payload: { cart: any[]; shippingInfo: any; shipping?: number; tax?: number; useCredits?: boolean }
   ) => {
     const storeTokenKey = `store_token_${subdomain}`;
     const storeToken = localStorage.getItem(storeTokenKey);
@@ -534,6 +534,37 @@ export const checkoutApi = {
     }
 
     return data as { success: boolean; data: any; message?: string };
+  },
+
+  getCreditPreview: async (
+    subdomain: string,
+    totalPaise: number
+  ) => {
+    const storeTokenKey = `store_token_${subdomain}`;
+    const storeToken = localStorage.getItem(storeTokenKey);
+
+    const response = await fetch(
+      `${API_BASE_URL}/store-checkout/${encodeURIComponent(subdomain)}/credits?totalPaise=${encodeURIComponent(totalPaise)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(storeToken ? { Authorization: `Bearer ${storeToken}` } : {}),
+        },
+        credentials: 'include',
+      }
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return (data || {
+        success: false,
+        message: 'Failed to load credits',
+      }) as { success: boolean; data?: any; message?: string };
+    }
+
+    return data as { success: boolean; data?: any; message?: string };
   },
 
   // Create Razorpay order

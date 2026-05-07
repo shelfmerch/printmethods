@@ -121,11 +121,28 @@ const StoreOrderSchema = new mongoose.Schema(
     payment: {
       method: {
         type: String,
-        enum: ['razorpay', 'cod', 'other'],
+        enum: ['razorpay', 'cod', 'credits', 'other'],
       },
       razorpayOrderId: String,
       razorpayPaymentId: String,
       razorpaySignature: String,
+      walletAppliedPaise: {
+        type: Number,
+        default: 0,
+        validate: {
+          validator: Number.isInteger,
+          message: '{VALUE} is not an integer value'
+        }
+      },
+      payablePaise: {
+        type: Number,
+        default: 0,
+        validate: {
+          validator: Number.isInteger,
+          message: '{VALUE} is not an integer value'
+        }
+      },
+      failureReason: String,
     },
     // Financial Snapshot for Invoice and Profit
     productBaseCost: Number, // Sum of (CatalogProduct.basePrice * quantity)
