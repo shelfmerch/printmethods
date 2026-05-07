@@ -49,10 +49,11 @@ const CreateStore = () => {
   const [headcount, setHeadcount] = useState('');
   const [industry, setIndustry] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { refreshStores } = useStore();
+  const { stores, loading: storesLoading, refreshStores } = useStore();
 
   useEffect(() => {
     if (user?.companyName) {
@@ -63,6 +64,7 @@ const CreateStore = () => {
   const handleCreateStore = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isRedirecting) return;
     if (!user?.id) {
       toast.error('You must be logged in');
       return;
@@ -81,6 +83,31 @@ const CreateStore = () => {
     }
     if (!industry) {
       toast.error('Industry is required');
+      return;
+    }
+
+    // ── Pre-flight: enforce Free plan store limit BEFORE API call ────────────
+    // Free plan: max 1 native (swag) store. If store data is still loading,
+    // refresh once so we don't accidentally allow a second request.
+    let currentStores = stores;
+    if (storesLoading || !Array.isArray(currentStores)) {
+      try {
+        currentStores = await refreshStores();
+      } catch {
+        // ignore; server-side enforcement will still protect.
+      }
+    }
+
+    const nativeStores = (currentStores || []).filter((s: any) => (s?.type || 'native') === 'native');
+    const planId = String((nativeStores[0] as any)?.subscriptionPlan || 'free').toLowerCase();
+    const isFreePlan = planId === 'free';
+
+    if (isFreePlan && nativeStores.length >= 1) {
+      setIsRedirecting(true);
+      toast.error('Free plan allows up to 1 swag stores. Upgrade to Growth or Enterprise to add more.');
+      window.setTimeout(() => {
+        navigate('/brand/billing');
+      }, 1500);
       return;
     }
 
@@ -110,7 +137,25 @@ const CreateStore = () => {
       await refreshStores();
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create store. Please try again.');
+      const rawMessage = error?.message || 'Failed to create store. Please try again.';
+      const normalizedMessage = String(rawMessage || '').toLowerCase();
+      const isFreeStoreLimit =
+        normalizedMessage.includes('free plan allows up to 1 swag store') ||
+        normalizedMessage.includes('free plan allows up to 1 swag stores') ||
+        (normalizedMessage.includes('free') && normalizedMessage.includes('swag store') && normalizedMessage.includes('upgrade'));
+
+      if (isFreeStoreLimit) {
+        if (!isRedirecting) {
+          setIsRedirecting(true);
+          toast.error('Free plan allows up to 1 swag stores. Upgrade to Growth or Enterprise to add more.');
+          window.setTimeout(() => {
+            navigate('/brand/billing');
+          }, 1500);
+        }
+        return;
+      }
+
+      toast.error(rawMessage);
     } finally {
       setIsCreating(false);
     }
@@ -199,7 +244,7 @@ const CreateStore = () => {
               : 'Your signup email domain will be used for the initial brand profile.'}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isCreating}>
+          <Button type="submit" className="w-full" disabled={isCreating || isRedirecting}>
             {isCreating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Submit Brand Onboarding
           </Button>

@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import { KitProduct } from '@/types/kits';
+import { convertPlaceholderToPixels } from '@/lib/placeholderPixels';
 
 interface KitItemPreviewProps {
   product?: KitProduct | null;
@@ -15,19 +17,70 @@ const KitItemPreview = ({ product, logoUrl, label, className = '' }: KitItemPrev
   const physicalWidth = product?.design?.physicalDimensions?.width || 1;
   const physicalHeight = product?.design?.physicalDimensions?.height || 1;
 
-  const overlayStyle = placeholder && physicalWidth > 0 && physicalHeight > 0 ? {
-    left: `${((placeholder.xIn || 0) / physicalWidth) * 100}%`,
-    top: `${((placeholder.yIn || 0) / physicalHeight) * 100}%`,
-    width: `${((placeholder.widthIn || 0.0001) / physicalWidth) * 100}%`,
-    height: `${((placeholder.heightIn || 0.0001) / physicalHeight) * 100}%`,
-    transform: placeholder.rotationDeg ? `rotate(${placeholder.rotationDeg}deg)` : undefined,
-  } : null;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [imageNatural, setImageNatural] = useState<{ w: number; h: number } | null>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setContainerSize({ w: rect.width, h: rect.height });
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const placeholderPx = (() => {
+    if (!placeholder || !imageNatural || physicalWidth <= 0 || physicalHeight <= 0) return null;
+    return convertPlaceholderToPixels(
+      placeholder,
+      imageNatural.w,
+      imageNatural.h,
+      { width: physicalWidth, height: physicalHeight }
+    );
+  })();
+
+  const overlayStyle = (() => {
+    if (!placeholderPx || !containerSize || !imageNatural) return null;
+
+    // object-contain layout box for the rendered mockup within the square container.
+    const scale = Math.min(containerSize.w / imageNatural.w, containerSize.h / imageNatural.h);
+    const renderedW = imageNatural.w * scale;
+    const renderedH = imageNatural.h * scale;
+    const offsetX = (containerSize.w - renderedW) / 2;
+    const offsetY = (containerSize.h - renderedH) / 2;
+
+    return {
+      left: `${offsetX + placeholderPx.x * scale}px`,
+      top: `${offsetY + placeholderPx.y * scale}px`,
+      width: `${Math.max(1, placeholderPx.width) * scale}px`,
+      height: `${Math.max(1, placeholderPx.height) * scale}px`,
+    } as const;
+  })();
+
+  const overlayRotation = placeholderPx?.rotation ? `rotate(${placeholderPx.rotation}deg)` : undefined;
 
   return (
     <div className={`overflow-hidden rounded-lg border bg-muted/30 ${className}`}>
-      <div className="relative aspect-square w-full bg-white">
+      <div ref={containerRef} className="relative aspect-square w-full bg-white">
         {mockupUrl ? (
-          <img src={mockupUrl} alt={product?.name || 'Kit item'} className="h-full w-full object-contain" />
+          <img
+            src={mockupUrl}
+            alt={product?.name || 'Kit item'}
+            className="h-full w-full object-contain"
+            onLoad={(event) => {
+              const img = event.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setImageNatural({ w: img.naturalWidth, h: img.naturalHeight });
+              }
+            }}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             No preview
@@ -35,7 +88,12 @@ const KitItemPreview = ({ product, logoUrl, label, className = '' }: KitItemPrev
         )}
         {logoUrl && overlayStyle && (
           <div className="absolute overflow-hidden rounded-md border border-white/70 bg-white/70 shadow" style={overlayStyle}>
-            <img src={logoUrl} alt="Brand logo preview" className="h-full w-full object-contain" />
+            <div
+              className="flex h-full w-full items-center justify-center overflow-hidden"
+              style={{ transform: overlayRotation, transformOrigin: 'center' }}
+            >
+              <img src={logoUrl} alt="Brand logo preview" className="max-h-full max-w-full object-contain" />
+            </div>
           </div>
         )}
       </div>

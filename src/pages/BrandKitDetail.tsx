@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronRight, Pencil, SendHorizonal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Header, Footer } from '@/components/home/';
+import { Header } from '@/components/home/';
 import KitItemPreview from '@/components/kits/KitItemPreview';
 import { RAW_API_URL } from '@/config';
 import { kitsApi } from '@/lib/kits';
@@ -295,7 +295,7 @@ const BrandKitDetail = () => {
           )}
         </div>
       </DashboardLayout>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };

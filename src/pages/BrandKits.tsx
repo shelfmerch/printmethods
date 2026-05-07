@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Package2, Send, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Header, Footer } from '@/components/home/';
+import { Header } from '@/components/home/';
 import { useStore } from '@/contexts/StoreContext';
 import { kitsApi } from '@/lib/kits';
 import { Kit } from '@/types/kits';
@@ -19,9 +19,12 @@ const statusTone: Record<string, string> = {
 
 const BrandKits = () => {
   const { selectedStore } = useStore();
+  const navigate = useNavigate();
   const brandId = selectedStore?.id || (selectedStore as any)?._id;
   const [kits, setKits] = useState<Kit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
+  const limitToastShownRef = useRef(false);
 
   useEffect(() => {
     const run = async () => {
@@ -50,6 +53,26 @@ const BrandKits = () => {
     drafts: kits.filter((kit) => kit.status === 'draft').length,
   }), [kits]);
 
+  const handleCreateKit = () => {
+    if (redirecting) return;
+    const plan = String((selectedStore as any)?.subscriptionPlan || 'free').toLowerCase();
+    const publishedKitCount = kits.filter((kit) => kit.status === 'live').length;
+
+    if (plan === 'free' && publishedKitCount >= 3) {
+      if (!limitToastShownRef.current) {
+        limitToastShownRef.current = true;
+        toast.error('Free plan allows up to 3 kits. Upgrade to Growth or Enterprise to add more.');
+      }
+      setRedirecting(true);
+      window.setTimeout(() => {
+        navigate('/brand/billing');
+      }, 1500);
+      return;
+    }
+
+    navigate('/brand/kits/new');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -62,11 +85,9 @@ const BrandKits = () => {
                 Package your catalog products into reusable gift kits, then send them at scale.
               </p>
             </div>
-            <Button asChild>
-              <Link to="/brand/kits/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Create a Kit
-              </Link>
+            <Button onClick={handleCreateKit} disabled={redirecting}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create a Kit
             </Button>
           </div>
 
@@ -134,8 +155,8 @@ const BrandKits = () => {
                       Start by creating a reusable kit of products and branded logos.
                     </p>
                   </div>
-                  <Button asChild>
-                    <Link to="/brand/kits/new">Create your first kit</Link>
+                  <Button onClick={handleCreateKit} disabled={redirecting}>
+                    Create your first kit
                   </Button>
                 </CardContent>
               </Card>
@@ -143,7 +164,7 @@ const BrandKits = () => {
           </div>
         </div>
       </DashboardLayout>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };

@@ -1,9 +1,9 @@
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, ImagePlus, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Header, Footer } from '@/components/home/';
+import { Header } from '@/components/home/';
 import KitItemPreview from '@/components/kits/KitItemPreview';
 import { useStore } from '@/contexts/StoreContext';
 import { RAW_API_URL } from '@/config';
@@ -28,6 +28,8 @@ const BrandKitBuilder = () => {
   const isEditMode = Boolean(id);
   const { selectedStore } = useStore();
   const brandId = selectedStore?.id || (selectedStore as any)?._id;
+  const [redirecting, setRedirecting] = useState(false);
+  const limitToastShownRef = useRef(false);
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [status, setStatus] = useState<'draft' | 'live'>('draft');
@@ -42,6 +44,35 @@ const BrandKitBuilder = () => {
   const [sampleRequested, setSampleRequested] = useState(false);
   const [loading, setLoading] = useState(false);
   const token = localStorage.getItem('token');
+
+  // Guard: Free plan can publish up to 3 kits; block entering new-kit flow when already at limit.
+  // This prevents refresh/relogin from landing on the builder and "clearing" the dashboard experience.
+  useEffect(() => {
+    const run = async () => {
+      if (isEditMode || !brandId) return;
+      const plan = String((selectedStore as any)?.subscriptionPlan || 'free').toLowerCase();
+      if (plan !== 'free') return;
+
+      try {
+        const response: any = await kitsApi.list(String(brandId));
+        const kits = response.data || [];
+        const publishedKitCount = kits.filter((kit: any) => kit.status === 'live').length;
+        if (publishedKitCount >= 3) {
+          if (!limitToastShownRef.current) {
+            limitToastShownRef.current = true;
+            toast.error('Free plan allows up to 3 kits. Upgrade to Growth or Enterprise to add more.');
+          }
+          setRedirecting(true);
+          window.setTimeout(() => {
+            navigate('/brand/billing');
+          }, 1500);
+        }
+      } catch {
+        // If kits can't be loaded here, we'll rely on server-side enforcement during publish.
+      }
+    };
+    run();
+  }, [brandId, isEditMode, navigate, selectedStore]);
 
   useEffect(() => {
     const load = async () => {
@@ -141,6 +172,7 @@ const BrandKitBuilder = () => {
       toast.error('Select a brand store first');
       return;
     }
+    if (redirecting) return;
     if (!name.trim()) {
       toast.error('Kit name is required');
       setStep(1);
@@ -264,11 +296,11 @@ const BrandKitBuilder = () => {
                     <KitItemPreview product={product} className="rounded-none border-0" />
                     <div className="space-y-2 p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
+                        {/* <div>
                           <h3 className="font-semibold">{product.name}</h3>
                           <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                           {(product as any).sampleAvailable && <Badge variant="outline" className="mt-2">Sample available</Badge>}
-                        </div>
+                        </div> */}
                         {selectedIds.has(product._id) && <Check className="h-5 w-5 text-primary" />}
                       </div>
                       <div className="text-sm text-muted-foreground">
@@ -373,7 +405,7 @@ const BrandKitBuilder = () => {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <h3 className="font-semibold">{product.name}</h3>
-                              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+                              {/* <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{product.description}</p> */}
                             </div>
                             {selected && <Check className="h-5 w-5 text-primary" />}
                           </div>
@@ -442,7 +474,7 @@ const BrandKitBuilder = () => {
           )}
         </div>
       </DashboardLayout>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };

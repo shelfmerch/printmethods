@@ -35,6 +35,6 @@ test('assertWithinPlanLimit throws a friendly upgrade error when exceeded', () =
       attemptedAdd: 1,
       limitKey: 'maxActiveProducts',
     }),
-    /Free allows up to 10 active products/
+    /Free plan allows up to 10 active products/
   );
 });

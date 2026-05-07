@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarClock, CheckCircle2, FileText, Mail, MapPin, PackageCheck, SendHorizonal, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Header, Footer } from '@/components/home/';
+import { Header } from '@/components/home/';
 import KitItemPreview from '@/components/kits/KitItemPreview';
 import { useStore } from '@/contexts/StoreContext';
 import { kitsApi } from '@/lib/kits';
@@ -841,7 +841,7 @@ const BrandKitSendWizard = () => {
           )}
         </div>
       </DashboardLayout>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };
