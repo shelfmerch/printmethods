@@ -57,19 +57,23 @@ export function StoreRoutes() {
     );
   }
 
+  // Path-based mode: mounted under <Route path="/store/*"> in App.tsx.
+  // React Router v6 strips the matched prefix (/store/) so inner routes
+  // receive only the remainder, e.g. "novastack" or "novastack/products".
+  // We use relative paths (no leading /store/) so they match correctly.
   return (
     <StoreWrapper>
       <Routes>
-        <Route path="/store/:subdomain" element={<StorefrontHomePage />} />
-        <Route path="/store/:subdomain/products" element={<StoreProductsPage />} />
-        <Route path="/store/:subdomain/auth" element={<StoreAuthPage />} />
-        {/* <Route path="/store/:subdomain/account" element={<StoreCustomerAccountPage />} /> */}
-        <Route path="/store/:subdomain/product/:productId" element={<StoreProductPage />} />
-        <Route path="/store/:subdomain/checkout" element={<StoreCheckoutPage />} />
-        <Route path="/store/:subdomain/profile" element={<StoreProfilePage />} />
-        <Route path="/store/:subdomain/orders" element={<StoreOrdersPage />} />
-        <Route path="/store/:subdomain/orders/:orderId" element={<StoreOrderDetailPage />} />
-        <Route path="/store/:subdomain/settings" element={<StoreSettingsPage />} />
+        <Route path=":subdomain" element={<StorefrontHomePage />} />
+        <Route path=":subdomain/products" element={<StoreProductsPage />} />
+        <Route path=":subdomain/auth" element={<StoreAuthPage />} />
+        {/* <Route path=":subdomain/account" element={<StoreCustomerAccountPage />} /> */}
+        <Route path=":subdomain/product/:productId" element={<StoreProductPage />} />
+        <Route path=":subdomain/checkout" element={<StoreCheckoutPage />} />
+        <Route path=":subdomain/profile" element={<StoreProfilePage />} />
+        <Route path=":subdomain/orders" element={<StoreOrdersPage />} />
+        <Route path=":subdomain/orders/:orderId" element={<StoreOrderDetailPage />} />
+        <Route path=":subdomain/settings" element={<StoreSettingsPage />} />
       </Routes>
     </StoreWrapper>
   );

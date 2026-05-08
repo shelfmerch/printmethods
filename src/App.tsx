@@ -140,7 +140,8 @@ const App = () => {
                         <Route path="/causes" element={<Causes />} />
                         <Route path="/platform" element={<PlatformPage />} />
                         <Route path="/products" element={<Products />} />
-                        {/* Storefront routes (subdomain or /store/:subdomain) are handled by StoreRoutes via RootRoute. */}
+                        {/* Path-based storefront routing for dev/non-subdomain (e.g. /store/novastack/*) */}
+                        <Route path="/store/*" element={<StoreRoutes />} />
                         <Route path="/categories" element={<AllCategories />} />
                         <Route path="/category-subcategories/:categoryId" element={<CategorySubcategories />} />
                         <Route path="/products/category/:slug" element={<CategoryProducts />} />
