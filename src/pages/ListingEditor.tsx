@@ -71,7 +71,11 @@ const ListingEditor = () => {
   const { state } = location as { state: LocationState | null };
 
   // Get storeProductId from route query or state
-  const storeProductId = searchParams.get('storeProductId') || state?.storeProductId;
+  const storeProductId =
+    searchParams.get('storeProductId') ||
+    state?.storeProductId ||
+    sessionStorage.getItem('last_listing_storeProductId') ||
+    undefined;
   const [draftData, setDraftData] = useState<any>(null);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [variantCostMap, setVariantCostMap] = useState<
@@ -294,35 +298,46 @@ const ListingEditor = () => {
       draftVariantsCount: draftVariants.length,
     });
 
-    if (!incoming.length) {
-      console.log('[ListingEditor] No incoming variants, skipping row creation');
+    const sourceVariants: IncomingVariant[] = incoming.length
+      ? incoming
+      : draftVariants.map((dv: any) => ({
+        id: dv.catalogProductVariantId || dv._id || dv.id,
+        size: dv.size,
+        color: dv.color,
+        sku: dv.sku,
+        price: dv.sellingPrice,
+      })).filter((v: any) => v.size && v.color);
+
+    if (!sourceVariants.length) {
+      console.log('[ListingEditor] No variants available (state or draft), skipping row creation');
       return;
     }
 
-    const rows: VariantRow[] = incoming.map((v) => {
+    // Base "Retail Price" should be the selling price (not printing cost).
+    const baseSellingPrice =
+      (typeof draftData?.sellingPrice === 'number' && Number.isFinite(draftData.sellingPrice) ? draftData.sellingPrice : undefined) ??
+      (typeof state?.baseSellingPrice === 'number' && Number.isFinite(state.baseSellingPrice) ? state.baseSellingPrice : undefined) ??
+      (draftVariants.find((dv: any) => Number.isFinite(dv?.sellingPrice))?.sellingPrice) ??
+      0;
+
+    const rows: VariantRow[] = sourceVariants.map((v) => {
       // Normalize keys for matching
       const ns = norm(v.size || '');
       const nc = norm(v.color || '');
       const key = `${ns}__${nc}`;
       const mapped = variantCostMap[key];
 
-      // Production cost from catalog
-      const costFromCatalog = mapped?.cost;
-      const costSource = Number.isFinite(costFromCatalog as number)
-        ? (costFromCatalog as number)
-        : Number.isFinite(v.productionCost as number)
-          ? (v.productionCost as number)
-          : 0;
       // Add print/decoration cost saved at design time
       const printCost = Number.isFinite(draftData?.designData?.totalPrintCost)
         ? (draftData.designData.totalPrintCost as number)
         : 0;
-      const cost = (costSource || 0) + printCost;
+      // Costs must be: base variant selling price + printing cost
+      const cost = (Number(baseSellingPrice) || 0) + printCost;
 
       // Retail price priority:
       // 1. User-entered (preserved in ref)
       // 2. Existing draft price (if editing)
-      // 3. Default to cost (0 profit constraint)
+      // 3. Default to base selling price
       const rowKey = `${v.size}__${v.color}`;
       const preservedRetailPrice = retailPriceRef.current[rowKey];
 
@@ -336,9 +351,10 @@ const ListingEditor = () => {
         );
         if (existing && Number.isFinite(existing.sellingPrice)) {
           defaultRetail = existing.sellingPrice;
+        } else if (Number.isFinite(v.price as number) && Number(v.price) > 0) {
+          defaultRetail = Number(v.price);
         } else {
-          // Default to exactly cost (0 profit constraint applied automatically per requirements)
-          defaultRetail = cost;
+          defaultRetail = Number(baseSellingPrice) || 0;
         }
       }
 

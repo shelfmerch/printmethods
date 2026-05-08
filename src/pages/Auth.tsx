@@ -658,7 +658,17 @@ const consumeReturnTo = (): string => {
     }
   }
 
-  return getSafeRedirect(stored, '/connect-store');
+  return getSafeRedirect(stored, '/dashboard');
+};
+
+const isAddProductMockupsReturnTo = (path: string | null | undefined) => {
+  if (!path) return false;
+  return path.includes('/mockups-library') && path.includes('resume=designer-add-product');
+};
+
+const consumeReturnToForVerification = () => {
+  const target = consumeReturnTo();
+  return target;
 };
 
 const Auth = () => {
@@ -763,6 +773,32 @@ const Auth = () => {
           await refreshUser(); // Load user profile
 
           toast.success('Signed in with Google successfully!');
+          const stored = getStoredReturnTo();
+          const isAddProductFlow = isAddProductMockupsReturnTo(stored);
+
+          if (isAddProductFlow) {
+            const me = await authApi.getMe().catch(() => null as any);
+            const u = me?.user || me?.data?.user;
+            const emailOk = Boolean(u?.isEmailVerified);
+            const phoneOk = Boolean(u?.isPhoneVerified);
+
+            if (!emailOk || !phoneOk) {
+              const target = consumeReturnToForVerification();
+              if (!emailOk) {
+                navigate('/verify-email?source=add-product', {
+                  state: { returnTo: target, nextVerification: !phoneOk ? 'phone' : undefined, triggerPublish: true, from: 'add-product' },
+                  replace: true,
+                });
+              } else {
+                navigate('/verify-phone?source=add-product', {
+                  state: { returnTo: target, triggerPublish: true, from: 'add-product' },
+                  replace: true,
+                });
+              }
+              return;
+            }
+          }
+
           const target = consumeReturnTo();
           console.log('[Auth] Google OAuth redirect to:', target);
           navigate(target);
@@ -895,6 +931,33 @@ const Auth = () => {
       try {
         await login(identifier, password);
         toast.success('Welcome back!');
+        const stored = getStoredReturnTo();
+        const isAddProductFlow = isAddProductMockupsReturnTo(stored);
+
+        if (isAddProductFlow) {
+          // Verify-gate for Add Product: only proceed to mockups if both verified.
+          const me = await authApi.getMe().catch(() => null as any);
+          const u = me?.user || me?.data?.user;
+          const emailOk = Boolean(u?.isEmailVerified);
+          const phoneOk = Boolean(u?.isPhoneVerified);
+
+          if (!emailOk || !phoneOk) {
+            const target = consumeReturnToForVerification();
+            if (!emailOk) {
+              navigate('/verify-email?source=add-product', {
+                state: { returnTo: target, nextVerification: !phoneOk ? 'phone' : undefined, triggerPublish: true, from: 'add-product' },
+                replace: true,
+              });
+            } else {
+              navigate('/verify-phone?source=add-product', {
+                state: { returnTo: target, triggerPublish: true, from: 'add-product' },
+                replace: true,
+              });
+            }
+            return;
+          }
+        }
+
         const target = consumeReturnTo();
         console.log('[Auth] Password login redirect to:', target);
         navigate(target);
@@ -922,6 +985,32 @@ const Auth = () => {
 
         if (exists) {
           toast.success('Welcome back!');
+          const stored = getStoredReturnTo();
+          const isAddProductFlow = isAddProductMockupsReturnTo(stored);
+
+          if (isAddProductFlow) {
+            const me = await authApi.getMe().catch(() => null as any);
+            const u = me?.user || me?.data?.user;
+            const emailOk = Boolean(u?.isEmailVerified);
+            const phoneOk = Boolean(u?.isPhoneVerified);
+
+            if (!emailOk || !phoneOk) {
+              const target = consumeReturnToForVerification();
+              if (!emailOk) {
+                navigate('/verify-email?source=add-product', {
+                  state: { returnTo: target, nextVerification: !phoneOk ? 'phone' : undefined, triggerPublish: true, from: 'add-product' },
+                  replace: true,
+                });
+              } else {
+                navigate('/verify-phone?source=add-product', {
+                  state: { returnTo: target, triggerPublish: true, from: 'add-product' },
+                  replace: true,
+                });
+              }
+              return;
+            }
+          }
+
           const target = consumeReturnTo();
           console.log('[Auth] OTP login redirect to:', target);
           navigate(target);
@@ -1002,8 +1091,31 @@ const Auth = () => {
     try {
       await signupComplete(name, companyName);
       toast.success('Account successfully created');
-      consumeReturnTo(); // clear any stored returnTo
-      navigate('/create-store');
+      const stored = getStoredReturnTo();
+      const isAddProductFlow = isAddProductMockupsReturnTo(stored);
+
+      if (isAddProductFlow) {
+        // Mandatory secondary verification step for Add Product flow.
+        // If signup started with PHONE => verify EMAIL next. If started with EMAIL => verify PHONE next.
+        const target = consumeReturnToForVerification();
+        if (entryType === 'phone') {
+          navigate('/verify-email?source=add-product', {
+            state: { returnTo: target, triggerPublish: true, from: 'add-product' },
+            replace: true,
+          });
+          return;
+        }
+        if (entryType === 'email') {
+          navigate('/verify-phone?source=add-product', {
+            state: { returnTo: target, triggerPublish: true, from: 'add-product' },
+            replace: true,
+          });
+          return;
+        }
+      }
+
+      const target = consumeReturnTo();
+      navigate(target);
     } catch (err: any) {
       toast.error(err.message || 'Error creating account');
     } finally { setIsLoading(false); }

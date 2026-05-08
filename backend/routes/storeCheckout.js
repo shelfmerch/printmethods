@@ -419,6 +419,7 @@ router.get('/:subdomain/credits', verifyStoreToken, async (req, res) => {
   try {
     const { subdomain } = req.params;
     const totalPaise = Math.max(0, Number.parseInt(req.query.totalPaise || '0', 10) || 0);
+    const subtotalPaise = Math.max(0, Number.parseInt(req.query.subtotalPaise || '0', 10) || 0);
 
     const store = await Store.findOne({ slug: subdomain, isActive: true }).lean();
     if (!store) return res.status(404).json({ success: false, message: 'Store not found' });
@@ -432,7 +433,9 @@ router.get('/:subdomain/credits', verifyStoreToken, async (req, res) => {
     const customer = await StoreCustomer.findById(customerIdFromToken);
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
-    const credits = await buildCreditPreview(store, customer, totalPaise / 100);
+    // Credits apply on product subtotal only (not shipping/taxes)
+    const baseAmountPaise = subtotalPaise > 0 ? subtotalPaise : totalPaise;
+    const credits = await buildCreditPreview(store, customer, baseAmountPaise / 100);
     res.json({ success: true, data: credits });
   } catch (error) {
     console.error('Credit preview error:', error);
@@ -537,8 +540,9 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
     const gstPercentage = maxGstSlab;
     const gstAmount = subtotal * (gstPercentage / 100);
     const total = subtotal + shipping; // Customer only pays subtotal + shipping
+    // Credits apply only on product subtotal (not shipping/taxes)
     const creditPreview = useCredits
-      ? await buildCreditPreview(store, customer, total)
+      ? await buildCreditPreview(store, customer, subtotal)
       : { walletAppliedPaise: 0, payablePaise: Math.round(total * 100), availablePaise: 0 };
 
     if (creditPreview.walletAppliedPaise > 0 && creditPreview.payablePaise > 0) {
@@ -588,7 +592,7 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
       payment: {
         method: creditPreview.payablePaise === 0 && creditPreview.walletAppliedPaise > 0 ? 'credits' : 'cod',
         walletAppliedPaise: creditPreview.walletAppliedPaise,
-        payablePaise: creditPreview.payablePaise,
+        payablePaise: Math.max(0, Math.round(total * 100) - creditPreview.walletAppliedPaise),
       }
     });
 
@@ -641,7 +645,7 @@ const computeOrderTotals = (cart, shipping = 0, tax = null) => {
 router.post('/:subdomain/razorpay/create-order', verifyStoreToken, async (req, res) => {
   try {
     const { subdomain } = req.params;
-    const { cart, shippingInfo, shipping = 0, tax = null } = req.body || {};
+    const { cart, shippingInfo, shipping = 0, tax = null, useCredits = true } = req.body || {};
 
     if (!Array.isArray(cart) || cart.length === 0) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
@@ -678,8 +682,11 @@ router.post('/:subdomain/razorpay/create-order', verifyStoreToken, async (req, r
 
     // Compute order totals
     const { subtotal, shipping: finalShipping, tax: finalTax, total } = computeOrderTotals(cart, shipping, tax);
-    const credits = await buildCreditPreview(store, customer, total);
-    const amountInPaise = credits.payablePaise;
+    // Credits apply only on product subtotal and are optional
+    const credits = useCredits
+      ? await buildCreditPreview(store, customer, subtotal)
+      : { walletAppliedPaise: 0, payablePaise: Math.round(total * 100), availablePaise: 0 };
+    const amountInPaise = Math.max(0, Math.round(total * 100) - (credits.walletAppliedPaise || 0));
 
     if (amountInPaise <= 0) {
       return res.status(200).json({
@@ -746,6 +753,7 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
       shippingInfo,
       shipping = 0,
       tax = null,
+      useCredits = true,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
@@ -863,7 +871,9 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
     const gstPercentage = maxGstSlab;
     const gstAmount = subtotal * (gstPercentage / 100);
     const total = subtotal + finalShipping; // Customer only pays subtotal + shipping
-    const credits = await buildCreditPreview(store, customer, total);
+    const credits = useCredits
+      ? await buildCreditPreview(store, customer, subtotal)
+      : { walletAppliedPaise: 0, payablePaise: Math.round(total * 100), availablePaise: 0 };
 
     const productionCostTotal = totalProductionCost + finalShipping + gstAmount;
     const calculatedProfit = total - productionCostTotal;
@@ -908,7 +918,7 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
         walletAppliedPaise: credits.walletAppliedPaise,
-        payablePaise: credits.payablePaise,
+        payablePaise: Math.max(0, Math.round(total * 100) - (credits.walletAppliedPaise || 0)),
       },
     });
 

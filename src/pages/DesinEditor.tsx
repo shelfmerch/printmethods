@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Stage, Layer, Text, TextPath, Image, Rect, Group, Transformer, Line, Shape, Circle, RegularPolygon, Star } from 'react-konva';
@@ -6016,7 +6015,7 @@ const PositionInput = ({
           onChange={(e) => {
             const newVal = e.target.value;
             setLocalValue(newVal);
-=======
+          
 // import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 // import { useParams, useNavigate, useLocation } from 'react-router-dom';
 // import { Stage, Layer, Text, TextPath, Image, Rect, Group, Transformer, Line, Shape, Circle, RegularPolygon, Star } from 'react-konva';

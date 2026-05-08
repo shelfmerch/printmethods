@@ -17,7 +17,8 @@ import {
     MapPin,
     Truck,
     Clock,
-    ShoppingBag
+    ShoppingBag,
+    Wallet
 } from 'lucide-react';
 import { buildStorePath, getTenantSlugFromLocation } from '@/utils/tenantUtils';
 import StoreLayout from '@/components/storefront/StoreLayout';
@@ -51,6 +52,7 @@ interface OrderDetail {
     gstAmount?: number;
     payment?: {
         method?: string;
+        walletAppliedPaise?: number;
     };
     shipment?: {
         carrier?: string;
@@ -290,6 +292,17 @@ const StoreOrderDetailPage: React.FC = () => {
                                                 <span className="text-muted-foreground">Subtotal</span>
                                                 <span className="font-medium">₹{(order.subtotal || order.items.reduce((sum, i) => sum + (i.price * i.quantity), 0)).toLocaleString()}</span>
                                             </div>
+                                            {(Number(order.payment?.walletAppliedPaise || 0) > 0) && (
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground flex items-center gap-2">
+                                                        <Wallet className="h-4 w-4 text-green-700" />
+                                                        Reward credits
+                                                    </span>
+                                                    <span className="font-medium text-green-700">
+                                                        -₹{((Number(order.payment?.walletAppliedPaise || 0) / 100) || 0).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">Shipping</span>
                                                 <span className="font-medium">₹{(order.shippingAmount ?? order.shipping ?? 0).toLocaleString()}</span>
