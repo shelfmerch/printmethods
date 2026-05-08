@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { Plus, Upload, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,22 +8,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from '@/shared/components/ui/dialog';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
+} from '@/shared/components/ui/select';
+import { Checkbox } from '@/shared/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Product } from '@/types';
-import { categories } from '@/data/products';
-import { getColorHex } from '@/utils/colorMap';
+import { Product } from '@/shared/types';
+import { categories } from '@/shared/data/products';
+import { getColorHex } from '@/shared/utils/colorMap';
 
 interface AddProductDialogProps {
   onProductAdded: (product: Product) => void;

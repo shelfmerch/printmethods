@@ -1,1 +1,1 @@
-export { default, StoreRoutes } from '@/storefront/routes/StoreRoutes';
+﻿export { default, StoreRoutes } from '@/modules/storefront/custom/routes/StoreRoutes';

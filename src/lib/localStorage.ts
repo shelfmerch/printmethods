@@ -1,4 +1,4 @@
-import { Product, Order, Store, Cart, CartItem } from '@/types';
+﻿import { Product, Order, Store, Cart, CartItem } from '@/shared/types';
 
 // Helper function to get user-specific key
 const getUserKey = (userId: string, type: string): string => {

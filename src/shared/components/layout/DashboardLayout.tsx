@@ -1,0 +1,269 @@
+﻿import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useStore } from '@/shared/contexts/StoreContext';
+import { storeApi } from '@/lib/api';
+import { Button } from '@/shared/components/ui/button';
+import logo from '@/assets/logo.webp';
+import type { Store as StoreType } from '@/shared/types';
+import {
+  Package,
+  LayoutDashboard,
+  Store,
+  TrendingUp,
+  ShoppingBag,
+  Users,
+  Settings,
+  LogOut,
+  FileText,
+  ChevronDown,
+  Check,
+  Menu,
+  X,
+  Wallet,
+  Gift,
+  CreditCard,
+  UserCog,
+  PackageCheck,
+  HelpCircle,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu';
+import NotificationBell from '@/shared/components/layout/NotificationBell';
+
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  const { user, logout, isAdmin } = useAuth();
+  const { selectedStore, selectStoreById, stores, loading: storesLoading } = useStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Close sidebar when route changes on mobile
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Prevent scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [isSidebarOpen]);
+
+  const isActiveRoute = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  // Use selectedStore from context directly
+  // If we have stores but no selectedStore, fallback to the first one (though context handles this too)
+  const activeStore = selectedStore || (stores.length > 0 ? stores[0] : null);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Mobile Header */}
+      <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card sticky top-0 z-40">
+        <Link to="/" className="flex items-center space-x-2">
+          <img src={logo} alt="ShelfMerch" className="h-6 w-auto" />
+        </Link>
+        <div className="flex items-center gap-2">
+          <NotificationBell tooltipSide="bottom" />
+          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)}>
+            <Menu className="h-6 w-6" />
+          </Button>
+        </div>
+      </header>
+
+      {/* Backdrop for mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed left-0 top-0 h-full w-64 border-r bg-card p-6 z-50 transition-transform duration-300 transform lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:block shadow-xl lg:shadow-none`}>
+        <div className="flex items-center justify-between mb-4">
+          <Link to="/" className="flex items-center space-x-2">
+            <img src={logo} alt="ShelfMerch" className="h-8 w-auto" />
+          </Link>
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Store Switcher */}
+        <div className="pb-4 mb-4 border-b">
+          {storesLoading ? (
+            <p className="text-xs text-muted-foreground">Loading stores...</p>
+          ) : stores.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <Store className="h-4 w-4" />
+                    <div className="text-left">
+                      <p className="font-medium text-sm truncate max-w-[120px]">
+                        {activeStore?.storeName || 'Select Store'}
+                      </p>
+                      {activeStore && (
+                        <p className="text-xs text-muted-foreground truncate max-w-[120px]">
+                          {activeStore.subdomain}.techvibz.org
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel>Switch Store</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {stores.map((store) => {
+                  const isSelected = activeStore && (activeStore._id || activeStore.id) === (store._id || store.id);
+
+                  return (
+                    <DropdownMenuItem
+                      key={store.id || store._id}
+                      onClick={() => {
+                        selectStoreById(store.id || store._id || '');
+                        setIsSidebarOpen(false);
+                        if (location.pathname === '/stores' || location.pathname === '/connect-store') {
+                          navigate('/dashboard');
+                        }
+                      }}
+                      className={`flex items-center justify-between cursor-pointer ${isSelected ? 'bg-muted font-medium' : ''}`}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">{store.storeName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {store.subdomain}.techvibz.org
+                        </span>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-primary" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/stores" className="cursor-pointer">
+                    <Store className="h-4 w-4 mr-2" />
+                    Manage Stores
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No brand store yet. <Link to="/create-store" className="underline">Set one up</Link>.
+            </p>
+          )}
+        </div>
+
+        <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-250px)] pb-4">
+          {/* Core */}
+          <Button variant={isActiveRoute('/dashboard') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</Link>
+          </Button>
+          <Button variant={isActiveRoute('/products') || isActiveRoute('/catalog') || isActiveRoute('/designer') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/products"><Package className="mr-2 h-4 w-4" />Products</Link>
+          </Button>
+          <Button variant={isActiveRoute('/stores') || isActiveRoute('/connect-store') || isActiveRoute('/dashboard/shopify') || isActiveRoute('/settings/developer') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/stores"><Store className="mr-2 h-4 w-4" />Store Setup</Link>
+          </Button>
+          <Button variant={isActiveRoute('/orders') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/orders"><ShoppingBag className="mr-2 h-4 w-4" />Orders</Link>
+          </Button>
+
+          {/* Brand section divider */}
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold px-3 pt-4 pb-1">Brand</p>
+
+          <Button variant={isActiveRoute('/brand/employees') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/employees"><Users className="mr-2 h-4 w-4" />Employees</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/credits') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/credits"><Gift className="mr-2 h-4 w-4" />Credits</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/team') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/team"><UserCog className="mr-2 h-4 w-4" />Team</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/kits') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/kits"><PackageCheck className="mr-2 h-4 w-4" />Kits &amp; Items</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/draft-orders') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/draft-orders"><FileText className="mr-2 h-4 w-4" />Draft Orders</Link>
+          </Button>
+
+          {/* Finance section divider */}
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold px-3 pt-4 pb-1">Finance</p>
+
+          <Button variant={isActiveRoute('/wallet') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/wallet"><Wallet className="mr-2 h-4 w-4" />Company Wallet</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/billing') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/billing"><CreditCard className="mr-2 h-4 w-4" />Billing</Link>
+          </Button>
+          <Button variant={isActiveRoute('/invoices') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/invoices"><FileText className="mr-2 h-4 w-4" />Invoices</Link>
+          </Button>
+
+          {/* Other */}
+          <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold px-3 pt-4 pb-1">Other</p>
+
+          <Button variant={isActiveRoute('/analytics') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/analytics"><TrendingUp className="mr-2 h-4 w-4" />Analytics</Link>
+          </Button>
+          {isAdmin && (
+            <Button variant={isActiveRoute('/admin') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+              <Link to="/admin"><Users className="mr-2 h-4 w-4" />Admin Panel</Link>
+            </Button>
+          )}
+          <Button variant={isActiveRoute('/settings') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link>
+          </Button>
+          <Button variant={isActiveRoute('/brand/support-tickets') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+            <Link to="/brand/support-tickets"><HelpCircle className="mr-2 h-4 w-4" />Support</Link>
+          </Button>
+        </nav>
+
+
+        <div className="absolute bottom-6 left-6 right-6">
+          <div className="border-t pt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Signed in as</p>
+              <NotificationBell tooltipSide="top" />
+            </div>
+            <p className="text-sm font-medium truncate">{user?.email}</p>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive hover:text-destructive"
+              onClick={logout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="lg:ml-64 p-4 md:p-8">
+        {children}
+      </main>
+    </div>
+  );
+};
+
+export default DashboardLayout;

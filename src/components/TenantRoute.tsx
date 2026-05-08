@@ -1,11 +1,11 @@
-/**
+﻿/**
  * TenantRoute Component
  * Wrapper for routes that can work with both subdomain and path-based tenant resolution
  * Automatically extracts tenant slug from hostname or path params
  */
 
 import { useParams, useLocation } from 'react-router-dom';
-import { getTenantSlugFromLocation } from '@/utils/tenantUtils';
+import { getTenantSlugFromLocation } from '@/shared/utils/tenantUtils';
 import { ReactNode } from 'react';
 
 interface TenantRouteProps {

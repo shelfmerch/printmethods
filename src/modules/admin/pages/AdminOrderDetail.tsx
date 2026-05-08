@@ -1,0 +1,1134 @@
+﻿import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { storeOrdersApi } from '@/lib/api';
+import { storeProductsApi } from '@/lib/api';
+import { Button } from '@/shared/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/shared/components/ui/card';
+import { Badge } from '@/shared/components/ui/badge';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Textarea } from '@/shared/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { ArrowLeft, ShoppingBag, Store as StoreIcon, Mail, Clock, Image as ImageIcon, Layers, Eye, Download, Truck, ExternalLink, Loader2 } from 'lucide-react';
+import { Order } from '@/shared/types';
+import { toast } from 'sonner';
+
+// ─── Mockup Canvas Preview ────────────────────────────────────────────────────
+// Replicates DesignEditor's 800×600 stage + element rendering in a read-only
+// HTML Canvas. No Konva dependency needed here.
+
+const CANVAS_W = 800;
+const CANVAS_H = 600;
+const CANVAS_PADDING = 40;
+const EFFECTIVE_W = CANVAS_W - CANVAS_PADDING * 2; // 720
+const EFFECTIVE_H = CANVAS_H - CANVAS_PADDING * 2; // 520
+const STATUS_OPTIONS = ['on-hold', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'] as const;
+
+const formatStatus = (status?: string) =>
+  (status || 'on-hold')
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const toInputDateTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => `${n}`.padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+interface MockupCanvasPreviewProps {
+  mockupImageUrl: string;
+  elements: any[];
+  colorHex?: string;
+  /** Total display width in CSS pixels (canvas is internally 800×600 and scaled down). */
+  displayWidth?: number;
+}
+
+const MockupCanvasPreview: React.FC<MockupCanvasPreviewProps> = ({
+  mockupImageUrl,
+  elements,
+  colorHex,
+  displayWidth = 300,
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let cancelled = false;
+    setError(false);
+
+    const loadImage = (url: string): Promise<HTMLImageElement> =>
+      new Promise(async (resolve, reject) => {
+        // Cache-busting: add a timestamp query parameter to bypass the browser's 
+        // disk cache. If the image was loaded previously by a normal <img> tag,
+        // it was cached WITHOUT the Access-Control-Allow-Origin header. 
+        // When we fetch it here with CORS, the browser uses the cached (non-CORS) 
+        // response, causing a CORS error. The timestamp forces a fresh request 
+        // where S3 actually sees our Origin header and responds with CORS headers.
+        const bustUrl = url.includes('amazonaws.com') 
+          ? `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`
+          : url;
+
+        try {
+          const resp = await fetch(bustUrl, { mode: 'cors' });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const img = new window.Image();
+          img.onload = () => { URL.revokeObjectURL(blobUrl); resolve(img); };
+          img.onerror = () => reject(new Error(`Blob load failed for ${url}`));
+          img.src = blobUrl;
+        } catch {
+          // Fallback if fetch fails
+          const img = new window.Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error(`Failed to load ${url}`));
+          img.src = bustUrl;
+        }
+      });
+
+    const render = async () => {
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // ── 1. Draw garment mockup ────────────────────────────────────────────
+      let mockup: HTMLImageElement | null = null;
+      try {
+        mockup = await loadImage(mockupImageUrl);
+      } catch {
+        if (cancelled) return;
+        setError(true);
+        return;
+      }
+      if (cancelled) return;
+
+      const ar = mockup.naturalWidth / mockup.naturalHeight;
+      let mw = EFFECTIVE_W;
+      let mh = mw / ar;
+      if (mh > EFFECTIVE_H) { mh = EFFECTIVE_H; mw = mh * ar; }
+      const mx = CANVAS_PADDING + (EFFECTIVE_W - mw) / 2;
+      const my = CANVAS_PADDING + (EFFECTIVE_H - mh) / 2;
+
+      if (colorHex && colorHex !== '#FFFFFF' && colorHex !== '#ffffff') {
+        applyMultiplyTint(ctx, mockup, mx, my, mw, mh, colorHex);
+      } else {
+        ctx.drawImage(mockup, mx, my, mw, mh);
+      }
+
+      // ── 2. Draw design elements ───────────────────────────────────────────
+      const sorted = [...elements].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+
+      for (const el of sorted) {
+        if (cancelled) return;
+        if (!el.visible && el.visible !== undefined) continue;
+
+        ctx.save();
+
+        const elX = el.x ?? 0;
+        const elY = el.y ?? 0;
+        const elW = el.width ?? 100;
+        const elH = el.height ?? 100;
+        const rot = ((el.rotation ?? 0) * Math.PI) / 180;
+        const opacity = el.opacity ?? 1;
+        ctx.globalAlpha = opacity;
+
+        // Translate to element centre for rotation
+        ctx.translate(elX + elW / 2, elY + elH / 2);
+        ctx.rotate(rot);
+
+        if (el.type === 'image' && el.imageUrl) {
+          try {
+            const img = await loadImage(el.imageUrl);
+            if (cancelled) { ctx.restore(); return; }
+            // Flip transforms
+            ctx.scale(el.flipX ? -1 : 1, el.flipY ? -1 : 1);
+            ctx.drawImage(img, -elW / 2, -elH / 2, elW, elH);
+          } catch {
+            // Skip element if image fails
+          }
+        } else if (el.type === 'text' && el.text) {
+          const fontSize = el.fontSize ?? 24;
+          const fontFamily = el.fontFamily ?? 'Arial';
+          const fontStyle = el.fontStyle ?? '';
+          ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`.trim();
+          ctx.fillStyle = el.fill ?? '#000000';
+          ctx.textAlign = (el.align as CanvasTextAlign) ?? 'center';
+          ctx.textBaseline = 'middle';
+          if (el.letterSpacing) {
+            // Manual letter-spacing
+            const chars = el.text.split('');
+            let cx = -elW / 2;
+            for (const ch of chars) {
+              ctx.fillText(ch, cx, 0);
+              cx += ctx.measureText(ch).width + (el.letterSpacing ?? 0);
+            }
+          } else {
+            ctx.fillText(el.text, 0, 0);
+          }
+        } else if (el.type === 'shape') {
+          ctx.fillStyle = el.fillColor ?? el.fill ?? 'transparent';
+          ctx.strokeStyle = el.strokeColor ?? 'transparent';
+          ctx.lineWidth = el.strokeWidth ?? 0;
+          if (el.shapeType === 'circle') {
+            ctx.beginPath();
+            ctx.ellipse(0, 0, elW / 2, elH / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            if (el.strokeWidth) ctx.stroke();
+          } else {
+            ctx.fillRect(-elW / 2, -elH / 2, elW, elH);
+            if (el.strokeWidth) ctx.strokeRect(-elW / 2, -elH / 2, elW, elH);
+          }
+        }
+
+        ctx.restore();
+      }
+    };
+
+    render().catch(console.error);
+    return () => { cancelled = true; };
+  }, [mockupImageUrl, elements, colorHex]);
+
+  const scale = displayWidth / CANVAS_W;
+  const displayHeight = CANVAS_H * scale;
+
+  if (error) {
+    return (
+      <div
+        className="border rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-sm"
+        style={{ width: displayWidth, height: displayHeight }}
+      >
+        Preview unavailable
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: displayWidth, height: displayHeight, overflow: 'hidden', borderRadius: 8, border: '1px solid hsl(var(--border))' }}>
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_W}
+        height={CANVAS_H}
+        style={{ width: displayWidth, height: displayHeight, display: 'block' }}
+      />
+    </div>
+  );
+};
+
+// Helper function to convert color name to hex code
+const getColorHex = (colorName: string): string => {
+  const colorMap: { [key: string]: string } = {
+    'black': '#000000',
+    'white': '#FFFFFF',
+    'red': '#FF0000',
+    'blue': '#0000FF',
+    'green': '#008000',
+    'yellow': '#FFFF00',
+    'orange': '#FFA500',
+    'purple': '#800080',
+    'pink': '#FFC0CB',
+    'brown': '#A52A2A',
+    'grey': '#808080',
+    'gray': '#808080',
+    'navy': '#000080',
+    'maroon': '#800000',
+    'olive': '#808000',
+    'lime': '#00FF00',
+    'aqua': '#00FFFF',
+    'teal': '#008080',
+    'silver': '#C0C0C0',
+    'gold': '#FFD700',
+    'beige': '#F5F5DC',
+    'tan': '#D2B48C',
+    'khaki': '#F0E68C',
+    'coral': '#FF7F50',
+    'salmon': '#FA8072',
+    'turquoise': '#40E0D0',
+    'lavender': '#E6E6FA',
+    'ivory': '#FFFFF0',
+    'cream': '#FFFDD0',
+    'mint': '#98FF98',
+    'peach': '#FFE5B4',
+    'cerulean frost': '#6D9BC3',
+    'cerulean': '#6D9BC3',
+    'cobalt blue': '#0047AB',
+    'amber': '#FFBF00',
+    'frosted': '#E8E8E8',
+    'natural': '#FAF0E6',
+    'beige-gray': '#9F9F9F',
+    'clear': '#FFFFFF',
+    'kraft': '#D4A574',
+  };
+
+  const normalized = colorName.toLowerCase().trim();
+  return colorMap[normalized] || '#CCCCCC';
+};
+
+
+
+/** Pixel-level multiply-blend tint, identical to DesignEditor's tintGarmentImage. */
+function applyMultiplyTint(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  dx: number, dy: number, dw: number, dh: number,
+  hex: string,
+) {
+  ctx.drawImage(img, dx, dy, dw, dh);
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  if (r > 240 && g > 240 && b > 240) return; // white – skip
+  try {
+    const id = ctx.getImageData(dx, dy, dw, dh);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 10) continue;
+      d[i]     = Math.round(d[i]     * r / 255);
+      d[i + 1] = Math.round(d[i + 1] * g / 255);
+      d[i + 2] = Math.round(d[i + 2] * b / 255);
+    }
+    ctx.putImageData(id, dx, dy);
+  } catch {
+    // CORS blocked getImageData – silently skip tinting
+  }
+}
+
+const AdminOrderDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [storeProductsById, setStoreProductsById] = useState<Record<string, any>>({});
+  const [storeProductsLoading, setStoreProductsLoading] = useState<Record<string, boolean>>({});
+  const [shipmentForm, setShipmentForm] = useState({
+    status: 'on-hold',
+    carrier: '',
+    trackingNumber: '',
+    trackingUrl: '',
+    shippedAt: '',
+    deliveredAt: '',
+    internalNotes: '',
+  });
+  const [statusNote, setStatusNote] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [savingShipment, setSavingShipment] = useState(false);
+
+  const getStoreProductIdFromItem = (item: any): string | null => {
+    const sp = item?.storeProductId;
+    if (!sp) return null;
+    if (typeof sp === 'string') return sp;
+    const candidate = sp._id || sp.id;
+    return candidate ? String(candidate) : null;
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOrder = async () => {
+      if (!id) return;
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await storeOrdersApi.getById(id);
+        // apiRequest for non-auth APIs usually returns `{ success, data }`
+        const data = (response && (response.data || response)) as any;
+        if (isMounted) {
+          setOrder(data as Order);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err?.message || 'Failed to load order');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  // Fetch latest store product design data (savedPreviewImages + elements) for ordered items
+  useEffect(() => {
+    let isMounted = true;
+
+    const uniqueIds = Array.from(
+      new Set((order?.items || []).map(getStoreProductIdFromItem).filter(Boolean) as string[])
+    );
+
+    const idsToFetch = uniqueIds.filter((spId) => !storeProductsById[spId] && !storeProductsLoading[spId]);
+    if (idsToFetch.length === 0) return () => {
+      isMounted = false;
+    };
+
+    idsToFetch.forEach((spId) => {
+      setStoreProductsLoading((prev) => (prev[spId] ? prev : { ...prev, [spId]: true }));
+      storeProductsApi
+        .getById(spId)
+        .then((resp: any) => {
+          const data = resp?.data ?? resp;
+          if (isMounted && data) {
+            setStoreProductsById((prev) => ({ ...prev, [spId]: data }));
+          }
+        })
+        .catch((err: any) => {
+          console.error('Failed to fetch store product:', spId, err);
+        })
+        .finally(() => {
+          if (isMounted) {
+            setStoreProductsLoading((prev) => ({ ...prev, [spId]: false }));
+          }
+        });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [order, storeProductsById, storeProductsLoading]);
+
+  useEffect(() => {
+    if (!order) return;
+    setShipmentForm({
+      status: order.status || 'on-hold',
+      carrier: order.shipment?.carrier || '',
+      trackingNumber: order.shipment?.trackingNumber || '',
+      trackingUrl: order.shipment?.trackingUrl || '',
+      shippedAt: toInputDateTime(order.shipment?.shippedAt),
+      deliveredAt: toInputDateTime(order.shipment?.deliveredAt),
+      internalNotes: order.shipment?.internalNotes || '',
+    });
+  }, [order]);
+
+  const formatCurrency = (value?: number) => {
+    if (typeof value !== 'number') return '-';
+    return `₹${value.toFixed(2)}`;
+  };
+
+  const formatDateTime = (value?: string) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleString();
+  };
+
+  const handleStatusSave = async () => {
+    if (!id) return;
+    try {
+      setSavingStatus(true);
+      const response = await storeOrdersApi.updateStatus(id, shipmentForm.status as any, statusNote);
+      const data = (response && (response.data || response)) as any;
+      setOrder(data as Order);
+      setStatusNote('');
+      toast.success('Order status updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update order status');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleShipmentSave = async () => {
+    if (!id) return;
+    try {
+      setSavingShipment(true);
+      const response = await storeOrdersApi.updateShipment(id, {
+        status: shipmentForm.status as any,
+        carrier: shipmentForm.carrier,
+        trackingNumber: shipmentForm.trackingNumber,
+        trackingUrl: shipmentForm.trackingUrl,
+        shippedAt: shipmentForm.shippedAt ? new Date(shipmentForm.shippedAt).toISOString() : undefined,
+        deliveredAt: shipmentForm.deliveredAt ? new Date(shipmentForm.deliveredAt).toISOString() : undefined,
+        internalNotes: shipmentForm.internalNotes,
+        note: 'Shipment updated by superadmin',
+      });
+      const data = (response && (response.data || response)) as any;
+      setOrder(data as Order);
+      toast.success('Shipment details updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update shipment details');
+    } finally {
+      setSavingShipment(false);
+    }
+  };
+
+  const handleDownloadOriginal = async (url: string, fileName: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download failed:', err);
+      // Fallback to simple anchor if fetch fails (e.g. CORS)
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.target = '_blank';
+      link.click();
+    }
+  };
+
+  const storeName = order && (order as any).storeId && typeof (order as any).storeId === 'object'
+    ? (order as any).storeId.name
+    : 'Direct';
+
+  const orderId = order ? ((order as any)._id || (order as any).id || '').toString() : id;
+  const hasAnyStoreProductIds = !!order?.items?.some((item: any) => !!getStoreProductIdFromItem(item));
+
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        <div className="mb-6 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Order Details</h1>
+            <p className="text-muted-foreground text-sm">Order {orderId ? `#${orderId.slice(0, 8)}` : ''}</p>
+          </div>
+        </div>
+
+        {error && (
+          <p className="mb-4 text-sm text-destructive">{error}</p>
+        )}
+
+        {isLoading && !order && (
+          <p className="text-sm text-muted-foreground">Loading order...</p>
+        )}
+
+        {!isLoading && !order && !error && (
+          <p className="text-sm text-muted-foreground">Order not found.</p>
+        )}
+
+        {order && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="md:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Overview</CardTitle>
+                    <CardDescription>Key information about this order</CardDescription>
+                  </div>
+                  <Badge variant="secondary">{order.status}</Badge>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Customer</p>
+                    <p className="font-medium flex items-center gap-2 mt-1">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {order.customerEmail || 'Unknown'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Store</p>
+                    <p className="font-medium flex items-center gap-2 mt-1">
+                      <StoreIcon className="h-4 w-4 text-muted-foreground" />
+                      {storeName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Created</p>
+                    <p className="font-medium flex items-center gap-2 mt-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      {formatDateTime((order as any).createdAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Updated</p>
+                    <p className="font-medium flex items-center gap-2 mt-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      {formatDateTime((order as any).updatedAt)}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2 border-t pt-4 mt-2">
+                    <p className="font-bold text-base mb-2">Financial Breakdown</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-muted-foreground text-xs uppercase">Subtotal</p>
+                        <p className="font-medium">{formatCurrency((order as any).sellingPrice || (order as any).subtotal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs uppercase">Shipping</p>
+                        <p className="font-medium">{formatCurrency((order as any).shippingAmount ?? order.shipping)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs uppercase">Tax (GST)</p>
+                        <p className="font-medium">{formatCurrency((order as any).gstAmount ?? order.tax)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs uppercase underline decoration-primary/30">Total Paid</p>
+                        <p className="font-bold text-primary">{formatCurrency(order.total)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {(order as any).calculatedProfit !== undefined && (
+                    <div className="md:col-span-2 bg-green-50 p-3 rounded-lg border border-green-100 flex justify-between items-center">
+                      <div>
+                        <p className="text-green-800 text-xs font-bold uppercase">Merchant Profit (Snapshotted)</p>
+                        <p className="text-xs text-green-600 italic">This amount was credited to the merchant wallet.</p>
+                      </div>
+                      <p className="text-xl font-black text-green-700">{formatCurrency((order as any).calculatedProfit)}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Actions</CardTitle>
+                  <CardDescription>Quick admin actions</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" asChild>
+                    <Link to="/admin?tab=orders">
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                      Back to Orders
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Items</CardTitle>
+                <CardDescription>Products included in this order</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(!order.items || order.items.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">No items on this order.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Variant</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {order.items.map((item: any, idx: number) => {
+                        const itemVariant = item.variantName || item.variant;
+                        const spId = getStoreProductIdFromItem(item);
+                        const storeProduct = spId ? storeProductsById[spId] : null;
+
+                        // Parse variant into an object if it's a string like "Color: Black, Size: L"
+                        let variantObj: Record<string, any> | null = null;
+                        if (typeof itemVariant === 'object') {
+                          variantObj = itemVariant;
+                        } else if (typeof itemVariant === 'string') {
+                          if (itemVariant.includes(':')) {
+                            variantObj = {};
+                            itemVariant.split(',').forEach(part => {
+                              const [k, v] = part.split(':').map(s => s.trim());
+                              if (k && v) variantObj![k] = v;
+                            });
+                          } else if (itemVariant.includes('/')) {
+                            // Handle "Color / Size" format
+                            const parts = itemVariant.split('/').map(s => s.trim());
+                            if (parts.length >= 2) {
+                              variantObj = { Color: parts[0], Size: parts[1] };
+                            }
+                          }
+                        }
+
+                        let colorHex = '';
+                        const colorName = variantObj?.color || variantObj?.Color;
+                        if (colorName) {
+                          if (storeProduct) {
+                            // Try store product variants
+                            const foundVariant = storeProduct.variants?.find(
+                              (v: any) => (v.color || '').toLowerCase() === colorName.toLowerCase()
+                            );
+                            colorHex = foundVariant?.colorHex || '';
+
+                            // Try catalog product variants if still empty
+                            if (!colorHex && storeProduct.catalogProduct?.variants) {
+                              const foundCatalog = storeProduct.catalogProduct.variants.find(
+                                (v: any) => (v.color || '').toLowerCase() === colorName.toLowerCase()
+                              );
+                              colorHex = foundCatalog?.colorHex || '';
+                            }
+                          }
+
+                          // Fallback to internal map if still empty
+                          if (!colorHex) {
+                            colorHex = getColorHex(colorName);
+                          }
+                        }
+
+                        const renderVariant = () => {
+                          if (!variantObj) return <span>{String(itemVariant || '-')}</span>;
+
+                          const entries = Object.entries(variantObj).filter(([k, v]) => v != null && v !== '');
+                          return (
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
+                              {entries.map(([k, v], i) => {
+                                const isColor = k.toLowerCase() === 'color';
+                                return (
+                                  <span key={i} className="flex items-center gap-1.5 capitalize">
+                                    <span className="text-muted-foreground">{k}:</span>
+                                    {isColor && colorHex && (
+                                      <div
+                                        className="w-4 h-4 rounded-full border border-border/50 shadow-sm"
+                                        style={{ backgroundColor: colorHex }}
+                                        title={String(v)}
+                                      />
+                                    )}
+                                    <span className="font-medium text-foreground">{String(v)}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          );
+                        };
+
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">{item.productName || item.name || 'Product'}</TableCell>
+                            <TableCell>{renderVariant()}</TableCell>
+                            <TableCell>{item.quantity ?? 1}</TableCell>
+                            <TableCell>{formatCurrency(item.price)}</TableCell>
+                            <TableCell>{formatCurrency((item.price || 0) * (item.quantity || 1))}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Shipment Controls
+                </CardTitle>
+                <CardDescription>Superadmin-owned shipment status and tracking updates.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={shipmentForm.status} onValueChange={(value) => setShipmentForm((prev) => ({ ...prev, status: value }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {formatStatus(status)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status Note</Label>
+                    <Textarea
+                      value={statusNote}
+                      onChange={(event) => setStatusNote(event.target.value)}
+                      placeholder="Optional note for this status change"
+                    />
+                  </div>
+                  <Button onClick={handleStatusSave} disabled={savingStatus} className="w-full">
+                    {savingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Status
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Carrier</Label>
+                      <Input value={shipmentForm.carrier} onChange={(event) => setShipmentForm((prev) => ({ ...prev, carrier: event.target.value }))} placeholder="Delhivery, Blue Dart, DHL" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tracking Number</Label>
+                      <Input value={shipmentForm.trackingNumber} onChange={(event) => setShipmentForm((prev) => ({ ...prev, trackingNumber: event.target.value }))} placeholder="AWB / tracking number" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tracking URL</Label>
+                    <Input value={shipmentForm.trackingUrl} onChange={(event) => setShipmentForm((prev) => ({ ...prev, trackingUrl: event.target.value }))} placeholder="https://tracking.example.com/..." />
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Shipped At</Label>
+                      <Input type="datetime-local" value={shipmentForm.shippedAt} onChange={(event) => setShipmentForm((prev) => ({ ...prev, shippedAt: event.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Delivered At</Label>
+                      <Input type="datetime-local" value={shipmentForm.deliveredAt} onChange={(event) => setShipmentForm((prev) => ({ ...prev, deliveredAt: event.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Internal Notes</Label>
+                    <Textarea
+                      value={shipmentForm.internalNotes}
+                      onChange={(event) => setShipmentForm((prev) => ({ ...prev, internalNotes: event.target.value }))}
+                      placeholder="Notes for the operational team"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={handleShipmentSave} disabled={savingShipment}>
+                      {savingShipment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Save Shipment Details
+                    </Button>
+                    {order.shipment?.trackingUrl ? (
+                      <Button variant="outline" asChild>
+                        <a href={order.shipment.trackingUrl} target="_blank" rel="noreferrer">
+                          Open Tracking
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Design and Preview Section */}
+            {order.items && order.items.length > 0 && hasAnyStoreProductIds && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Layers className="h-5 w-5" />
+                    Design & Preview
+                  </CardTitle>
+                  <CardDescription>Design elements and preview images for ordered products</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {order.items.map((item: any, idx: number) => {
+                    const storeProductId = getStoreProductIdFromItem(item);
+                    const storeProductFromOrder = item.storeProductId && typeof item.storeProductId === 'object' ? item.storeProductId : null;
+                    const storeProduct = (storeProductId ? storeProductsById[storeProductId] : null) || storeProductFromOrder;
+                    const isLoadingStoreProduct = !!(storeProductId && storeProductsLoading[storeProductId]);
+                    const designData = storeProduct?.designData;
+
+                    if (!storeProductId) return null;
+
+                    // designData.views is an Array<{key, mockupImageUrl, ...}>
+                    const viewsArray: Array<{ key: string; mockupImageUrl?: string }> =
+                      Array.isArray(designData?.views) ? designData.views : [];
+                    // const previewsByView = designData?.previewImagesByView || {};
+                    const savedPreviewImages = designData?.savedPreviewImages || {};
+                    const elements = designData?.elements || [];
+
+                    // Derive all view keys from whatever data is available:
+                    // 1. views with a saved preview screenshot
+                    // 2. views listed in the product design views array
+                    // 3. distinct view names found on elements
+                    const elementViews = [...new Set(
+                      elements.map((el: any) => el?.view).filter(Boolean) as string[]
+                    )];
+                    const viewKeys = Array.from(
+                      new Set([
+                        ...Object.keys(savedPreviewImages),
+                        ...viewsArray.map(v => v.key),
+                        ...elementViews,
+                      ])
+                    );
+                    // For quick lookup of a view's mockupImageUrl
+                    const viewsMockupMap: Record<string, string> = {};
+                    viewsArray.forEach(v => { if (v.mockupImageUrl) viewsMockupMap[v.key] = v.mockupImageUrl; });
+
+                    return (
+                      <div key={idx} className="mb-6 last:mb-0">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <ShoppingBag className="h-4 w-4" />
+                          {item.productName || storeProduct?.title || 'Product'}
+                        </h4>
+
+                        {!designData ? (
+                          <p className="text-sm text-muted-foreground">
+                            {isLoadingStoreProduct ? 'Loading design data…' : 'No design data available'}
+                          </p>
+                        ) : viewKeys.length > 0 ? (
+                          <Tabs defaultValue={viewKeys[0]} className="w-full">
+                            <TabsList className="mb-4">
+                              {viewKeys.map((viewKey: string) => (
+                                <TabsTrigger key={viewKey} value={viewKey} className="capitalize">
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  {viewKey}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+
+                            {viewKeys.map((viewKey: string) => {
+                              const viewKeyLower = viewKey.toLowerCase();
+                              const mockupUrl = viewsMockupMap[viewKey] || viewsMockupMap[viewKeyLower];
+                              const previewUrl =
+                                savedPreviewImages[viewKey] ||
+                                savedPreviewImages[viewKeyLower];
+                                // previewsByView[viewKey] ||
+                                // previewsByView[viewKeyLower];
+                              const currentDesignElements = elements.filter((el: any) => {
+                                  const placement = (el?.placement || el?.view || 'front').toLowerCase();
+                                  return placement.includes(viewKeyLower) || (!el?.placement && !el?.view && viewKeyLower === 'front');
+                                });
+                              const designUrls: Record<string, string> = {};
+
+                              return (
+                                <TabsContent key={viewKey} value={viewKey}>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Preview Image */}
+                                    <div className="space-y-2">
+                                      <h5 className="text-sm font-medium flex items-center gap-2">
+                                        <ImageIcon className="h-4 w-4" />
+                                        Preview
+                                      </h5>
+                                      {previewUrl ? (
+                                        <>
+                                          <div className="border rounded-lg overflow-hidden bg-muted">
+                                            <img
+                                              src={previewUrl}
+                                              alt={`${viewKey} view preview`}
+                                              className="w-full h-auto object-contain max-h-[300px]"
+                                            />
+                                          </div>
+                                          <div className="mt-2 flex gap-2">
+                                            <Button variant="outline" size="sm" asChild>
+                                              <a href={previewUrl} download target="_blank" rel="noreferrer">
+                                                <Download className="h-4 w-4 mr-1" />
+                                                Download design
+                                              </a>
+                                            </Button>
+                                          </div>
+                                        </>
+                                      ) : mockupUrl ? (
+                                        <>
+                                          <MockupCanvasPreview
+                                            mockupImageUrl={mockupUrl}
+                                            elements={currentDesignElements}
+                                            colorHex={designData?.primaryColorHex || undefined}
+                                            displayWidth={300}
+                                          />
+                                          <p className="text-xs text-muted-foreground mt-1 italic">Live preview (regenerated from design data)</p>
+                                        </>
+                                      ) : (
+                                        <div className="border rounded-lg bg-muted p-8 text-center text-muted-foreground">
+                                          <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                          <p className="text-sm">No preview available</p>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Design Elements */}
+                                    <div className="space-y-2">
+                                      <h5 className="text-sm font-medium flex items-center gap-2">
+                                        <Layers className="h-4 w-4" />
+                                        Design Elements
+                                      </h5>
+                                      <div className="border rounded-lg bg-muted/50 p-3 space-y-2 max-h-[300px] overflow-y-auto">
+                                        {currentDesignElements.length > 0 ? (
+                                          currentDesignElements.map((el: any, elIdx: number) => (
+                                            <div key={elIdx} className="text-xs bg-background p-2 rounded border">
+                                              <div className="flex items-center justify-between mb-1">
+                                                <Badge variant="outline" className="text-xs">
+                                                  {el.type}
+                                                </Badge>
+                                                <div className="flex items-center gap-2">
+                                                  {el.id && (
+                                                    <span className="text-muted-foreground">
+                                                      #{el.id.slice(0, 6)}
+                                                    </span>
+                                                  )}
+                                                  {el.type === 'image' && el.imageUrl && (
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      className="h-6 w-6"
+                                                      title="Download original design (High Quality)"
+                                                      onClick={() => {
+                                                        const ext = el.imageUrl.split('.').pop()?.split('?')[0] || 'png';
+                                                        handleDownloadOriginal(
+                                                          el.imageUrl,
+                                                          `order-${orderId}-element-${el.id || elIdx}.${ext}`
+                                                        );
+                                                      }}
+                                                    >
+                                                      <Download className="h-3 w-3" />
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              {el.type === 'text' && el.text && (
+                                                <p className="mt-1 truncate">{el.text}</p>
+                                              )}
+                                              {el.type === 'image' && el.imageUrl && (
+                                                <img
+                                                  src={el.imageUrl}
+                                                  alt="Design element"
+                                                  className="mt-1 h-12 w-12 object-contain rounded border"
+                                                />
+                                              )}
+                                              <div className="mt-1 text-muted-foreground">
+                                                {el.x !== undefined && el.y !== undefined && (
+                                                  <span>Pos: ({Math.round(el.x)}, {Math.round(el.y)})</span>
+                                                )}
+                                                {el.width && el.height && (
+                                                  <span className="ml-2">Size: {Math.round(el.width)}×{Math.round(el.height)}</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))
+                                        ) : Object.keys(designUrls).length > 0 ? (
+                                          Object.entries(designUrls).map(([placeholderId, url]: [string, any]) => (
+                                            <div key={placeholderId} className="text-xs bg-background p-2 rounded border">
+                                              <div className="flex items-center justify-between mb-1">
+                                                <Badge variant="outline" className="text-xs">placeholder</Badge>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-muted-foreground">
+                                                    #{placeholderId.slice(0, 6)}
+                                                  </span>
+                                                  {url && (
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      className="h-6 w-6"
+                                                      title="Download original design (High Quality)"
+                                                      onClick={() => {
+                                                        const ext = url.split('.').pop()?.split('?')[0] || 'png';
+                                                        handleDownloadOriginal(
+                                                          url,
+                                                          `order-${orderId}-element-${placeholderId}.${ext}`
+                                                        );
+                                                      }}
+                                                    >
+                                                      <Download className="h-3 w-3" />
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              {url && (
+                                                <img
+                                                  src={url}
+                                                  alt="Design"
+                                                  className="mt-1 h-12 w-12 object-contain rounded border"
+                                                />
+                                              )}
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-muted-foreground text-center py-4">
+                                            No design elements
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </TabsContent>
+                              );
+                            })}
+                          </Tabs>
+                        ) : designData.previewImageUrl ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <h5 className="text-sm font-medium flex items-center gap-2">
+                                <ImageIcon className="h-4 w-4" />
+                                Preview
+                              </h5>
+                              <>
+                                <div className="border rounded-lg overflow-hidden bg-muted">
+                                  <img
+                                    src={designData.previewImageUrl}
+                                    alt="Product preview"
+                                    className="w-full h-auto object-contain max-h-[300px]"
+                                  />
+                                </div>
+                                <div className="mt-2 flex gap-2">
+                                  <Button variant="outline" size="sm" asChild>
+                                    <a href={designData.previewImageUrl} download target="_blank" rel="noreferrer">
+                                      <Download className="h-4 w-4 mr-1" />
+                                      Download design
+                                    </a>
+                                  </Button>
+                                </div>
+                              </>
+                            </div>
+                            <div className="space-y-2">
+                              <h5 className="text-sm font-medium flex items-center gap-2">
+                                <Layers className="h-4 w-4" />
+                                Elements
+                              </h5>
+                              <div className="border rounded-lg bg-muted/50 p-3 space-y-2">
+                                {elements.length > 0 ? (
+                                  elements.map((el: any, elIdx: number) => (
+                                    <div key={elIdx} className="text-xs bg-background p-2 rounded border flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        {el.type === 'image' && el.imageUrl && (
+                                          <img src={el.imageUrl} className="h-8 w-8 object-contain rounded border" alt="" />
+                                        )}
+                                        <div>
+                                          <p className="font-medium capitalize">{el.type}</p>
+                                          {el.id && <p className="text-[10px] text-muted-foreground">#{el.id.slice(0, 6)}</p>}
+                                        </div>
+                                      </div>
+                                      {el.type === 'image' && el.imageUrl && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          title="Download original design (High Quality)"
+                                          onClick={() => {
+                                            const ext = el.imageUrl.split('.').pop()?.split('?')[0] || 'png';
+                                            handleDownloadOriginal(
+                                              el.imageUrl,
+                                              `order-${orderId}-element-${el.id || elIdx}.${ext}`
+                                            );
+                                          }}
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground text-center py-2 text-sm">
+                                    No detailed elements
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No design data available</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default AdminOrderDetail;

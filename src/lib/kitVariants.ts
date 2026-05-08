@@ -1,4 +1,4 @@
-import { KitProduct } from '@/types/kits';
+﻿import { KitProduct } from '@/shared/types/kits';
 
 export type KitItemSelection = {
   catalogProductId: string;

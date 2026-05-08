@@ -1,17 +1,17 @@
-<<<<<<< Updated upstream
+﻿<<<<<<< Updated upstream
 import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Stage, Layer, Text, TextPath, Image, Rect, Group, Transformer, Line, Shape, Circle, RegularPolygon, Star } from 'react-konva';
 import Konva from 'konva';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Slider } from '@/shared/components/ui/slider';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { ScrollArea } from '@/shared/components/ui/scroll-area';
+import { Badge } from '@/shared/components/ui/badge';
+import { Switch } from '@/shared/components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { toast } from 'sonner';
 import {
   Drawer,
@@ -22,13 +22,13 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer";
+} from "@/shared/components/ui/drawer";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/shared/components/ui/accordion";
 import {
   Upload, Type, Image as ImageIcon, Folder, Sparkles, BotIcon, Undo2, Redo2,
   ZoomIn, ZoomOut, Move, Copy, Trash2, X, Plus, Package, Menu, Save, Layers, Eye, EyeOff,
@@ -54,21 +54,21 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useAuth } from '@/contexts/AuthContext';
-import { useStore } from '@/contexts/StoreContext';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useStore } from '@/shared/contexts/StoreContext';
 import { productApi, storeApi, storeProductsApi } from '@/lib/api';
-import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
-// import { DpiWarningPanel } from '@/components/designer/DpiWarningPanel';
-import { DpiIndicator } from '@/components/designer/DpiIndicator';
-import { calculateEffectiveDpi } from '@/types/editor';
-import { useDpiCalculation } from '@/hooks/useDpiCalculation';
-import { useCanvasElements } from '@/hooks/useCanvasElements';
+import { ProductInfoPanel } from '@/modules/design-editor/components/ProductsInfoPanel';
+// import { DpiWarningPanel } from '@/modules/design-editor/components/DpiWarningPanel';
+import { DpiIndicator } from '@/modules/design-editor/components/DpiIndicator';
+import { calculateEffectiveDpi } from '@/shared/types/editor';
+import { useDpiCalculation } from '@/shared/hooks/useDpiCalculation';
+import { useCanvasElements } from '@/shared/hooks/useCanvasElements';
 import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
-import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
-import type { CanvasElement, HistoryState, Placeholder, ProductView, Product } from '@/types/editor';
+import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/shared/types/product';
+import type { CanvasElement, HistoryState, Placeholder, ProductView, Product } from '@/shared/types/editor';
 import { API_BASE_URL, RAW_API_URL } from '@/config';
 import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
-import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
+import { generateDefaultStoreData } from '@/shared/utils/storeNameGenerator';
 
 /** Canvas 2d word-wrap to mirror Konva Text with wrap="word" and a bounded width. */
 function wrapTextLinesForCanvasExport(
@@ -109,15 +109,15 @@ function wrapTextLinesForCanvasExport(
   return lines.length ? lines : [''];
 }
 
-const UploadPanel = lazy(() => import('@/components/designer/UploadPanel').then(m => ({ default: m.UploadPanel })));
-const TextPanel = lazy(() => import('@/components/designer/TextPanel'));
-const ShapesPanel = lazy(() => import('@/components/designer/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
-const GraphicsPanel = lazy(() => import('@/components/designer/panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
-const LibraryPanel = lazy(() => import('@/components/designer/panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
-const LogosPanel = lazy(() => import('@/components/designer/panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
-const AssetPanel = lazy(() => import('@/components/designer/panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
-const TemplatesPanel = lazy(() => import('@/components/designer/panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
-const AIimageGen = lazy(() => import('@/components/designer/AIimageGen'));
+const UploadPanel = lazy(() => import('@/modules/design-editor/components/UploadPanel').then(m => ({ default: m.UploadPanel })));
+const TextPanel = lazy(() => import('@/modules/design-editor/components/TextPanel'));
+const ShapesPanel = lazy(() => import('@/modules/design-editor/components/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
+const GraphicsPanel = lazy(() => import('@/modules/design-editor/components/panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
+const LibraryPanel = lazy(() => import('@/modules/design-editor/components/panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
+const LogosPanel = lazy(() => import('@/modules/design-editor/components/panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
+const AssetPanel = lazy(() => import('@/modules/design-editor/components/panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
+const TemplatesPanel = lazy(() => import('@/modules/design-editor/components/panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
+const AIimageGen = lazy(() => import('@/modules/design-editor/components/AIimageGen'));
 
 const PanelFallback = () => (
   <div className="flex items-center justify-center h-32">
@@ -6021,15 +6021,15 @@ const PositionInput = ({
 // import { useParams, useNavigate, useLocation } from 'react-router-dom';
 // import { Stage, Layer, Text, TextPath, Image, Rect, Group, Transformer, Line, Shape, Circle, RegularPolygon, Star } from 'react-konva';
 // import Konva from 'konva';
-// import { Button } from '@/components/ui/button';
-// import { Input } from '@/components/ui/input';
-// import { Label } from '@/components/ui/label';
-// import { Slider } from '@/components/ui/slider';
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-// import { ScrollArea } from '@/components/ui/scroll-area';
-// import { Badge } from '@/components/ui/badge';
-// import { Switch } from '@/components/ui/switch';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Button } from '@/shared/components/ui/button';
+// import { Input } from '@/shared/components/ui/input';
+// import { Label } from '@/shared/components/ui/label';
+// import { Slider } from '@/shared/components/ui/slider';
+// import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+// import { ScrollArea } from '@/shared/components/ui/scroll-area';
+// import { Badge } from '@/shared/components/ui/badge';
+// import { Switch } from '@/shared/components/ui/switch';
+// import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 // import { toast } from 'sonner';
 // import {
 //   Drawer,
@@ -6040,13 +6040,13 @@ const PositionInput = ({
 //   DrawerHeader,
 //   DrawerTitle,
 //   DrawerTrigger,
-// } from "@/components/ui/drawer";
+// } from "@/shared/components/ui/drawer";
 // import {
 //   Accordion,
 //   AccordionContent,
 //   AccordionItem,
 //   AccordionTrigger,
-// } from "@/components/ui/accordion";
+// } from "@/shared/components/ui/accordion";
 // import {
 //   Upload, Type, Image as ImageIcon, Folder, Sparkles, BotIcon, Undo2, Redo2,
 //   ZoomIn, ZoomOut, Move, Copy, Trash2, X, Plus, Package, Menu, Save, Layers, Eye, EyeOff,
@@ -6072,21 +6072,21 @@ const PositionInput = ({
 //   useSortable,
 // } from '@dnd-kit/sortable';
 // import { CSS } from '@dnd-kit/utilities';
-// import { useAuth } from '@/contexts/AuthContext';
-// import { useStore } from '@/contexts/StoreContext';
+// import { useAuth } from '@/shared/contexts/AuthContext';
+// import { useStore } from '@/shared/contexts/StoreContext';
 // import { productApi, storeApi, storeProductsApi } from '@/lib/api';
-// import { ProductInfoPanel } from '@/components/designer/ProductsInfoPanel';
-// // import { DpiWarningPanel } from '@/components/designer/DpiWarningPanel';
-// import { DpiIndicator } from '@/components/designer/DpiIndicator';
-// import { calculateEffectiveDpi } from '@/types/editor';
-// import { useDpiCalculation } from '@/hooks/useDpiCalculation';
-// import { useCanvasElements } from '@/hooks/useCanvasElements';
+// import { ProductInfoPanel } from '@/modules/design-editor/components/ProductsInfoPanel';
+// // import { DpiWarningPanel } from '@/modules/design-editor/components/DpiWarningPanel';
+// import { DpiIndicator } from '@/modules/design-editor/components/DpiIndicator';
+// import { calculateEffectiveDpi } from '@/shared/types/editor';
+// import { useDpiCalculation } from '@/shared/hooks/useDpiCalculation';
+// import { useCanvasElements } from '@/shared/hooks/useCanvasElements';
 // import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
-// import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/types/product';
-// import type { CanvasElement, HistoryState, Placeholder, ProductView, Product } from '@/types/editor';
+// import type { DisplacementSettings, DesignPlacement, NormalizedPosition, ViewKey } from '@/shared/types/product';
+// import type { CanvasElement, HistoryState, Placeholder, ProductView, Product } from '@/shared/types/editor';
 // import { API_BASE_URL, RAW_API_URL } from '@/config';
 // import { pixelsToNormalized, createDefaultPlacement, type PrintAreaPixels } from '@/lib/placementUtils';
-// import { generateDefaultStoreData } from '@/utils/storeNameGenerator';
+// import { generateDefaultStoreData } from '@/shared/utils/storeNameGenerator';
 
 // /** Canvas 2d word-wrap to mirror Konva Text with wrap="word" and a bounded width. */
 // function wrapTextLinesForCanvasExport(
@@ -6127,15 +6127,15 @@ const PositionInput = ({
 //   return lines.length ? lines : [''];
 // }
 
-// const UploadPanel = lazy(() => import('@/components/designer/UploadPanel').then(m => ({ default: m.UploadPanel })));
-// const TextPanel = lazy(() => import('@/components/designer/TextPanel'));
-// const ShapesPanel = lazy(() => import('@/components/designer/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
-// const GraphicsPanel = lazy(() => import('@/components/designer/panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
-// const LibraryPanel = lazy(() => import('@/components/designer/panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
-// const LogosPanel = lazy(() => import('@/components/designer/panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
-// const AssetPanel = lazy(() => import('@/components/designer/panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
-// const TemplatesPanel = lazy(() => import('@/components/designer/panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
-// const AIimageGen = lazy(() => import('@/components/designer/AIimageGen'));
+// const UploadPanel = lazy(() => import('@/modules/design-editor/components/UploadPanel').then(m => ({ default: m.UploadPanel })));
+// const TextPanel = lazy(() => import('@/modules/design-editor/components/TextPanel'));
+// const ShapesPanel = lazy(() => import('@/modules/design-editor/components/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
+// const GraphicsPanel = lazy(() => import('@/modules/design-editor/components/panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
+// const LibraryPanel = lazy(() => import('@/modules/design-editor/components/panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
+// const LogosPanel = lazy(() => import('@/modules/design-editor/components/panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
+// const AssetPanel = lazy(() => import('@/modules/design-editor/components/panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
+// const TemplatesPanel = lazy(() => import('@/modules/design-editor/components/panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
+// const AIimageGen = lazy(() => import('@/modules/design-editor/components/AIimageGen'));
 
 // const PanelFallback = () => (
 //   <div className="flex items-center justify-center h-32">
