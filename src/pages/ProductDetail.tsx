@@ -1,12 +1,10 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { productApi } from "@/lib/api";
-import { TrustBadges } from "@/components/TrustBadges";
 import { CareInstructions } from "@/components/CareInstructions";
 import { ProductDescription } from "@/components/ProductDescription";
 import { SizeChart } from "@/components/SizeChart";
 import { KeyFeatures } from "@/components/KeyFeatures";
-import { PrintAreas } from "@/components/PrintAreas";
 import { Skeleton } from "@/components/ui/skeleton";
 import Header from '@/components/home/Header';
 import Footer from '@/components/home/Footer';

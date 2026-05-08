@@ -1,1 +1,0 @@
-<input type="checkbox" class="options-ismask" value="1" /> <?php echo 'Is mask';?>

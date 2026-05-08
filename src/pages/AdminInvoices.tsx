@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { invoiceApi } from '@/lib/api';
 import { toast } from 'sonner';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const AdminInvoices = () => {
     const { user } = useAuth();
@@ -70,6 +71,7 @@ const AdminInvoices = () => {
     });
 
     return (
+        <DashboardLayout>
         <div className="min-h-screen bg-background p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8 flex items-center justify-between">
@@ -176,6 +178,7 @@ const AdminInvoices = () => {
                 )}
             </div>
         </div>
+        </DashboardLayout>
     );
 };
 
