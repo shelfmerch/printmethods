@@ -5,6 +5,7 @@ const CreditAllocation = require('../models/CreditAllocation');
 const BrandEmployee = require('../models/BrandEmployee');
 const Store = require('../models/Store');
 const Wallet = require('../models/Wallet');
+const walletService = require('../services/walletService');
 const { protect } = require('../middleware/auth');
 
 // Helper: check brand access (owner, superadmin, or brand_admin/hr_manager team member)
@@ -214,34 +215,7 @@ router.post('/:brandId', protect, async (req, res) => {
           }
         }
 
-        const idempotencyKey = `credit_alloc_${req.params.brandId}_${empId}_${Date.now()}`;
-
-        // 1. Debit company wallet
-        const updatedCompanyWallet = await Wallet.findOneAndUpdate(
-          { _id: companyWallet._id, balancePaise: { $gte: amountPaise } },
-          { $inc: { balancePaise: -amountPaise } },
-          { new: true, session }
-        );
-        if (!updatedCompanyWallet) throw new Error('Company wallet debit failed (concurrent modification)');
-
-        // 2. Credit employee wallet
-        await Wallet.findOneAndUpdate(
-          { _id: empWallet._id },
-          { $inc: { balancePaise: amountPaise } },
-          { session }
-        );
-
-        // 3. Update employee totals
-        await BrandEmployee.findByIdAndUpdate(
-          empId,
-          {
-            $inc: { totalCreditAllocatedPaise: amountPaise },
-            walletId: empWallet._id,
-          },
-          { session }
-        );
-
-        // 4. Create CreditAllocation audit record
+        // 1. Create CreditAllocation audit record (reward assignment)
         const [allocation] = await CreditAllocation.create(
           [
             {
@@ -255,6 +229,51 @@ router.post('/:brandId', protect, async (req, res) => {
               status: 'active',
             },
           ],
+          { session }
+        );
+
+        // 2. Debit company wallet
+        const updatedCompanyWallet = await Wallet.findOneAndUpdate(
+          { _id: companyWallet._id, balancePaise: { $gte: amountPaise } },
+          { $inc: { balancePaise: -amountPaise } },
+          { new: true, session }
+        );
+        if (!updatedCompanyWallet) throw new Error('Company wallet debit failed (concurrent modification)');
+
+        // 3. Credit employee wallet (idempotent per allocation)
+        if (!allocation.employeeWalletTxnId) {
+          const idempotencyKey = `credit_alloc_${allocation._id.toString()}`;
+          const creditResult = await walletService.creditWallet(
+            empWallet.userId.toString(),
+            amountPaise,
+            {
+              type: 'ADJUSTMENT',
+              source: 'SYSTEM',
+              referenceType: 'AI_CREDITS',
+              referenceId: allocation._id.toString(),
+              idempotencyKey,
+              description: `Reward credited by ${store.storeName || store.slug || 'brand'}`,
+              meta: {
+                brandId: req.params.brandId,
+                employeeId: empId,
+                allocatedBy: req.user._id?.toString?.() || String(req.user._id),
+                occasion,
+              },
+            },
+            session
+          );
+
+          allocation.employeeWalletTxnId = creditResult?.transaction?._id;
+          await allocation.save({ session });
+        }
+
+        // 4. Update employee totals
+        await BrandEmployee.findByIdAndUpdate(
+          empId,
+          {
+            $inc: { totalCreditAllocatedPaise: amountPaise },
+            walletId: empWallet._id,
+          },
           { session }
         );
 

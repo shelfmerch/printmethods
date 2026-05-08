@@ -35,6 +35,7 @@ const BrandKitBuilder = () => {
   const [status, setStatus] = useState<'draft' | 'live'>('draft');
   const [catalogProducts, setCatalogProducts] = useState<KitProduct[]>([]);
   const [selectedItems, setSelectedItems] = useState<DraftItem[]>([]);
+  const [globalLogoUrl, setGlobalLogoUrl] = useState<string>('');
   const [packaging, setPackaging] = useState<{
     mode: 'none' | 'catalog_product';
     catalogProductId: string;
@@ -118,6 +119,8 @@ const BrandKitBuilder = () => {
             product: typeof item.catalogProductId === 'string' ? undefined : item.catalogProductId,
           }))
         );
+        const firstLogo = kit.items.map((i: any) => i.uploadedLogoUrl).find((u: any) => typeof u === 'string' && u.trim());
+        if (firstLogo) setGlobalLogoUrl(String(firstLogo));
       } catch (error: any) {
         toast.error(error.message || 'Failed to load kit');
       } finally {
@@ -148,8 +151,24 @@ const BrandKitBuilder = () => {
       if (current.some((item) => item.catalogProductId === product._id)) {
         return current.filter((item) => item.catalogProductId !== product._id);
       }
-      return [...current, { catalogProductId: product._id, uploadedLogoUrl: '', product }];
+      return [...current, { catalogProductId: product._id, uploadedLogoUrl: globalLogoUrl || '', product }];
     });
+  };
+
+  const handleGlobalLogoUpload = async (file?: File | null) => {
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    try {
+      const url = await uploadKitLogo(file);
+      setGlobalLogoUrl(url);
+      setSelectedItems((current) => current.map((item) => ({ ...item, uploadedLogoUrl: url })));
+      toast.success('Logo uploaded');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload logo');
+    }
   };
 
   const handleLogoUpload = async (productId: string, file?: File | null) => {
@@ -285,6 +304,7 @@ const BrandKitBuilder = () => {
               <CardHeader>
                 <CardTitle>Step 2: Browse catalog</CardTitle>
               </CardHeader>
+              
               <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {merchandiseProducts.map((product) => (
                   <button
@@ -322,7 +342,35 @@ const BrandKitBuilder = () => {
               <CardHeader>
                 <CardTitle>Step 3: Upload brand logos</CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-6 lg:grid-cols-2">
+              <CardContent className="space-y-6">
+                <div className="rounded-xl border p-4">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-semibold">Upload your brand logo</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Upload once — we’ll apply the same logo across all selected products using each product’s placeholder.
+                      </p>
+                    </div>
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground hover:border-primary hover:text-primary">
+                      <Upload className="h-4 w-4" />
+                      <span>{globalLogoUrl ? 'Replace logo' : 'Upload logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => handleGlobalLogoUpload(event.target.files?.[0])}
+                      />
+                    </label>
+                    {globalLogoUrl && (
+                      <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                        <ImagePlus className="h-4 w-4" />
+                        Logo uploaded — applied to all products
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
                 {selectedItems.map((item) => (
                   <div key={item.catalogProductId} className="rounded-xl border p-4">
                     <div className="grid gap-4 md:grid-cols-[180px_1fr]">
@@ -331,32 +379,23 @@ const BrandKitBuilder = () => {
                         <div>
                           <h3 className="font-semibold">{item.product?.name || 'Selected product'}</h3>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Upload the logo that should appear on this item in the kit preview and send flow.
+                            {globalLogoUrl ? 'Using uploaded brand logo.' : 'Upload your brand logo above to preview this item.'}
                           </p>
                         </div>
-                        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground hover:border-primary hover:text-primary">
-                          <Upload className="h-4 w-4" />
-                          <span>{item.uploadedLogoUrl ? 'Replace logo' : 'Upload logo'}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(event: ChangeEvent<HTMLInputElement>) => handleLogoUpload(item.catalogProductId, event.target.files?.[0])}
-                          />
-                        </label>
-                        {item.uploadedLogoUrl && (
+                        {globalLogoUrl && (
                           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                             <ImagePlus className="h-4 w-4" />
-                            Logo uploaded
+                            Credited: Using uploaded brand logo
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
+                </div>
               </CardContent>
               <div className="flex flex-wrap justify-end gap-3 px-6 pb-6">
-                <Button onClick={() => setStep(4)} disabled={!selectedItems.length}>
+                <Button onClick={() => setStep(4)} disabled={!selectedItems.length || !globalLogoUrl}>
                   Continue
                 </Button>
               </div>

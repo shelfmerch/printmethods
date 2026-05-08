@@ -538,13 +538,18 @@ export const checkoutApi = {
 
   getCreditPreview: async (
     subdomain: string,
-    totalPaise: number
+    totalPaise: number,
+    subtotalPaise?: number
   ) => {
     const storeTokenKey = `store_token_${subdomain}`;
     const storeToken = localStorage.getItem(storeTokenKey);
 
+    const qs = new URLSearchParams();
+    qs.set('totalPaise', String(totalPaise));
+    if (typeof subtotalPaise === 'number') qs.set('subtotalPaise', String(subtotalPaise));
+
     const response = await fetch(
-      `${API_BASE_URL}/store-checkout/${encodeURIComponent(subdomain)}/credits?totalPaise=${encodeURIComponent(totalPaise)}`,
+      `${API_BASE_URL}/store-checkout/${encodeURIComponent(subdomain)}/credits?${qs.toString()}`,
       {
         method: 'GET',
         headers: {
@@ -570,7 +575,7 @@ export const checkoutApi = {
   // Create Razorpay order
   createRazorpayOrder: async (
     subdomain: string,
-    payload: { cart: any[]; shippingInfo: any; shipping?: number; tax?: number }
+    payload: { cart: any[]; shippingInfo: any; shipping?: number; tax?: number; useCredits?: boolean }
   ) => {
     const storeTokenKey = `store_token_${subdomain}`;
     const storeToken = localStorage.getItem(storeTokenKey);
@@ -611,6 +616,7 @@ export const checkoutApi = {
       razorpay_signature: string;
       shipping?: number;
       tax?: number;
+      useCredits?: boolean;
     }
   ) => {
     const storeTokenKey = `store_token_${subdomain}`;
@@ -638,6 +644,63 @@ export const checkoutApi = {
       }) as { success: boolean; data?: any; message?: string };
     }
 
+    return data as { success: boolean; data?: any; message?: string };
+  },
+};
+
+// Storefront Rewards (employee credits) API
+export const storeRewardsApi = {
+  getWallet: async (subdomain: string) => {
+    const storeTokenKey = `store_token_${subdomain}`;
+    const storeToken = localStorage.getItem(storeTokenKey);
+
+    const response = await fetch(
+      `${API_BASE_URL}/store-rewards/${encodeURIComponent(subdomain)}/wallet`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(storeToken ? { Authorization: `Bearer ${storeToken}` } : {}),
+        },
+        credentials: 'include',
+      }
+    );
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return (data || { success: false, message: 'Failed to load rewards wallet' }) as {
+        success: boolean;
+        data?: any;
+        message?: string;
+      };
+    }
+    return data as { success: boolean; data?: any; message?: string };
+  },
+
+  listRewards: async (subdomain: string) => {
+    const storeTokenKey = `store_token_${subdomain}`;
+    const storeToken = localStorage.getItem(storeTokenKey);
+
+    const response = await fetch(
+      `${API_BASE_URL}/store-rewards/${encodeURIComponent(subdomain)}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(storeToken ? { Authorization: `Bearer ${storeToken}` } : {}),
+        },
+        credentials: 'include',
+      }
+    );
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return (data || { success: false, message: 'Failed to load rewards' }) as {
+        success: boolean;
+        data?: any;
+        message?: string;
+      };
+    }
     return data as { success: boolean; data?: any; message?: string };
   },
 };

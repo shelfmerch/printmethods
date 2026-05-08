@@ -2710,36 +2710,58 @@ const DesignEditor: React.FC = () => {
   const handlePublishToStore = useCallback(async () => {
     try {
       if (!user) {
-        // Save current design state to sessionStorage for restoration after login
-        if (id) {
-          try {
-            const designState = {
-              elements,
-              selectedColors,
-              selectedSizes,
-              selectedSizesByColor,
-              currentView,
-              designUrlsByPlaceholder,
-              placementsByView,
-              savedPreviewImages,
-              displacementSettings,
-              primaryColorHex,
-              selectedPrintMethodsByView,
-            };
-            sessionStorage.setItem(`designer_state_${id}`, JSON.stringify(designState));
-          } catch (err) {
-            console.error('Failed to save design state:', err);
-          }
+        if (!id) {
+          navigate('/auth');
+          return;
         }
 
-        // Redirect to auth page with return path
-        navigate('/auth', {
-          state: {
-            from: {
-              pathname: `/designer/${id}`,
-            },
-          },
-        });
+        // Save current design state + mockup capture so we can resume directly in MockupsLibrary after auth.
+        try {
+          const designState = {
+            elements,
+            selectedColors,
+            selectedSizes,
+            selectedSizesByColor,
+            currentView,
+            designUrlsByPlaceholder,
+            placementsByView,
+            savedPreviewImages,
+            displacementSettings,
+            primaryColorHex,
+            selectedPrintMethodsByView,
+          };
+          sessionStorage.setItem(`designer_state_${id}`, JSON.stringify(designState));
+
+          toast.loading('Saving your design session…', { id: 'designer-auth-save' });
+          const { images: capturedDesignImages, garmentBounds: capturedGarmentBounds } =
+            await captureDesignOnlyImagesAllViews();
+          sessionStorage.setItem(
+            `designer_mockup_capture_${id}`,
+            JSON.stringify({
+              designOnlyImages: capturedDesignImages,
+              garmentBoundsByView: capturedGarmentBounds,
+            })
+          );
+          sessionStorage.setItem(
+            `designer_add_product_intent_${id}`,
+            JSON.stringify({
+              source: `/designer/${id}`,
+              productId: id,
+              sellingPrice: (() => {
+                const basePrice = (product as any)?.catalogue?.basePrice || 0;
+                return basePrice > 0 ? parseFloat((basePrice / 0.6).toFixed(2)) : 0;
+              })(),
+              createdAt: Date.now(),
+            })
+          );
+          toast.dismiss('designer-auth-save');
+        } catch (err) {
+          console.error('Failed to save session for auth resume:', err);
+          toast.dismiss('designer-auth-save');
+        }
+
+        const returnTo = `/mockups-library?resume=designer-add-product&productId=${encodeURIComponent(id)}`;
+        navigate(`/auth?returnTo=${encodeURIComponent(returnTo)}`);
         return;
       }
 

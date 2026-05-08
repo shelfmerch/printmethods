@@ -1,5 +1,10 @@
+<<<<<<< HEAD:src/modules/merchant/pages/MockupsLibrary.tsx
 ﻿import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+=======
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+>>>>>>> pr-3:src/pages/MockupsLibrary.tsx
 import { Stage, Layer, Image as KonvaImage, Shape } from 'react-konva';
 import { productApi } from '@/lib/api';
 import { Button } from '@/shared/components/ui/button';
@@ -162,9 +167,10 @@ const MockupKonva = ({
 const MockupsLibrary = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const state = (location.state || {}) as LocationState;
 
-    const [storeProductId] = useState<string | undefined>(state.storeProductId);
+    const [storeProductId, setStoreProductId] = useState<string | undefined>(state.storeProductId);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [storeProduct, setStoreProduct] = useState<any | null>(null);
@@ -185,6 +191,98 @@ const MockupsLibrary = () => {
     const [primaryColorHex, setPrimaryColorHex] = useState<string | null>(null);
     const [availableColors, setAvailableColors] = useState<string[]>([]);
 
+    // ─── Resume flow: coming from Design Editor "Add Product" after auth ──────
+    useEffect(() => {
+        const resume = searchParams.get('resume');
+        const productId = searchParams.get('productId');
+        if (storeProductId) return;
+        if (resume !== 'designer-add-product' || !productId) return;
+
+        const run = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
+                toast.loading('Restoring your mockups…', { id: 'mockups-resume' });
+
+                const intentRaw = sessionStorage.getItem(`designer_add_product_intent_${productId}`);
+                const designStateRaw = sessionStorage.getItem(`designer_state_${productId}`);
+                const captureRaw = sessionStorage.getItem(`designer_mockup_capture_${productId}`);
+                const intent = intentRaw ? JSON.parse(intentRaw) : {};
+                const designState = designStateRaw ? JSON.parse(designStateRaw) : null;
+                const capture = captureRaw ? JSON.parse(captureRaw) : null;
+
+                if (!designState) {
+                    setError('Missing saved design state. Please go back to the design editor and try again.');
+                    return;
+                }
+
+                const sellingPrice = Number(intent?.sellingPrice || 0) || 0;
+                const payload = {
+                    catalogProductId: productId,
+                    sellingPrice,
+                    status: 'draft' as const,
+                    designData: {
+                        elements: designState.elements,
+                        designUrlsByPlaceholder: designState.designUrlsByPlaceholder,
+                        placementsByView: designState.placementsByView,
+                        displacementSettings: designState.displacementSettings,
+                        selectedColors: designState.selectedColors,
+                        selectedSizes: designState.selectedSizes,
+                        selectedSizesByColor: designState.selectedSizesByColor,
+                        primaryColorHex: designState.primaryColorHex,
+                        selectedPrintMethodsByView: designState.selectedPrintMethodsByView,
+                    },
+                };
+
+                const resp = await fetchWithApiAuth('/store-products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || data?.success === false) {
+                    throw new Error(data?.message || 'Failed to restore draft');
+                }
+                const draftId = data?.data?.storeProduct?._id || data?.data?._id;
+                if (!draftId) throw new Error('Failed to restore draft ID');
+
+                // Persist design-only captures so server-side generation uses the exact same session.
+                if (capture?.designOnlyImages && Object.keys(capture.designOnlyImages).length > 0) {
+                    try {
+                        await fetchWithApiAuth(`/store-products/${draftId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                designData: {
+                                    designOnlyImages: capture.designOnlyImages,
+                                    garmentBoundsByView: capture.garmentBoundsByView || {},
+                                },
+                            }),
+                        });
+                    } catch (e) {
+                        console.warn('[mockups-resume] failed to persist captures:', e);
+                    }
+                }
+
+                // Clear resume payload to prevent loops/toast spam
+                sessionStorage.removeItem(`designer_add_product_intent_${productId}`);
+                sessionStorage.removeItem(`designer_mockup_capture_${productId}`);
+
+                setStoreProductId(draftId);
+            } catch (e: any) {
+                setError(e?.message || 'Failed to restore mockups');
+            } finally {
+                toast.dismiss('mockups-resume');
+                setIsLoading(false);
+            }
+        };
+
+        run();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, storeProductId]);
+
     // ─── Load store product ───────────────────────────────────────────────────
     useEffect(() => {
         if (!storeProductId) {
@@ -195,7 +293,7 @@ const MockupsLibrary = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                const resp = await fetchWithApiAuth(`/storeproducts/${storeProductId}`, {
+                const resp = await fetchWithApiAuth(`/store-products/${storeProductId}`, {
                     headers: { 'ngrok-skip-browser-warning': 'true' },
                     credentials: 'include',
                 });
@@ -332,7 +430,7 @@ const MockupsLibrary = () => {
         setGeneratingColors(prev => new Set([...prev, colorKey]));
         try {
             const resp = await fetchWithApiAuth(
-                `/storeproducts/${storeProductId}/generate-mockups`,
+                `/store-products/${storeProductId}/generate-mockups`,
                 {
                     method: 'POST',
                     headers: {
@@ -658,7 +756,13 @@ const MockupsLibrary = () => {
                                                 savedMockupUrls[`${ck}:${vk}`] = url;
                                             }
                                         }
-                                        navigate('/listing-editor', { state: { ...state, storeProductId, savedMockupUrls } });
+                                        if (storeProductId) {
+                                            sessionStorage.setItem('last_listing_storeProductId', storeProductId);
+                                        }
+                                        const target = storeProductId
+                                            ? `/listing-editor?storeProductId=${encodeURIComponent(storeProductId)}`
+                                            : '/listing-editor';
+                                        navigate(target, { state: { ...state, storeProductId, savedMockupUrls } });
                                     }}
                                 >
                                     Continue <ChevronRight className="h-6 w-6" />

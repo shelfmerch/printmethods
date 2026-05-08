@@ -35,6 +35,7 @@ const storeRoutes = require('./routes/stores');
 const storeBuilderRoutes = require('./routes/storeBuilder');
 const storeProductsRoutes = require('./routes/storeProducts');
 const storeCheckoutRoutes = require('./routes/storeCheckout');
+const storeRewardsRoutes = require('./routes/storeRewards');
 const storeOrdersRoutes = require('./routes/storeOrders');
 const storeCustomerOrdersRoutes = require('./routes/storeCustomerOrders');
 const storeCustomersRoutes = require('./routes/storeCustomers');
@@ -309,6 +310,7 @@ app.use('/api/store-products', tenantResolver, storeProductsRoutes);
 // mis-reads `/api/store-products/:id/...` — `/api/storeproducts/...` avoids that pattern.
 app.use('/api/storeproducts', tenantResolver, storeProductsRoutes);
 app.use('/api/store-checkout', tenantResolver, storeCheckoutRoutes);
+app.use('/api/store-rewards', tenantResolver, storeRewardsRoutes);
 app.use('/api/store-orders', tenantResolver, storeOrdersRoutes);
 app.use('/api/store-auth', tenantResolver, require('./routes/storeAuth'));
 app.use('/api/store-customer/orders', tenantResolver, storeCustomerOrdersRoutes);

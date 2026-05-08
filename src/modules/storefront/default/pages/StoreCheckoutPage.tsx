@@ -9,7 +9,12 @@ import { toast } from 'sonner';
 import { CartItem, Store, ShippingAddress } from '@/shared/types';
 import { getTheme } from '@/modules/storefront/shared/themes';
 import { storeApi, checkoutApi, shippingApi } from '@/lib/api';
+<<<<<<< HEAD:src/modules/storefront/default/pages/StoreCheckoutPage.tsx
 import { useStoreAuth } from '@/shared/contexts/StoreAuthContext';
+=======
+import { useStoreAuth } from '@/contexts/StoreAuthContext';
+import { useStoreRewards } from '@/contexts/StoreRewardsContext';
+>>>>>>> pr-3:src/storefront/pages/StoreCheckoutPage.tsx
 import { estimateCartWeight } from '@/lib/delhivery';
 import { getTenantSlugFromLocation, buildStorePath } from '@/shared/utils/tenantUtils';
 import { useCart } from '@/shared/contexts/CartContext';
@@ -26,7 +31,8 @@ import {
   ChevronsUpDown,
   AlertCircle,
   CheckCircle2,
-  Info
+  Info,
+  Wallet
 } from 'lucide-react';
 import {
   Command,
@@ -78,6 +84,7 @@ const StoreCheckoutPage: React.FC = () => {
     payablePaise: number;
   } | null>(null);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [applyRewards, setApplyRewards] = useState(false);
 
   // New states for validation and enhance UI
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -115,6 +122,7 @@ const StoreCheckoutPage: React.FC = () => {
   }, [subdomain]);
 
   const { isAuthenticated, customer, sendPhoneVerificationOtp, confirmPhoneVerificationOtp } = useStoreAuth();
+  const { wallet: rewardsWallet } = useStoreRewards();
 
   const handleSendPhoneOtp = async () => {
     if (!shippingInfo.phone || shippingInfo.phone.length !== 10) {
@@ -205,6 +213,8 @@ const StoreCheckoutPage: React.FC = () => {
   const formatRupees = (value: number) =>
     `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  const canUseRewards = (rewardsWallet?.remainingBalancePaise || 0) > 0;
+
   // Remove default shipping effect that sets it to ₹150
 
   // Check if Delhivery service is configured
@@ -277,14 +287,18 @@ const StoreCheckoutPage: React.FC = () => {
 
   useEffect(() => {
     const loadCreditPreview = async () => {
-      if (!subdomain || !isAuthenticated || !customer || total <= 0) {
+      if (!subdomain || !isAuthenticated || !customer || total <= 0 || !applyRewards) {
         setCreditPreview(null);
         return;
       }
 
       setCreditLoading(true);
       try {
-        const resp = await checkoutApi.getCreditPreview(subdomain, Math.round(total * 100));
+        const resp = await checkoutApi.getCreditPreview(
+          subdomain,
+          Math.round(total * 100),
+          Math.round(subtotal * 100)
+        );
         setCreditPreview(resp.success && resp.data ? resp.data : null);
       } catch (error) {
         console.error('Failed to load employee credits:', error);
@@ -296,7 +310,7 @@ const StoreCheckoutPage: React.FC = () => {
 
     const timeoutId = setTimeout(loadCreditPreview, 250);
     return () => clearTimeout(timeoutId);
-  }, [subdomain, isAuthenticated, customer, total]);
+  }, [subdomain, isAuthenticated, customer, total, subtotal, applyRewards]);
 
   const validateField = (name: string, value: string) => {
     let error = "";
@@ -498,21 +512,8 @@ const StoreCheckoutPage: React.FC = () => {
     try {
       setProcessing(true);
 
-      const createResp = await checkoutApi.createRazorpayOrder(subdomain!, {
-        cart,
-        shippingInfo,
-        shipping,
-        tax,
-      });
-
-      if (!createResp.success) {
-        throw new Error(createResp.message || 'Failed to start payment');
-      }
-
-      const { razorpayOrder } = createResp.data || {};
-      const razorpayKeyId = (createResp.data as any)?.razorpayKeyId;
-
-      if (!razorpayOrder) {
+      // If rewards fully cover the payable, skip Razorpay completely.
+      if (applyRewards && payablePaise <= 0) {
         const orderResp = await checkoutApi.placeOrder(store.subdomain, {
           cart,
           shippingInfo,
@@ -522,11 +523,51 @@ const StoreCheckoutPage: React.FC = () => {
         });
 
         if (!orderResp.success || !orderResp.data) {
+          throw new Error(orderResp.message || 'Failed to place order');
+        }
+
+        clearCart();
+        toast.success('Order placed using reward credits.');
+        navigate('/order-confirmation', {
+          state: {
+            order: orderResp.data,
+            storeSlug: store?.subdomain || subdomain,
+          },
+        });
+        return;
+      }
+
+      const createResp = await checkoutApi.createRazorpayOrder(subdomain!, {
+        cart,
+        shippingInfo,
+        shipping,
+        tax,
+        useCredits: applyRewards,
+      });
+
+      if (!createResp.success) {
+        throw new Error(createResp.message || 'Failed to start payment');
+      }
+
+      const { razorpayOrder } = createResp.data || {};
+      const razorpayKeyId = (createResp.data as any)?.razorpayKeyId;
+
+      // Safety: never init Razorpay for zero amount
+      if (!razorpayOrder || Number(razorpayOrder.amount || 0) <= 0) {
+        const orderResp = await checkoutApi.placeOrder(store.subdomain, {
+          cart,
+          shippingInfo,
+          shipping,
+          tax,
+          useCredits: applyRewards,
+        });
+
+        if (!orderResp.success || !orderResp.data) {
           throw new Error(orderResp.message || 'Failed to place credit order');
         }
 
         clearCart();
-        toast.success('Credits applied. Order placed.');
+        toast.success(applyRewards ? 'Credits applied. Order placed.' : 'Order placed.');
         navigate('/order-confirmation', {
           state: {
             order: orderResp.data,
@@ -576,6 +617,7 @@ const StoreCheckoutPage: React.FC = () => {
               razorpay_signature: response.razorpay_signature,
               shipping,
               tax,
+              useCredits: applyRewards,
             });
 
             if (!verifyResp.success || !verifyResp.data) {
@@ -642,7 +684,7 @@ const StoreCheckoutPage: React.FC = () => {
         shippingInfo,
         shipping,
         tax,
-        useCredits: true,
+        useCredits: applyRewards,
       });
 
       if (!resp.success || !resp.data) {
@@ -1044,8 +1086,10 @@ const StoreCheckoutPage: React.FC = () => {
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing payment
                     </>
+                  ) : applyRewards ? (
+                    payablePaise <= 0 ? 'Place Order' : 'Continue to Payment'
                   ) : (
-                    payablePaise <= 0 ? 'Place order with credits' : 'Continue to payment'
+                    'Continue to Payment'
                   )}
                 </Button>
               </div>
@@ -1125,27 +1169,67 @@ const StoreCheckoutPage: React.FC = () => {
                   </p>
                 )}
                 <Separator className="my-2" />
-                {(creditLoading || (creditPreview && creditPreview.availablePaise > 0)) && (
-                  <>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Employee credits</span>
-                      <span>
-                        {creditLoading ? (
-                          <Loader2 className="h-3 w-3 animate-spin inline-block" />
-                        ) : (
-                          `-${formatRupees(walletAppliedRupees)}`
+                {canUseRewards && (
+                  <div className={cn(
+                    "rounded-xl border p-4",
+                    applyRewards ? "border-green-200 bg-green-50/50" : "border-border bg-background"
+                  )}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-green-700" />
+                        <span className="font-medium text-foreground">Apply reward credits</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={applyRewards}
+                        onClick={() => setApplyRewards(v => !v)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                          applyRewards ? "bg-green-600" : "bg-muted"
                         )}
-                      </span>
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                            applyRewards ? "translate-x-5" : "translate-x-1"
+                          )}
+                        />
+                      </button>
                     </div>
-                    {!creditLoading && creditPreview && (
-                      <p className="text-xs text-green-700 text-right">
-                        {formatRupees(creditPreview.availablePaise / 100)} available
-                      </p>
+
+                    {applyRewards && (
+                      <div className="mt-3 space-y-2">
+                        <div className="text-xs text-muted-foreground">Rewards apply on product subtotal only.</div>
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                          <span>Available rewards</span>
+                          <span>
+                            {creditLoading ? (
+                              <Loader2 className="h-3 w-3 animate-spin inline-block" />
+                            ) : (
+                              formatRupees((creditPreview?.availablePaise || 0) / 100)
+                            )}
+                          </span>
+                        </div>
+                      </div>
                     )}
-                  </>
+                  </div>
+                )}
+
+                {(applyRewards && (creditLoading || (creditPreview && creditPreview.walletAppliedPaise > 0))) && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Reward credits</span>
+                    <span>
+                      {creditLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin inline-block" />
+                      ) : (
+                        `-${formatRupees(walletAppliedRupees)}`
+                      )}
+                    </span>
+                  </div>
                 )}
                 <div className="flex justify-between text-base font-semibold">
-                  <span>{walletAppliedRupees > 0 ? 'Pay now' : 'Total'}</span>
+                  <span>{applyRewards && walletAppliedRupees > 0 ? 'Pay now' : 'Total'}</span>
                   <span>
                     {shippingLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin inline-block" />

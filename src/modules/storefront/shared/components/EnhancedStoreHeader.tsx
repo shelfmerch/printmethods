@@ -1,10 +1,16 @@
+<<<<<<< HEAD:src/modules/storefront/shared/components/EnhancedStoreHeader.tsx
 ﻿import { Search, ShoppingBag, Menu, X, User, ChevronDown, Package, Settings, LogOut } from "lucide-react";
 import { useStoreAuth } from "@/shared/contexts/StoreAuthContext";
+=======
+import { Search, ShoppingBag, Menu, X, User, ChevronDown, Package, Settings, LogOut, Wallet } from "lucide-react";
+import { useStoreAuth } from "@/contexts/StoreAuthContext";
+>>>>>>> pr-3:src/components/storefront/EnhancedStoreHeader.tsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { buildStorePath } from "@/shared/utils/tenantUtils";
 import StoreNotificationBell from "./StoreNotificationBell";
 import { cn } from "@/lib/utils";
+import { useStoreRewards } from "@/contexts/StoreRewardsContext";
 
 interface EnhancedStoreHeaderProps {
   storeName: string;
@@ -30,6 +36,7 @@ const EnhancedStoreHeader = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, isLoading, customer, logout } = useStoreAuth();
+  const { wallet } = useStoreRewards();
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -235,6 +242,20 @@ const EnhancedStoreHeader = ({
                 )}
               </button>
 
+              {/* Rewards wallet pill */}
+              {isAuthenticated && storeSlug && wallet && wallet.remainingBalancePaise > 0 && (
+                <Link
+                  to={buildStorePath('/rewards', storeSlug)}
+                  className="hidden md:inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-800 hover:bg-green-100 transition-colors"
+                  aria-label="Rewards wallet"
+                >
+                  <Wallet className="h-4 w-4" />
+                  <span>
+                    ₹{((wallet.remainingBalancePaise || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
+                </Link>
+              )}
+
               {isAuthenticated && storeSlug && (
                 <StoreNotificationBell subdomain={storeSlug} />
               )}
@@ -273,6 +294,14 @@ const EnhancedStoreHeader = ({
                           My Orders
                         </Link>
                         <Link
+                          to={storeSlug ? buildStorePath('/rewards', storeSlug) : "#"}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-muted-foreground hover:bg-accent hover:text-foreground"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          <Wallet className="h-4 w-4" />
+                          Rewards
+                        </Link>
+                        <Link
                           to={storeSlug ? buildStorePath('/settings', storeSlug) : "#"}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-muted-foreground hover:bg-accent hover:text-foreground"
                           onClick={() => setIsProfileOpen(false)}
@@ -294,7 +323,7 @@ const EnhancedStoreHeader = ({
                 </div>
               ) : (
                 <Link
-                  to={storeSlug ? buildStorePath('/auth?redirect=checkout', storeSlug) : "/auth?redirect=checkout"}
+                  to={storeSlug ? buildStorePath('/auth', storeSlug) + '?redirect=checkout' : "/auth?redirect=checkout"}
                   className="hidden md:inline-flex btn-outline-store bg-background text-foreground hover:bg-foreground hover:text-background px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300"
                 >
                   Login / Sign Up
@@ -391,6 +420,14 @@ const EnhancedStoreHeader = ({
                     >
                       <Package className="h-5 w-5" />
                       My Orders
+                    </Link>
+                    <Link
+                      to={storeSlug ? buildStorePath('/rewards', storeSlug) : "#"}
+                      className="flex items-center gap-3 px-2 py-2 text-base font-medium text-foreground"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Wallet className="h-5 w-5" />
+                      Rewards
                     </Link>
                     <Link
                       to={storeSlug ? buildStorePath('/settings', storeSlug) : "#"}

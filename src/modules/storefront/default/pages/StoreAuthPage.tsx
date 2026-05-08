@@ -37,6 +37,11 @@ const StoreAuthPage = () => {
     const [resendTimer, setResendTimer] = useState(0);
 
     const redirectPath = searchParams.get('redirect') || '';
+    const resolvePostAuthRedirect = () => {
+        if (redirectPath === 'checkout') return buildStorePath('/checkout', subdomain);
+        if (redirectPath === 'rewards') return buildStorePath('/rewards', subdomain);
+        return buildStorePath('/', subdomain);
+    };
 
     // Handle OAuth Callback/Token from URL
     useEffect(() => {
@@ -74,7 +79,7 @@ const StoreAuthPage = () => {
 
     useEffect(() => {
         if (isAuthenticated && store) {
-            const redirectUrl = buildStorePath('/', store.subdomain);
+            const redirectUrl = resolvePostAuthRedirect();
             navigate(redirectUrl, { replace: true });
         }
     }, [isAuthenticated, store, navigate]);
@@ -164,7 +169,7 @@ const StoreAuthPage = () => {
                 } else {
                     toast.success('Account created!');
                 }
-                const redirectUrl = buildStorePath('/', subdomain);
+                const redirectUrl = resolvePostAuthRedirect();
                 navigate(redirectUrl, { replace: true });
             }
         } catch (err) {
@@ -177,7 +182,7 @@ const StoreAuthPage = () => {
 
     const handleGoogleSignIn = () => {
         if (!subdomain) return;
-        const redirectUrl = buildStorePath('/', subdomain);
+        const redirectUrl = resolvePostAuthRedirect();
         sessionStorage.setItem('storeAuthRedirect', redirectUrl);
         sessionStorage.setItem('storeAuthSubdomain', subdomain);
         window.location.href = `${API_BASE_URL}/auth/google`;
