@@ -97,14 +97,14 @@ import { AlignTopIcon, AlignMiddleIcon, AlignBottomIcon } from './components/ui/
 import { PropertiesPanel } from './components/Panels/PropertiesPanel';
 import { LayersPanel } from './components/Panels/LayersPanel';
 
-const UploadPanel = lazy(() => import('@/modules/design-editor/components/panels/UploadPanel').then(m => ({ default: m.UploadPanel })));
-const TextPanel = lazy(() => import('@/modules/design-editor/components/panels/TextPanel'));
-const ShapesPanel = lazy(() => import('@/modules/design-editor/components/panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
-const GraphicsPanel = lazy(() => import('@/modules/design-editor/components/panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
-const LibraryPanel = lazy(() => import('@/modules/design-editor/components/panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
-const LogosPanel = lazy(() => import('@/modules/design-editor/components/panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
-const AssetPanel = lazy(() => import('@/modules/design-editor/components/panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
-const TemplatesPanel = lazy(() => import('@/modules/design-editor/components/panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
+const UploadPanel = lazy(() => import('@/modules/design-editor/components/Panels/UploadPanel').then(m => ({ default: m.UploadPanel })));
+const TextPanel = lazy(() => import('@/modules/design-editor/components/Panels/TextPanel'));
+const ShapesPanel = lazy(() => import('@/modules/design-editor/components/Panels/ShapesPanel').then(m => ({ default: m.ShapesPanel })));
+const GraphicsPanel = lazy(() => import('@/modules/design-editor/components/Panels/GraphicsPanel').then(m => ({ default: m.GraphicsPanel })));
+const LibraryPanel = lazy(() => import('@/modules/design-editor/components/Panels/LibraryPanel').then(m => ({ default: m.LibraryPanel })));
+const LogosPanel = lazy(() => import('@/modules/design-editor/components/Panels/LogosPanel').then(m => ({ default: m.LogosPanel })));
+const AssetPanel = lazy(() => import('@/modules/design-editor/components/Panels/AssetPanel').then(m => ({ default: m.AssetPanel })));
+const TemplatesPanel = lazy(() => import('@/modules/design-editor/components/Panels/TemplatesPanel').then(m => ({ default: m.TemplatesPanel })));
 const AIimageGen = lazy(() => import('@/modules/design-editor/components/AIimageGen'));
 
 const PanelFallback = () => (
