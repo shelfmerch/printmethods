@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import StoreLayout from '@/components/storefront/StoreLayout';
-import { useStoreRewards } from '@/contexts/StoreRewardsContext';
-import { useStoreAuth } from '@/contexts/StoreAuthContext';
-import { buildStorePath, getTenantSlugFromLocation } from '@/utils/tenantUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import StoreLayout from '@/modules/storefront/shared/components/StoreLayout';
+import { useStoreRewards } from '@/shared/contexts/StoreRewardsContext';
+import { useStoreAuth } from '@/shared/contexts/StoreAuthContext';
+import { buildStorePath, getTenantSlugFromLocation } from '@/shared/utils/tenantUtils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
+import { Badge } from '@/shared/components/ui/badge';
+import { Separator } from '@/shared/components/ui/separator';
 import { Gift, Wallet, ArrowLeft, Loader2, CheckCircle2, Clock } from 'lucide-react';
 
 const formatRupees = (paise: number) =>
