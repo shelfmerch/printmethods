@@ -8,6 +8,7 @@
 import { Routes, Route, useParams, useLocation } from 'react-router-dom';
 import { StoreAuthProvider } from '@/shared/contexts/StoreAuthContext';
 import { CartProvider } from '@/shared/contexts/CartContext';
+import { StoreRewardsProvider } from '@/shared/contexts/StoreRewardsContext';
 import StorefrontHomePage from '@/modules/storefront/default/pages/StorefrontHomePage';
 import StoreProductsPage from '@/modules/storefront/default/pages/StoreProductsPage';
 import StoreProductPage from '@/modules/storefront/default/pages/StoreProductPage';
@@ -30,7 +31,9 @@ const StoreWrapper = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <StoreAuthProvider subdomain={subdomain}>
-      <CartProvider subdomain={subdomain}>{children}</CartProvider>
+      <StoreRewardsProvider subdomain={subdomain}>
+        <CartProvider subdomain={subdomain}>{children}</CartProvider>
+      </StoreRewardsProvider>
     </StoreAuthProvider>
   );
 };
