@@ -19,6 +19,7 @@ import StoreProfilePage from '@/modules/storefront/default/pages/StoreProfilePag
 import StoreOrdersPage from '@/modules/storefront/default/pages/StoreOrdersPage';
 import StoreSettingsPage from '@/modules/storefront/default/pages/StoreSettingsPage';
 import StoreOrderDetailPage from '@/modules/storefront/default/pages/StoreOrderDetailPage';
+import StoreRewardsPage from '@/modules/storefront/default/pages/StoreRewardsPage';
 import { isTenantSubdomain, getTenantSlugFromLocation } from '@/shared/utils/tenantUtils';
 
 /**
@@ -54,6 +55,7 @@ export function StoreRoutes() {
           <Route path="/profile" element={<StoreProfilePage />} />
           <Route path="/orders" element={<StoreOrdersPage />} />
           <Route path="/orders/:orderId" element={<StoreOrderDetailPage />} />
+          <Route path="/rewards" element={<StoreRewardsPage />} />
           <Route path="/settings" element={<StoreSettingsPage />} />
         </Routes>
       </StoreWrapper>
@@ -76,6 +78,7 @@ export function StoreRoutes() {
         <Route path=":subdomain/profile" element={<StoreProfilePage />} />
         <Route path=":subdomain/orders" element={<StoreOrdersPage />} />
         <Route path=":subdomain/orders/:orderId" element={<StoreOrderDetailPage />} />
+        <Route path=":subdomain/rewards" element={<StoreRewardsPage />} />
         <Route path=":subdomain/settings" element={<StoreSettingsPage />} />
       </Routes>
     </StoreWrapper>
