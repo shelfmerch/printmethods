@@ -1,0 +1,1263 @@
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Button } from '@/shared/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
+import { Card } from '@/shared/components/ui/card';
+import { Separator } from '@/shared/components/ui/separator';
+import { toast } from 'sonner';
+import { CartItem, Store, ShippingAddress } from '@/shared/types';
+import { getTheme } from '@/modules/storefront/shared/themes';
+import { storeApi, checkoutApi, shippingApi } from '@/lib/api';
+import { useStoreAuth } from '@/shared/contexts/StoreAuthContext';
+import { useStoreRewards } from '@/shared/contexts/StoreRewardsContext';
+import { estimateCartWeight } from '@/lib/delhivery';
+import { getTenantSlugFromLocation, buildStorePath } from '@/shared/utils/tenantUtils';
+import { useCart } from '@/shared/contexts/CartContext';
+import StoreLayout from '@/modules/storefront/shared/components/StoreLayout';
+
+import {
+  ArrowLeft,
+  CreditCard,
+  Truck,
+  ShieldCheck,
+  Lock,
+  Loader2,
+  Check,
+  ChevronsUpDown,
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  Wallet
+} from 'lucide-react';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/shared/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { INDIAN_STATES, COUNTRIES } from "@/lib/locationData";
+
+const defaultShipping: ShippingAddress = {
+  fullName: '',
+  email: '',
+  phone: '',
+  address1: '',
+  address2: '',
+  city: '',
+  state: '',
+  zipCode: '',
+  country: 'India', // Default to India as requested
+};
+
+const StoreCheckoutPage: React.FC = () => {
+  const params = useParams<{ subdomain: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Robustly extract subdomain from hostname OR path params
+  const subdomain = getTenantSlugFromLocation(location, params);
+
+  const locationState = location.state as { cart?: CartItem[]; storeId?: string; subdomain?: string } | null;
+  const [store, setStore] = useState<Store | null>(null);
+  const { cart, clearCart } = useCart();
+  const [shippingInfo, setShippingInfo] = useState<ShippingAddress>(defaultShipping);
+  const [processing, setProcessing] = useState(false);
+  const [shipping, setShipping] = useState(0); // Will be calculated based on zip code
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState<number | undefined>();
+  const [creditPreview, setCreditPreview] = useState<{
+    availablePaise: number;
+    walletAppliedPaise: number;
+    payablePaise: number;
+  } | null>(null);
+  const [creditLoading, setCreditLoading] = useState(false);
+  const [applyRewards, setApplyRewards] = useState(false);
+
+  // New states for validation and enhance UI
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pincodeDetailsLoading, setPincodeDetailsLoading] = useState(false);
+  const [stateOpen, setStateOpen] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
+
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
+
+  // Constants
+  const NAME_REGEX = /^[a-zA-Z\s']+$/;
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_REGEX = /^\d{10}$/;
+
+  useEffect(() => {
+    const load = async () => {
+      if (!subdomain) return;
+      try {
+        const resp = await storeApi.getBySubdomain(subdomain);
+        if (resp.success && resp.data) {
+          setStore(resp.data as Store);
+        } else {
+          setStore(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch store for checkout:', err);
+        setStore(null);
+      }
+    };
+
+    load();
+  }, [subdomain]);
+
+  const { isAuthenticated, customer, sendPhoneVerificationOtp, confirmPhoneVerificationOtp } = useStoreAuth();
+  const { wallet: rewardsWallet } = useStoreRewards();
+
+  const handleSendPhoneOtp = async () => {
+    if (!shippingInfo.phone || shippingInfo.phone.length !== 10) {
+      toast.error('Please enter a valid 10-digit phone number first');
+      return;
+    }
+    setSendingPhoneOtp(true);
+    const success = await sendPhoneVerificationOtp(subdomain!, shippingInfo.phone);
+    if (success) {
+      setShowPhoneVerify(true);
+    }
+    setSendingPhoneOtp(false);
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (phoneOtp.length !== 6) {
+      toast.error('Please enter a 6-digit code');
+      return;
+    }
+    setVerifyingPhone(true);
+    const success = await confirmPhoneVerificationOtp(subdomain!, phoneOtp);
+    if (success) {
+      setShowPhoneVerify(false);
+      setPhoneOtp('');
+    }
+    setVerifyingPhone(false);
+  };
+
+  useEffect(() => {
+    if (store && !isAuthenticated) {
+      // Redirect to auth page, preserving the cart state so it's available after login
+      navigate(`/store/${store.subdomain}/auth?redirect=checkout`, {
+        state: locationState
+      });
+    }
+  }, [isAuthenticated, store, navigate, locationState]);
+
+  // Auto-fill default address
+  useEffect(() => {
+    if (customer && customer.addresses && customer.addresses.length > 0) {
+      const defaultAddr = customer.addresses.find(a => a.isDefault) || customer.addresses[0];
+      if (defaultAddr && (!shippingInfo.fullName || shippingInfo.fullName === '')) {
+        setShippingInfo({
+          fullName: defaultAddr.fullName || '',
+          email: customer.email || shippingInfo.email || '',
+          phone: defaultAddr.phone || customer.phoneNumber || shippingInfo.phone || '',
+          address1: defaultAddr.address1 || '',
+          address2: defaultAddr.address2 || '',
+          city: defaultAddr.city || '',
+          state: defaultAddr.state || '',
+          zipCode: defaultAddr.zipCode || '',
+          country: defaultAddr.country || 'India',
+        });
+      }
+    } else if (customer) {
+      // Manual autofill if no saved addresses
+      if (!shippingInfo.email && customer.email) {
+        setShippingInfo(prev => ({ ...prev, email: customer.email }));
+      }
+      if (!shippingInfo.phone && customer.signupMethod === 'phone' && customer.phoneNumber) {
+        setShippingInfo(prev => ({ ...prev, phone: customer.phoneNumber }));
+      } else if (!shippingInfo.phone && customer.signupMethod === 'email' && customer.isPhoneVerified && customer.phoneNumber) {
+        setShippingInfo(prev => ({ ...prev, phone: customer.phoneNumber }));
+      }
+    }
+  }, [customer, isAuthenticated]);
+
+  const theme = store ? getTheme(store.theme) : getTheme('modern');
+
+  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + (item.price || item.product.price || 0) * item.quantity, 0), [cart]);
+
+  // Dynamic Tax (GST) Calculation based on product slabs
+  const tax = useMemo(() => {
+    let maxGstSlab = 0;
+    cart.forEach(item => {
+      const slab = item.product.catalogProduct?.gst?.slab || 0;
+      if (slab > maxGstSlab) {
+        maxGstSlab = slab;
+      }
+    });
+    return subtotal * (maxGstSlab / 100);
+  }, [cart, subtotal]);
+
+  const total = subtotal + shipping;
+  const payablePaise = creditPreview ? creditPreview.payablePaise : Math.round(total * 100);
+  const walletAppliedRupees = (creditPreview?.walletAppliedPaise || 0) / 100;
+  const payableRupees = payablePaise / 100;
+  const formatRupees = (value: number) =>
+    `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const canUseRewards = (rewardsWallet?.remainingBalancePaise || 0) > 0;
+
+  // Remove default shipping effect that sets it to ₹150
+
+  // Check if Delhivery service is configured
+  const isShippingServiceConfigured = !!import.meta.env.VITE_DELHIVERY_TOKEN;
+
+  // Calculate shipping when zipCode or country changes
+  useEffect(() => {
+    const calculateShipping = async () => {
+      const zipCode = shippingInfo.zipCode?.trim() || '';
+      const country = shippingInfo.country || 'India';
+      const isIndia = country.toLowerCase() === 'india';
+
+      if (cart.length === 0) {
+        setShipping(0);
+        setEstimatedDeliveryDays(undefined);
+        setShippingLoading(false);
+        return;
+      }
+
+      // For India: require 6-digit pincode
+      if (isIndia && (!zipCode || !/^\d{6}$/.test(zipCode))) {
+        setShipping(0);
+        setEstimatedDeliveryDays(undefined);
+        setShippingLoading(false);
+        return;
+      }
+
+      // For international: fire immediately once country is selected
+      if (!isIndia && !zipCode && !['Taiwan', 'Australia', 'New Zealand'].includes(country)) {
+        setShipping(0);
+        setEstimatedDeliveryDays(undefined);
+        setShippingLoading(false);
+        return;
+      }
+
+      setShippingLoading(true);
+      try {
+        const weightKg = estimateCartWeight(cart);
+        const weightGrams = Math.round(weightKg * 1000);
+
+        const result = await shippingApi.getQuote(
+          isIndia ? zipCode : '000000',  // dummy pincode for intl
+          weightGrams,
+          isIndia ? undefined : country
+        );
+
+        if (result && result.serviceable) {
+          setShipping(result.shipping_charge);
+          setEstimatedDeliveryDays(result.estimated_days);
+        } else {
+          setShipping(isIndia ? 150 : 0);
+          setEstimatedDeliveryDays(undefined);
+          if (result && result.message && !isIndia) {
+            toast.error(result.message);
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating shipping:', error);
+        setShipping(0);
+        setEstimatedDeliveryDays(undefined);
+        if (isIndia) toast.error('Could not calculate shipping. Enter valid pin code.');
+      } finally {
+        setShippingLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(calculateShipping, 400);
+    return () => clearTimeout(timeoutId);
+  }, [shippingInfo.zipCode, shippingInfo.country, cart]);
+
+  useEffect(() => {
+    const loadCreditPreview = async () => {
+      if (!subdomain || !isAuthenticated || !customer || total <= 0 || !applyRewards) {
+        setCreditPreview(null);
+        return;
+      }
+
+      setCreditLoading(true);
+      try {
+        const resp = await checkoutApi.getCreditPreview(
+          subdomain,
+          Math.round(total * 100),
+          Math.round(subtotal * 100)
+        );
+        setCreditPreview(resp.success && resp.data ? resp.data : null);
+      } catch (error) {
+        console.error('Failed to load employee credits:', error);
+        setCreditPreview(null);
+      } finally {
+        setCreditLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(loadCreditPreview, 250);
+    return () => clearTimeout(timeoutId);
+  }, [subdomain, isAuthenticated, customer, total, subtotal, applyRewards]);
+
+  const validateField = (name: string, value: string) => {
+    let error = "";
+    switch (name) {
+      case "fullName":
+        if (!value.trim()) error = "Full name is required";
+        else if (!NAME_REGEX.test(value)) error = "Only alphabets, spaces, and apostrophes allowed";
+        break;
+      case "email":
+        if (!value.trim()) error = "Email is required";
+        else if (!EMAIL_REGEX.test(value)) error = "Enter a valid email address";
+        break;
+      case "phone":
+        if (!value.trim()) error = "Phone number is required";
+        else if (!PHONE_REGEX.test(value.replace(/\D/g, ''))) error = "Enter a valid 10-digit mobile number";
+        break;
+      case "zipCode":
+        if (!value.trim()) error = "Pin code is required";
+        else if (!/^\d{6}$/.test(value)) error = "Enter a valid 6-digit pin code";
+        break;
+      case "address1":
+        if (!value.trim()) error = "Address line 1 is required";
+        break;
+      case "city":
+        if (!value.trim()) error = "City is required";
+        break;
+      case "state":
+        if (!value.trim()) error = "State is required";
+        break;
+    }
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) newErrors[name] = error;
+      else delete newErrors[name];
+      return newErrors;
+    });
+    return !error;
+  };
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+
+    if (name === "fullName" && value && !NAME_REGEX.test(value)) {
+      setErrors(prev => ({ ...prev, fullName: "Enter a valid name" }));
+      return;
+    }
+
+    setShippingInfo((prev) => ({ ...prev, [name]: value }));
+    validateField(name, value);
+  };
+
+  const handlePhoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.length > 10) return;
+
+    setShippingInfo(prev => ({ ...prev, phone: digits }));
+
+    if (digits.length > 0 && digits.length !== 10) {
+      setErrors(prev => ({ ...prev, phone: "Enter a valid 10-digit mobile number" }));
+    } else {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.phone;
+        return newErrors;
+      });
+    }
+  };
+
+  const fetchPincodeDetails = async (pincode: string) => {
+    if (pincode.length !== 6) return;
+
+    setPincodeDetailsLoading(true);
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.zipCode;
+      return newErrors;
+    });
+
+    try {
+      const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await response.json();
+
+      if (Array.isArray(data) && data[0].Status === "Success" && data[0].PostOffice && data[0].PostOffice.length > 0) {
+        const place = data[0].PostOffice[0];
+        const city = place.District;
+        const state = place.State;
+        const country = "India";
+
+        setShippingInfo(prev => ({
+          ...prev,
+          city,
+          state,
+          country
+        }));
+
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.city;
+          delete newErrors.state;
+          delete newErrors.country;
+          delete newErrors.zipCode;
+          return newErrors;
+        });
+      } else {
+        setErrors(prev => ({ ...prev, zipCode: "Invalid pin code" }));
+        setShippingInfo(prev => ({ ...prev, city: '', state: '', country: 'India' }));
+      }
+    } catch (error) {
+      console.error("Error fetching pincode:", error);
+    } finally {
+      setPincodeDetailsLoading(false);
+    }
+  };
+
+  const handleZipCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value.replace(/\D/g, '').slice(0, 6);
+    setShippingInfo((prev) => ({ ...prev, zipCode: value }));
+
+    if (value.length === 6) {
+      fetchPincodeDetails(value);
+    } else {
+      if (value.length < 6) {
+        setShippingInfo(prev => ({ ...prev, city: '', state: '', country: 'India' }));
+        if (value.length > 0) {
+          setErrors(prev => ({ ...prev, zipCode: "Enter a valid 6-digit pin code" }));
+        } else {
+          setErrors(prev => { const n = { ...prev }; delete n.zipCode; return n; });
+        }
+      }
+    }
+  };
+
+  const validateShipping = () => {
+    let isValid = true;
+    const required: (keyof ShippingAddress)[] = ['fullName', 'email', 'phone', 'address1', 'city', 'state', 'zipCode'];
+
+    required.forEach(field => {
+      if (!validateField(field, shippingInfo[field])) {
+        isValid = false;
+      }
+    });
+
+    if (Object.keys(errors).length > 0) return false;
+
+    return isValid;
+  };
+
+  const loadRazorpayScript = () => {
+    return new Promise<boolean>((resolve) => {
+      if (document.getElementById('razorpay-checkout-js')) {
+        resolve(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.id = 'razorpay-checkout-js';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleContinueToPayment = async () => {
+    if (!validateShipping()) {
+      return;
+    }
+
+    // MANDATORY: Check for verification before checkout
+    // Phone verification is required for Email Signups
+    const emailVerified = customer.isEmailVerified || (customer as any).emailVerified || !!customer.googleId;
+    const phoneVerified = customer.isPhoneVerified || (customer as any).phoneVerified;
+
+    if (customer) {
+      if (customer.signupMethod === 'email' && !phoneVerified) {
+        toast.error("Phone number verification is required.", {
+          description: "Please enter and verify your phone number in the Shipping information section.",
+        });
+        document.getElementById('phone')?.focus();
+        return;
+      }
+
+      // Email verification only required for Email signup (which is already verified by OTP during signup)
+      // but if they changed it or something, we might check. 
+      // User says: "If user created an account using phone number then no need to verify email at checkout."
+      if (customer.signupMethod === 'email' && !emailVerified) {
+        toast.error("Email verification is required to proceed with checkout.", {
+          action: {
+            label: "Go to Profile",
+            onClick: () => navigate(buildStorePath('/profile', subdomain || ''))
+          }
+        });
+        return;
+      }
+    }
+
+    try {
+      setProcessing(true);
+
+      // If rewards fully cover the payable, skip Razorpay completely.
+      if (applyRewards && payablePaise <= 0) {
+        const orderResp = await checkoutApi.placeOrder(store.subdomain, {
+          cart,
+          shippingInfo,
+          shipping,
+          tax,
+          useCredits: true,
+        });
+
+        if (!orderResp.success || !orderResp.data) {
+          throw new Error(orderResp.message || 'Failed to place order');
+        }
+
+        clearCart();
+        toast.success('Order placed using reward credits.');
+        navigate('/order-confirmation', {
+          state: {
+            order: orderResp.data,
+            storeSlug: store?.subdomain || subdomain,
+          },
+        });
+        return;
+      }
+
+      const createResp = await checkoutApi.createRazorpayOrder(subdomain!, {
+        cart,
+        shippingInfo,
+        shipping,
+        tax,
+        useCredits: applyRewards,
+      });
+
+      if (!createResp.success) {
+        throw new Error(createResp.message || 'Failed to start payment');
+      }
+
+      const { razorpayOrder } = createResp.data || {};
+      const razorpayKeyId = (createResp.data as any)?.razorpayKeyId;
+
+      // Safety: never init Razorpay for zero amount
+      if (!razorpayOrder || Number(razorpayOrder.amount || 0) <= 0) {
+        const orderResp = await checkoutApi.placeOrder(store.subdomain, {
+          cart,
+          shippingInfo,
+          shipping,
+          tax,
+          useCredits: applyRewards,
+        });
+
+        if (!orderResp.success || !orderResp.data) {
+          throw new Error(orderResp.message || 'Failed to place credit order');
+        }
+
+        clearCart();
+        toast.success(applyRewards ? 'Credits applied. Order placed.' : 'Order placed.');
+        navigate('/order-confirmation', {
+          state: {
+            order: orderResp.data,
+            storeSlug: store?.subdomain || subdomain,
+          },
+        });
+        return;
+      }
+
+      const ok = await loadRazorpayScript();
+      if (!ok) {
+        toast.error('Failed to load payment gateway. Please try again.');
+        setProcessing(false);
+        return;
+      }
+
+      const razorpayKey = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined;
+
+      if (!razorpayKey) {
+        toast.error('Payment configuration missing. Please contact store owner.');
+        setProcessing(false);
+        return;
+      }
+
+      const options: any = {
+        key: razorpayKey,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency || 'INR',
+        name: store?.storeName || 'ShelfMerch Store',
+        description: 'Order payment',
+        order_id: razorpayOrder.id,
+        prefill: {
+          name: shippingInfo.fullName,
+          email: shippingInfo.email,
+          contact: `+91${shippingInfo.phone}`, // Add +91 prefix for Razorpay
+        },
+        notes: {
+          subdomain: store?.subdomain,
+        },
+        handler: async (response: any) => {
+          try {
+            const verifyResp = await checkoutApi.verifyRazorpayPayment(subdomain!, {
+              cart,
+              shippingInfo,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              shipping,
+              tax,
+              useCredits: applyRewards,
+            });
+
+            if (!verifyResp.success || !verifyResp.data) {
+              throw new Error(verifyResp.message || 'Payment verification failed');
+            }
+
+            const order = verifyResp.data;
+            clearCart();
+            toast.success('Payment successful! Order placed.');
+            navigate('/order-confirmation', {
+              state: {
+                order,
+                storeSlug: store?.subdomain || subdomain,
+              },
+            });
+          } catch (err) {
+            console.error('Order placement error after payment:', err);
+            toast.error('Payment verification failed. Please contact support with your payment ID.');
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setProcessing(false);
+          },
+        },
+      };
+
+      if (!(window as any).Razorpay) {
+        toast.error('Payment SDK not loaded. Please refresh and try again.');
+        setProcessing(false);
+        return;
+      }
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', (response: any) => {
+        console.error('Payment failed details:', JSON.stringify(response, null, 2));
+        const errorDesc = response.error?.description || response.error?.reason || 'Unknown error';
+        toast.error(`Payment failed: ${errorDesc}`);
+        setProcessing(false);
+      });
+      rzp.open();
+    } catch (error) {
+      console.error('Error starting payment:', error);
+      toast.error('Failed to start payment. Please try again.');
+      setProcessing(false);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!store) return;
+    if (cart.length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
+
+    if (!validateShipping()) {
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const resp = await checkoutApi.placeOrder(store.subdomain, {
+        cart,
+        shippingInfo,
+        shipping,
+        tax,
+        useCredits: applyRewards,
+      });
+
+      if (!resp.success || !resp.data) {
+        throw new Error(resp.message || 'Failed to place order');
+      }
+
+      const order = resp.data;
+      clearCart();
+      toast.success('Order placed successfully!');
+
+      navigate('/order-confirmation', {
+        state: {
+          order,
+          storeSlug: store.subdomain,
+        },
+      });
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast.error(error?.message || 'Failed to place order');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleBackToStore = () => {
+    if (!store) return;
+    navigate(`/store/${store.subdomain}`);
+  };
+
+  if (!store) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <h1 className="text-3xl font-bold mb-3">Proceeding to Checkout</h1>
+        {/* <p className="text-muted-foreground mb-6">
+          The store you are trying to access is not available at the moment.
+        </p> */}
+        <Button asChild>
+          <Link to="/">Go back to ShelfMerch</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
+        <h1 className="text-3xl font-bold mb-3">Your cart is empty</h1>
+        <p className="text-muted-foreground mb-6">
+          Add items to your cart before proceeding to checkout.
+        </p>
+        <Button onClick={handleBackToStore}>Back to store</Button>
+      </div>
+    );
+  }
+
+  return (
+    <StoreLayout store={store}>
+      <div className="container mx-auto px-4">
+        {/* <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4"> */}
+        {/* <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Secure Checkout</p>
+            <h1 className="text-3xl font-bold" style={{ fontFamily: theme.fonts.heading }}>
+              {store.storeName}
+            </h1>
+          </div> */}
+        {/* <Button variant="ghost" size="sm" onClick={handleBackToStore} className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Continue shopping
+          </Button> */}
+        {/* </div> */}
+
+        <main className="container mx-auto grid gap-8 px-4 py-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="space-y-8">
+            <div className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
+              <div>
+                <h2 className="text-2xl font-semibold" style={{ fontFamily: theme.fonts.heading }}>
+                  Shipping information
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Provide your contact and delivery details so we know where to send your order.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Saved Address Selection */}
+                {customer && customer.addresses && customer.addresses.length > 0 && (
+                  <div className="sm:col-span-2 mb-2">
+                    <Label className="mb-2 block">Select from saved addresses</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {customer.addresses.map((addr) => (
+                        <Button
+                          key={addr._id}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "rounded-xl h-auto py-2 px-3 flex flex-col items-start text-left bg-background border-2",
+                            shippingInfo.zipCode === addr.zipCode && shippingInfo.address1 === addr.address1
+                              ? "border-green-600 bg-green-50/30"
+                              : "border-border hover:border-green-200 hover:bg-green-50/10"
+                          )}
+                          onClick={() => {
+                            setShippingInfo({
+                              fullName: addr.fullName,
+                              email: customer.email || '',
+                              phone: addr.phone,
+                              address1: addr.address1,
+                              address2: addr.address2 || '',
+                              city: addr.city,
+                              state: addr.state,
+                              zipCode: addr.zipCode,
+                              country: addr.country
+                            });
+                          }}
+                        >
+                          <span className="text-xs font-bold">{addr.label || 'Address'}</span>
+                          <span className="text-[10px] text-muted-foreground line-clamp-1">{addr.address1}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="sm:col-span-2 text-muted-foreground text-xs pb-2">
+                  All fields marked with * are required.
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label htmlFor="fullName">Full name *</Label>
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    value={shippingInfo.fullName}
+                    onChange={handleInputChange}
+                    placeholder="Alex Johnson"
+                    className={cn(errors.fullName && "border-destructive")}
+                    required
+                  />
+                  {errors.fullName && <p className="text-destructive text-xs mt-1">{errors.fullName}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={shippingInfo.email}
+                    onChange={handleInputChange}
+                    placeholder="you@example.com"
+                    className={cn(errors.email && "border-destructive")}
+                    required
+                  />
+                  {errors.email && <p className="text-destructive text-xs mt-1">{errors.email}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="phone">Phone *</Label>
+                  <div className="flex relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium pointer-events-none select-none z-10">
+                      +91
+                    </span>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={shippingInfo.phone}
+                      onChange={handlePhoneChange}
+                      placeholder="9876543210"
+                      className={cn("pl-11 pr-24", errors.phone && "border-destructive")}
+                      required
+                      disabled={customer && customer.signupMethod === 'email' && customer.isPhoneVerified}
+                    />
+                    {customer && customer.signupMethod === 'email' && (
+                      customer.isPhoneVerified ? (
+                        <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600" />
+                      ) : (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          <span className="group relative">
+                            <Info className="h-4 w-4 text-amber-500 cursor-help" />
+                            <span className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 text-center">
+                              Please verify your phone number to proceed.
+                            </span>
+                          </span>
+                          {!showPhoneVerify && shippingInfo.phone.length === 10 && (
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-green-600 font-semibold"
+                              onClick={handleSendPhoneOtp}
+                              disabled={sendingPhoneOtp}
+                            >
+                              Verify
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                  {errors.phone && <p className="text-destructive text-xs mt-1">{errors.phone}</p>}
+
+                  {showPhoneVerify && (
+                    <div className="mt-2 p-3 bg-muted/30 rounded-xl border border-dashed border-border">
+                      <Label htmlFor="otp-phone" className="text-xs">Enter 6-digit Code</Label>
+                      <div className="flex gap-2 mt-1.5">
+                        <Input
+                          id="otp-phone"
+                          placeholder="000000"
+                          value={phoneOtp}
+                          onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="h-9 tracking-widest text-center text-sm font-bold max-w-[120px]"
+                          maxLength={6}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-9 shrink-0 bg-green-600 hover:bg-green-700 text-white font-semibold"
+                          onClick={handleVerifyPhoneOtp}
+                          disabled={verifyingPhone || phoneOtp.length !== 6}
+                        >
+                          {verifyingPhone ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                          Confirm
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 shrink-0"
+                          onClick={() => {
+                            setShowPhoneVerify(false);
+                            setPhoneOtp('');
+                          }}
+                          disabled={verifyingPhone}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label htmlFor="address1">Address line 1 *</Label>
+                  <Input
+                    id="address1"
+                    name="address1"
+                    value={shippingInfo.address1}
+                    onChange={handleInputChange}
+                    placeholder="123 Market Street"
+                    className={cn(errors.address1 && "border-destructive")}
+                    required
+                  />
+                  {errors.address1 && <p className="text-destructive text-xs mt-1">{errors.address1}</p>}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Label htmlFor="address2">Address line 2</Label>
+                  <Input id="address2" name="address2" value={shippingInfo.address2} onChange={handleInputChange} placeholder="Apartment, suite, etc." />
+                </div>
+
+                <div>
+                  <Label htmlFor="zipCode">Postal code / Pin code *</Label>
+                  <div className="relative">
+                    <Input
+                      id="zipCode"
+                      name="zipCode"
+                      value={shippingInfo.zipCode}
+                      onChange={handleZipCodeChange}
+                      placeholder="110001"
+                      maxLength={6}
+                      className={cn(errors.zipCode && "border-destructive")}
+                      required
+                    />
+                    {pincodeDetailsLoading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  {errors.zipCode && <p className="text-destructive text-xs mt-1">{errors.zipCode}</p>}
+                  {shippingLoading && !pincodeDetailsLoading && !errors.zipCode && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Checking delivery...
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="city">City *</Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    value={shippingInfo.city}
+                    onChange={handleInputChange}
+                    placeholder="City"
+                    className={cn(errors.city && "border-destructive")}
+                    required
+                  />
+                  {errors.city && <p className="text-destructive text-xs mt-1">{errors.city}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="state">State / Province *</Label>
+                  <Popover open={stateOpen} onOpenChange={setStateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={stateOpen}
+                        className={cn("w-full justify-between", !shippingInfo.state && "text-muted-foreground", errors.state && "border-destructive")}
+                      >
+                        {shippingInfo.state || "Select state"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search state..." />
+                        <CommandList>
+                          <CommandEmpty>No state found.</CommandEmpty>
+                          <CommandGroup>
+                            {INDIAN_STATES.map((state) => (
+                              <CommandItem
+                                key={state}
+                                value={state}
+                                onSelect={(currentValue) => {
+                                  setShippingInfo(prev => ({ ...prev, state: currentValue }));
+                                  setErrors(prev => { const n = { ...prev }; delete n.state; return n; });
+                                  setStateOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    shippingInfo.state === state ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {state}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {errors.state && <p className="text-destructive text-xs mt-1">{errors.state}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="country">Country</Label>
+                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={countryOpen}
+                        className={cn("w-full justify-between", !shippingInfo.country && "text-muted-foreground")}
+                      >
+                        {shippingInfo.country || "Select country"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search country..." />
+                        <CommandList>
+                          <CommandEmpty>No country found.</CommandEmpty>
+                          <CommandGroup>
+                            {COUNTRIES.map((country) => (
+                              <CommandItem
+                                key={country}
+                                value={country}
+                                onSelect={(currentValue) => {
+                                  setShippingInfo(prev => ({ ...prev, country: currentValue }));
+                                  setCountryOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    shippingInfo.country === country ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {country}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button size="lg" onClick={handleContinueToPayment} disabled={processing || shippingLoading}>
+                  {processing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing payment
+                    </>
+                  ) : applyRewards ? (
+                    payablePaise <= 0 ? 'Place Order' : 'Continue to Payment'
+                  ) : (
+                    'Continue to Payment'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          <aside className="space-y-6">
+            <Card className="space-y-4 p-6 shadow-sm">
+              <div>
+                <h3 className="text-lg font-semibold" style={{ fontFamily: theme.fonts.heading }}>
+                  Order summary
+                </h3>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {cart.length} {cart.length === 1 ? 'item' : 'items'} in cart
+                </p>
+              </div>
+              <Separator />
+              <div className="space-y-4">
+                {cart.map((item) => (
+                  <div key={`${item.productId}-${item.variant.color}-${item.variant.size}`} className="flex items-start justify-between gap-4 text-sm">
+                    <div>
+                      <p className="font-medium">{item.product.name}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {item.variant.color} • {item.variant.size}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Qty {item.quantity}</p>
+                    </div>
+                    <p className="font-semibold">₹{((item.price || item.product.price || 0) * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+              <Separator />
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground mt-2">
+                  <span>
+                    Shipping
+                    {/* India: show pin code hint */}
+                    {(shippingInfo.country === 'India' || !shippingInfo.country) &&
+                      (!shippingInfo.zipCode || !/^\d{6}$/.test(shippingInfo.zipCode.trim())) &&
+                      !shippingLoading && (
+                        <span className="text-xs ml-1 text-muted-foreground">(Enter pin code)</span>
+                      )}
+                    {/* International: show country hint */}
+                    {shippingInfo.country && shippingInfo.country !== 'India' && !shippingLoading && shipping > 0 && estimatedDeliveryDays && (
+                      <span className="text-xs ml-1 text-muted-foreground">({estimatedDeliveryDays} days)</span>
+                    )}
+                    {shippingInfo.country && shippingInfo.country !== 'India' && !shippingLoading && !shipping && (
+                      <span className="text-xs ml-1 text-muted-foreground">(International rate)</span>
+                    )}
+                  </span>
+                  <span>
+                    {shippingLoading ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-xs">Calculating...</span>
+                      </span>
+                    ) : shipping > 0 ? (
+                      `₹${shipping.toFixed(2)}`
+                    ) : null}
+                  </span>
+                </div>
+                {/* India: estimated delivery days */}
+                {(shippingInfo.country === 'India' || !shippingInfo.country) &&
+                  estimatedDeliveryDays && !shippingLoading && (
+                    <p className="text-xs text-muted-foreground text-right">
+                      Est. delivery: {estimatedDeliveryDays} days
+                    </p>
+                  )}
+                {/* International: flat rate note */}
+                {shippingInfo.country && shippingInfo.country !== 'India' && shipping > 0 && (
+                  <p className="text-xs text-amber-600 text-right flex items-center justify-end gap-1">
+                    <Truck className="h-3 w-3" /> International flat rate
+                  </p>
+                )}
+                <Separator className="my-2" />
+                {canUseRewards && (
+                  <div className={cn(
+                    "rounded-xl border p-4",
+                    applyRewards ? "border-green-200 bg-green-50/50" : "border-border bg-background"
+                  )}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-green-700" />
+                        <span className="font-medium text-foreground">Apply reward credits</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={applyRewards}
+                        onClick={() => setApplyRewards(v => !v)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                          applyRewards ? "bg-green-600" : "bg-muted"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                            applyRewards ? "translate-x-5" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </div>
+
+                    {applyRewards && (
+                      <div className="mt-3 space-y-2">
+                        <div className="text-xs text-muted-foreground">Rewards apply on product subtotal only.</div>
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                          <span>Available rewards</span>
+                          <span>
+                            {creditLoading ? (
+                              <Loader2 className="h-3 w-3 animate-spin inline-block" />
+                            ) : (
+                              formatRupees((creditPreview?.availablePaise || 0) / 100)
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(applyRewards && (creditLoading || (creditPreview && creditPreview.walletAppliedPaise > 0))) && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Reward credits</span>
+                    <span>
+                      {creditLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin inline-block" />
+                      ) : (
+                        `-${formatRupees(walletAppliedRupees)}`
+                      )}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-semibold">
+                  <span>{applyRewards && walletAppliedRupees > 0 ? 'Pay now' : 'Total'}</span>
+                  <span>
+                    {shippingLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin inline-block" />
+                    ) : (
+                      formatRupees(payableRupees)
+                    )}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="space-y-4 p-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3">
+                <Truck className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="font-semibold text-foreground">Fast fulfillment</p>
+                  <p>Orders ship within 3-5 business days after production.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="font-semibold text-foreground">Purchase protection</p>
+                  <p>30-day return policy. Contact us if anything isn&apos;t perfect.</p>
+                </div>
+              </div>
+            </Card>
+          </aside>
+        </main>
+      </div>
+    </StoreLayout>
+  );
+};
+
+export default StoreCheckoutPage;

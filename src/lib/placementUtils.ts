@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Utility functions for converting between pixel coordinates and normalized placement.
  * 
  * COORDINATE SYSTEMS:
@@ -8,7 +8,7 @@
  * 4. Pixi Stage Pixels: PixiJS canvas coordinates (matches editor: 800x600)
  */
 
-import type { DesignPlacement, Placeholder, ViewKey } from '@/types/product';
+import type { DesignPlacement, Placeholder, ViewKey } from '@/shared/types/product';
 
 /** Print area bounds in pixel coordinates */
 export interface PrintAreaPixels {

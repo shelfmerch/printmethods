@@ -1,0 +1,190 @@
+﻿export type OrderStatus = 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'canceled' | 'cancelled' | 'refunded';
+
+export type StoreTheme = 'modern' | 'classic' | 'minimal';
+
+import { SizeChartData, CareInstructionsData } from './product';
+
+export interface Product {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  baseProduct: string;
+  price: number;
+  compareAtPrice?: number;
+  mockupUrl?: string;
+  mockupUrls?: string[];
+  designs: {
+    front?: string;
+    back?: string;
+  };
+  designBoundaries?: {
+    front?: { x: number; y: number; width: number; height: number };
+    back?: { x: number; y: number; width: number; height: number };
+  };
+  designData?: any;
+  variants: {
+    colors: string[];
+    sizes: string[];
+  };
+  categoryId?: string;
+  subcategoryId?: string;
+  subcategoryIds?: string[];
+  // Reference to catalog product (populated from backend) for collection filtering
+  catalogProduct?: {
+    _id?: string;
+    name?: string;
+    description?: string;
+    categoryId?: string;
+    subcategoryIds?: string[];
+    productTypeCode?: string;
+    gst?: {
+      slab: number;
+      mode: 'EXCLUSIVE' | 'INCLUSIVE';
+      hsn: string;
+    };
+    attributes?: Record<string, any>;
+    sampleMockups?: any[];
+    sizeChart?: SizeChartData;
+    careInstructions?: CareInstructionsData;
+  };
+  variantsSummary?: Array<{
+    size: string;
+    color: string;
+    colorHex: string;
+    isActive: boolean;
+    basePrice?: number;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+  minimumQuantity?: number;
+  previewImagesUrl?: any[];
+  galleryImages?: any[];
+}
+
+export interface CartItem {
+  productId: string;
+  product: Product;
+  quantity: number;
+  variant: {
+    color: string;
+    size: string;
+  };
+  price?: number;
+}
+
+export interface Cart {
+  items: CartItem[];
+  updatedAt: string;
+}
+
+export interface ShippingAddress {
+  fullName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  mockupUrl?: string;
+  mockupUrls?: string[];
+  quantity: number;
+  price: number;
+  variant: {
+    color: string;
+    size: string;
+  };
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  storeId?: string;
+  customerId?: string;
+  customerEmail: string;
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  status: OrderStatus;
+  shipment?: {
+    carrier?: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
+    shippedAt?: string;
+    deliveredAt?: string;
+    statusUpdatedAt?: string;
+    internalNotes?: string;
+    statusHistory?: Array<{
+      status: OrderStatus;
+      at: string;
+      note?: string;
+      actor?: {
+        id?: string;
+        role?: string;
+        name?: string;
+        email?: string;
+      };
+    }>;
+  };
+  shippingAddress: ShippingAddress;
+  createdAt: string;
+  updatedAt: string;
+  trackingNumber?: string;
+  notes?: string;
+}
+
+import { StoreBuilder } from '@/modules/storefront/builder/types/builder';
+
+export interface Store {
+  id: string;
+  _id?: string;
+  userId: string;
+  storeName: string;
+  subdomain: string;
+  theme: StoreTheme;
+  description?: string;
+  logo?: string;
+  productIds: string[];
+  productsCount?: number;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  settings?: {
+    primaryColor?: string;
+    accentColor?: string;
+  };
+  brandProfile?: {
+    companyName?: string;
+    emailDomain?: string;
+    country?: string;
+    industry?: string;
+    headcount?: number;
+  };
+  useBuilder?: boolean;
+  builder?: StoreBuilder;
+  builderLastPublishedAt?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  owner?: {
+    name: string;
+    email: string;
+  };
+}
+
+export interface DashboardStats {
+  totalProducts: number;
+  totalOrders: number;
+  totalRevenue: number;
+  totalProfit: number;
+  pendingOrders: number;
+  completedOrders: number;
+}
