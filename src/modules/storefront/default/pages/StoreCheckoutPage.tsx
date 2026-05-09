@@ -9,12 +9,8 @@ import { toast } from 'sonner';
 import { CartItem, Store, ShippingAddress } from '@/shared/types';
 import { getTheme } from '@/modules/storefront/shared/themes';
 import { storeApi, checkoutApi, shippingApi } from '@/lib/api';
-<<<<<<< HEAD:src/modules/storefront/default/pages/StoreCheckoutPage.tsx
 import { useStoreAuth } from '@/shared/contexts/StoreAuthContext';
-=======
-import { useStoreAuth } from '@/contexts/StoreAuthContext';
-import { useStoreRewards } from '@/contexts/StoreRewardsContext';
->>>>>>> pr-3:src/storefront/pages/StoreCheckoutPage.tsx
+import { useStoreRewards } from '@/shared/contexts/StoreRewardsContext';
 import { estimateCartWeight } from '@/lib/delhivery';
 import { getTenantSlugFromLocation, buildStorePath } from '@/shared/utils/tenantUtils';
 import { useCart } from '@/shared/contexts/CartContext';

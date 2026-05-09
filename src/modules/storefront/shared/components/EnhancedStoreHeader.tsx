@@ -1,16 +1,11 @@
-<<<<<<< HEAD:src/modules/storefront/shared/components/EnhancedStoreHeader.tsx
-﻿import { Search, ShoppingBag, Menu, X, User, ChevronDown, Package, Settings, LogOut } from "lucide-react";
-import { useStoreAuth } from "@/shared/contexts/StoreAuthContext";
-=======
 import { Search, ShoppingBag, Menu, X, User, ChevronDown, Package, Settings, LogOut, Wallet } from "lucide-react";
-import { useStoreAuth } from "@/contexts/StoreAuthContext";
->>>>>>> pr-3:src/components/storefront/EnhancedStoreHeader.tsx
+import { useStoreAuth } from "@/shared/contexts/StoreAuthContext";
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { buildStorePath } from "@/shared/utils/tenantUtils";
 import StoreNotificationBell from "./StoreNotificationBell";
 import { cn } from "@/lib/utils";
-import { useStoreRewards } from "@/contexts/StoreRewardsContext";
+import { useStoreRewards } from "@/shared/contexts/StoreRewardsContext";
 
 interface EnhancedStoreHeaderProps {
   storeName: string;

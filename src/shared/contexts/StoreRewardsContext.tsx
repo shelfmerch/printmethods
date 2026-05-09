@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { storeRewardsApi } from '@/lib/api';
-import { useStoreAuth } from '@/contexts/StoreAuthContext';
+import { useStoreAuth } from '@/shared/contexts/StoreAuthContext';
 
 export type StoreRewardStatus = 'claimable' | 'claimed' | 'expired' | 'used';
 

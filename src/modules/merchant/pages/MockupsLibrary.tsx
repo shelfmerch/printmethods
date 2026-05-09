@@ -1,10 +1,5 @@
-<<<<<<< HEAD:src/modules/merchant/pages/MockupsLibrary.tsx
-﻿import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-=======
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
->>>>>>> pr-3:src/pages/MockupsLibrary.tsx
 import { Stage, Layer, Image as KonvaImage, Shape } from 'react-konva';
 import { productApi } from '@/lib/api';
 import { Button } from '@/shared/components/ui/button';
