@@ -6,21 +6,21 @@
 //  */
 
 import { Routes, Route, useParams, useLocation } from 'react-router-dom';
-import { StoreAuthProvider } from '../../contexts/StoreAuthContext';
-import { CartProvider } from '../../contexts/CartContext';
-import StorefrontHomePage from '../pages/StorefrontHomePage';
-import StoreProductsPage from '../pages/StoreProductsPage';
-import StoreProductPage from '../pages/StoreProductPage';
-import StoreCheckoutPage from '../pages/StoreCheckoutPage';
+import { StoreAuthProvider } from '@/shared/contexts/StoreAuthContext';
+import { CartProvider } from '@/shared/contexts/CartContext';
+import StorefrontHomePage from '@/modules/storefront/default/pages/StorefrontHomePage';
+import StoreProductsPage from '@/modules/storefront/default/pages/StoreProductsPage';
+import StoreProductPage from '@/modules/storefront/default/pages/StoreProductPage';
+import StoreCheckoutPage from '@/modules/storefront/default/pages/StoreCheckoutPage';
 // import StoreCustomerAccountPage from '@/storefront/legacy/StoreCustomerAccountPage';
-import StoreAuthPage from '../pages/StoreAuthPage';
-import StoreProfilePage from '../pages/StoreProfilePage';
-import StoreOrdersPage from '../pages/StoreOrdersPage';
-import StoreSettingsPage from '../pages/StoreSettingsPage';
-import StoreOrderDetailPage from '../pages/StoreOrderDetailPage';
-import StoreRewardsPage from '../pages/StoreRewardsPage';
-import { isTenantSubdomain, getTenantSlugFromLocation } from '../../utils/tenantUtils';
-import { StoreRewardsProvider } from '../../contexts/StoreRewardsContext';
+import StoreAuthPage from '@/modules/storefront/default/pages/StoreAuthPage';
+import StoreProfilePage from '@/modules/storefront/default/pages/StoreProfilePage';
+import StoreOrdersPage from '@/modules/storefront/default/pages/StoreOrdersPage';
+import StoreSettingsPage from '@/modules/storefront/default/pages/StoreSettingsPage';
+import StoreOrderDetailPage from '@/modules/storefront/default/pages/StoreOrderDetailPage';
+import StoreRewardsPage from '@/modules/storefront/default/pages/StoreRewardsPage';
+import { isTenantSubdomain, getTenantSlugFromLocation } from '@/shared/utils/tenantUtils';
+import { StoreRewardsProvider } from '@/shared/contexts/StoreRewardsContext';
 
 /**
  * StoreWrapper - A wrapper component to provide global state contexts
