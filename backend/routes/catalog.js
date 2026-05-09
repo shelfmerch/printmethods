@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
+const CatalogProductMockup = require('../models/CatalogProductMockup');
+const CatalogProductInventory = require('../models/CatalogProductInventory');
 
 // @route  GET /api/catalog
 // @desc   Public catalog — list all active+published products
@@ -15,7 +17,8 @@ router.get('/', async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
     const products = await CatalogProduct.find(filter)
-      .select('name shortDescription categoryId basePrice currency sampleAvailable galleryImages design stocks gst pricing')
+      // Keep listing lightweight: avoid embedded design.sampleMockups and stocks.
+      .select('name shortDescription categoryId basePrice currency sampleAvailable galleryImages gst pricing')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
@@ -23,8 +26,9 @@ router.get('/', async (req, res) => {
 
     const total = await CatalogProduct.countDocuments(filter);
 
-    // Attach unique colors per product (from variants)
     const productIds = products.map(p => p._id);
+
+    // Attach unique colors per product (from variants)
     const variants = await CatalogProductVariant.find(
       { catalogProductId: { $in: productIds }, isActive: true },
       'catalogProductId color colorHex'
@@ -39,6 +43,24 @@ router.get('/', async (req, res) => {
       }
     }
 
+    // Hydrate minimal inventory + a single mockup image for fallback primaryImage (no heavy arrays).
+    const [inventories, firstMockups] = await Promise.all([
+      CatalogProductInventory.find({ productId: { $in: productIds } })
+        .select('productId minimumQuantity')
+        .lean(),
+      CatalogProductMockup.aggregate([
+        { $match: { productId: { $in: productIds } } },
+        { $sort: { 'metadata.order': 1, createdAt: 1 } },
+        { $group: { _id: '$productId', imageUrl: { $first: '$imageUrl' } } },
+      ]),
+    ]);
+
+    const invByProduct = {};
+    for (const inv of inventories) invByProduct[String(inv.productId)] = inv;
+
+    const mockupByProduct = {};
+    for (const m of firstMockups) mockupByProduct[String(m._id)] = m.imageUrl;
+
     const result = products.map(p => ({
       _id: p._id,
       name: p.name,
@@ -47,10 +69,10 @@ router.get('/', async (req, res) => {
       basePrice: p.basePrice,
       sampleAvailable: Boolean(p.sampleAvailable),
       currency: p.currency,
-      minimumQuantity: p.stocks?.minimumQuantity ?? 1,
+      minimumQuantity: invByProduct[p._id.toString()]?.minimumQuantity ?? 1,
       primaryImage: p.galleryImages?.find(g => g.isPrimary)?.url
         || p.galleryImages?.[0]?.url
-        || p.design?.sampleMockups?.[0]?.imageUrl
+        || mockupByProduct[p._id.toString()]
         || null,
       colors: colorsByProduct[p._id.toString()] || [],
       specificPrices: (p.pricing?.specificPrices || [])
@@ -80,6 +102,37 @@ router.get('/:id', async (req, res) => {
       .lean();
 
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    // Hydrate extracted data (non-destructive). Keep embedded fields if they already exist.
+    const [mockups, inv] = await Promise.all([
+      CatalogProductMockup.find({ productId: product._id })
+        .select('viewKey colorKey imageUrl placeholders displacementSettings metadata')
+        .lean(),
+      CatalogProductInventory.findOne({ productId: product._id })
+        .select('currentStock reservedStock incomingStock minimumQuantity lowStockAlertEnabled lowStockAlertEmail lowStockThreshold stockLocation outOfStockBehavior')
+        .lean(),
+    ]);
+    product.design = product.design || {};
+    if (!Array.isArray(product.design.sampleMockups) || product.design.sampleMockups.length === 0) {
+      product.design.sampleMockups = mockups.map((m) => ({
+        viewKey: m.viewKey,
+        colorKey: m.colorKey,
+        imageUrl: m.imageUrl,
+        placeholders: m.placeholders,
+        displacementSettings: m.displacementSettings,
+        metadata: m.metadata,
+      }));
+    }
+    product.stocks = product.stocks || {};
+    if (inv) {
+      if (product.stocks.currentStock === undefined) product.stocks.currentStock = inv.currentStock;
+      if (product.stocks.minimumQuantity === undefined) product.stocks.minimumQuantity = inv.minimumQuantity;
+      if (product.stocks.stockLocation === undefined) product.stocks.stockLocation = inv.stockLocation;
+      if (product.stocks.lowStockAlertEnabled === undefined) product.stocks.lowStockAlertEnabled = inv.lowStockAlertEnabled;
+      if (product.stocks.lowStockAlertEmail === undefined) product.stocks.lowStockAlertEmail = inv.lowStockAlertEmail;
+      if (product.stocks.lowStockThreshold === undefined) product.stocks.lowStockThreshold = inv.lowStockThreshold;
+      if (product.stocks.outOfStockBehavior === undefined) product.stocks.outOfStockBehavior = inv.outOfStockBehavior;
+    }
 
     const variants = await CatalogProductVariant.find({
       catalogProductId: product._id,
@@ -142,6 +195,29 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.error('Catalog product error:', err);
     res.status(500).json({ success: false, message: 'Failed to load product' });
+  }
+});
+
+// New, dedicated endpoints (non-breaking additions)
+router.get('/:id/mockups', async (req, res) => {
+  try {
+    const mockups = await CatalogProductMockup.find({ productId: req.params.id })
+      .sort({ 'metadata.order': 1, createdAt: 1 })
+      .lean();
+    res.json({ success: true, data: mockups });
+  } catch (err) {
+    console.error('Catalog mockups error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load mockups' });
+  }
+});
+
+router.get('/:id/inventory', async (req, res) => {
+  try {
+    const inv = await CatalogProductInventory.findOne({ productId: req.params.id }).lean();
+    res.json({ success: true, data: inv || null });
+  } catch (err) {
+    console.error('Catalog inventory error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load inventory' });
   }
 });
 
