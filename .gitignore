@@ -18,6 +18,7 @@ node_modules/
 
 # Testing
 /coverage
+e2e/.auth/
 
 # Next.js
 /.next/
@@ -82,3 +83,4 @@ android-sdk/ -e
 .env
 .env.*
 !.env.example
+.gstack/
