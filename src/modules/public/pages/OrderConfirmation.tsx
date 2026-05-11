@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo } from 'react';
+﻿import React, { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
@@ -20,14 +20,31 @@ const OrderConfirmation = () => {
     return storeSlugFromState || null;
   }, [orderData, storeSlugFromState]);
 
-  useEffect(() => {
-    // If no order data, redirect to home
-    if (!orderData) {
-      navigate('/');
-    }
-  }, [orderData, navigate]);
-
-  if (!orderData) return null;
+  if (!orderData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-xl w-full p-8 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
+            <CheckCircle className="w-12 h-12 text-green-600" />
+          </div>
+          <h1 className="text-3xl font-bold mb-2">Order Confirmed</h1>
+          <p className="text-muted-foreground text-lg mb-6">
+            Your payment was received. You can view the latest order details from your account dashboard.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => navigate('/products')}>
+              <Package className="mr-2 h-4 w-4" />
+              Browse Products
+            </Button>
+            <Button className="flex-1" onClick={() => navigate('/dashboard')}>
+              <Home className="mr-2 h-4 w-4" />
+              Dashboard
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

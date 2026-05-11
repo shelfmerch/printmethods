@@ -9,6 +9,7 @@ import { FileText, Loader2, ShoppingBag, MapPin, Globe, CheckCircle } from 'luci
 import { toast } from 'sonner';
 import Header from '@/modules/public/home/Header';
 import Footer from '@/modules/public/home/Footer';
+import { isTenDigitPhone, sanitizeTenDigitPhone } from '@/shared/utils/phone';
 
 declare global {
   interface Window {
@@ -74,7 +75,7 @@ const DirectCheckout = () => {
         ...prev,
         fullName: prev.fullName || (user as any).name || '',
         email: prev.email || (user as any).email || '',
-        phone: prev.phone || (user as any).phone || '',
+        phone: prev.phone || sanitizeTenDigitPhone((user as any).phone || (user as any).phoneNumber || ''),
       }));
     }
   }, [user]);
@@ -103,6 +104,10 @@ const DirectCheckout = () => {
     if (deliveryMode === 'single_address') {
       if (!shipping.fullName || !shipping.email || !shipping.address1 || !shipping.city) {
         toast.error('Please fill all required shipping fields');
+        return false;
+      }
+      if (!isTenDigitPhone(shipping.phone)) {
+        toast.error('Please enter a valid 10-digit phone number');
         return false;
       }
     } else if (selectedCountries.length === 0) {
@@ -207,7 +212,7 @@ const DirectCheckout = () => {
         prefill: {
           name: shipping.fullName || (user as any)?.name,
           email: shipping.email || (user as any)?.email,
-          contact: shipping.phone || (user as any)?.phone,
+          contact: shipping.phone || sanitizeTenDigitPhone((user as any)?.phone || (user as any)?.phoneNumber || ''),
         },
         handler: async (response: any) => {
           try {
@@ -348,8 +353,10 @@ const DirectCheckout = () => {
                     <Label>Phone</Label>
                     <Input
                       value={shipping.phone}
-                      onChange={e => setShipping(s => ({ ...s, phone: e.target.value }))}
-                      placeholder="+91 9876543210"
+                      onChange={e => setShipping(s => ({ ...s, phone: sanitizeTenDigitPhone(e.target.value) }))}
+                      placeholder="9876543210"
+                      inputMode="numeric"
+                      maxLength={10}
                       className="mt-1"
                     />
                   </div>
