@@ -3,7 +3,19 @@ const router = express.Router();
 const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const Placeholder = require('../models/Placeholder');
+const CatalogProductAttribute = require('../models/CatalogProductAttribute');
 const { protect, authorize } = require('../middleware/auth');
+
+const ATTRIBUTE_FIELDS = ['material', 'gsm', 'hoodType', 'pocketStyle', 'fit', 'gender', 'brand'];
+function normalizeAttributesPayload(attrs) {
+  if (!attrs || typeof attrs !== 'object') return null;
+  const out = {};
+  for (const k of ATTRIBUTE_FIELDS) {
+    const v = attrs[k];
+    out[k] = v === undefined || v === null ? '' : String(v);
+  }
+  return out;
+}
 
 // @route   POST /api/products
 // @desc    Create a new base product (Admin only)
@@ -179,6 +191,21 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     const product = await CatalogProduct.create(catalogProductData);
 
     console.log('Product created successfully:', product._id);
+
+    // Dual-write: upsert normalized attributes into catalogproductattributes
+    // Keep embedded product.attributes for backward compatibility.
+    try {
+      const attrs = normalizeAttributesPayload(catalogue.attributes);
+      if (attrs) {
+        await CatalogProductAttribute.findOneAndUpdate(
+          { productId: product._id },
+          { $setOnInsert: { productId: product._id }, $set: attrs },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      }
+    } catch (attrErr) {
+      console.error('Error upserting catalog product attributes:', attrErr);
+    }
 
     // Create placeholders in new collection
     const placeholdersToInsert = [];
@@ -789,6 +816,20 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     }
 
     await product.save();
+
+    // Dual-write: upsert normalized attributes into catalogproductattributes
+    try {
+      const attrs = normalizeAttributesPayload(catalogue?.attributes);
+      if (attrs) {
+        await CatalogProductAttribute.findOneAndUpdate(
+          { productId: product._id },
+          { $setOnInsert: { productId: product._id }, $set: attrs },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      }
+    } catch (attrErr) {
+      console.error('Error upserting catalog product attributes:', attrErr);
+    }
 
     // Update placeholders
     if (design && design.views) {

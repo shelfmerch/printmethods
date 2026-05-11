@@ -2,6 +2,7 @@ const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProductMockup = require('../models/CatalogProductMockup');
 const CatalogProductInventory = require('../models/CatalogProductInventory');
+const CatalogProductAttribute = require('../models/CatalogProductAttribute');
 const { NotFoundError } = require('../public-api/core/errors');
 const {
   toCatalogSummaryDTO,
@@ -9,18 +10,22 @@ const {
   toCatalogVariantDTO,
 } = require('../dtos/catalog.dto');
 
-async function hydrateMockupsAndInventoryForProducts(products) {
+async function hydrateMockupsAndInventoryForProducts(products, { includeMockups = true, includeInventory = true } = {}) {
   if (!Array.isArray(products) || products.length === 0) return products;
 
   const ids = products.map((p) => p._id).filter(Boolean);
 
   const [mockups, inventories] = await Promise.all([
-    CatalogProductMockup.find({ productId: { $in: ids } })
-      .select('productId viewKey colorKey imageUrl placeholders displacementSettings metadata')
-      .lean(),
-    CatalogProductInventory.find({ productId: { $in: ids } })
-      .select('productId currentStock reservedStock incomingStock minimumQuantity lowStockAlertEnabled lowStockAlertEmail lowStockThreshold stockLocation outOfStockBehavior')
-      .lean(),
+    includeMockups
+      ? CatalogProductMockup.find({ productId: { $in: ids } })
+        .select('productId viewKey colorKey imageUrl placeholders displacementSettings metadata')
+        .lean()
+      : Promise.resolve([]),
+    includeInventory
+      ? CatalogProductInventory.find({ productId: { $in: ids } })
+        .select('productId currentStock reservedStock incomingStock minimumQuantity lowStockAlertEnabled lowStockAlertEmail lowStockThreshold stockLocation outOfStockBehavior')
+        .lean()
+      : Promise.resolve([]),
   ]);
 
   const mockupsByProduct = new Map();
@@ -71,6 +76,28 @@ async function hydrateMockupsAndInventoryForProducts(products) {
   return products;
 }
 
+async function hydrateAttributesForProducts(products, { includeAttributes = false } = {}) {
+  if (!includeAttributes) return products;
+  if (!Array.isArray(products) || products.length === 0) return products;
+
+  const ids = products.map((p) => p._id).filter(Boolean);
+  const docs = await CatalogProductAttribute.find({ productId: { $in: ids } }).lean();
+  const byProduct = new Map();
+  for (const d of docs) byProduct.set(String(d.productId), d);
+
+  for (const p of products) {
+    const pid = String(p._id);
+    // Only fill if missing; keep embedded attributes if already present.
+    if (p.attributes && typeof p.attributes === 'object' && Object.keys(p.attributes).length > 0) continue;
+    const d = byProduct.get(pid);
+    if (!d) continue;
+    const { material, gsm, hoodType, pocketStyle, fit, gender, brand } = d;
+    p.attributes = { material, gsm, hoodType, pocketStyle, fit, gender, brand };
+  }
+
+  return products;
+}
+
 /**
  * Returns lightweight catalog summaries for API listing.
  * NEVER returns design internals or displacementSettings.
@@ -81,6 +108,7 @@ async function listCatalogProducts({
   search,
   page = 1,
   limit = 20,
+  includeAttributes = false,
 } = {}) {
   const filter = { isActive: true, isPublished: true };
   if (categoryId) filter.categoryId = categoryId;
@@ -93,14 +121,16 @@ async function listCatalogProducts({
     CatalogProduct.find(filter)
       // Keep listing lightweight: avoid embedded design.sampleMockups and stocks payloads.
       // We hydrate minimal mockup+inventory fields from dedicated collections for backward compatibility.
-      .select('name shortDescription highlights categoryId subcategoryIds basePrice currency galleryImages tags attributes isActive description shipping gst design.views design.dpi design.physicalDimensions')
+      .select('name shortDescription highlights categoryId subcategoryIds basePrice currency galleryImages tags isActive description shipping gst design.views design.dpi design.physicalDimensions')
       .skip(skip)
       .limit(limit)
       .lean(),
     CatalogProduct.countDocuments(filter),
   ]);
 
-  await hydrateMockupsAndInventoryForProducts(products);
+  await hydrateMockupsAndInventoryForProducts(products, { includeMockups: true, includeInventory: true });
+  // Attributes are explicitly opt-in for listings (avoid overfetching).
+  await hydrateAttributesForProducts(products, { includeAttributes });
 
   return {
     data: products.map(toCatalogSummaryDTO),
@@ -122,7 +152,8 @@ async function getCatalogProductDetail(catalogProductId) {
   if (!product) throw new NotFoundError('CatalogProduct');
 
   // Backward-compatible hydration: if embedded fields are missing, pull from extracted collections.
-  await hydrateMockupsAndInventoryForProducts([product]);
+  await hydrateMockupsAndInventoryForProducts([product], { includeMockups: true, includeInventory: true });
+  await hydrateAttributesForProducts([product], { includeAttributes: true });
 
   return toCatalogDetailDTO(product);
 }

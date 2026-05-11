@@ -4,6 +4,7 @@ const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProductMockup = require('../models/CatalogProductMockup');
 const CatalogProductInventory = require('../models/CatalogProductInventory');
+const CatalogProductAttribute = require('../models/CatalogProductAttribute');
 
 // @route  GET /api/catalog
 // @desc   Public catalog — list all active+published products
@@ -104,12 +105,15 @@ router.get('/:id', async (req, res) => {
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
     // Hydrate extracted data (non-destructive). Keep embedded fields if they already exist.
-    const [mockups, inv] = await Promise.all([
+    const [mockups, inv, attrs] = await Promise.all([
       CatalogProductMockup.find({ productId: product._id })
         .select('viewKey colorKey imageUrl placeholders displacementSettings metadata')
         .lean(),
       CatalogProductInventory.findOne({ productId: product._id })
         .select('currentStock reservedStock incomingStock minimumQuantity lowStockAlertEnabled lowStockAlertEmail lowStockThreshold stockLocation outOfStockBehavior')
+        .lean(),
+      CatalogProductAttribute.findOne({ productId: product._id })
+        .select('material gsm hoodType pocketStyle fit gender brand')
         .lean(),
     ]);
     product.design = product.design || {};
@@ -132,6 +136,19 @@ router.get('/:id', async (req, res) => {
       if (product.stocks.lowStockAlertEmail === undefined) product.stocks.lowStockAlertEmail = inv.lowStockAlertEmail;
       if (product.stocks.lowStockThreshold === undefined) product.stocks.lowStockThreshold = inv.lowStockThreshold;
       if (product.stocks.outOfStockBehavior === undefined) product.stocks.outOfStockBehavior = inv.outOfStockBehavior;
+    }
+
+    // Hydrate attributes into legacy response shape (product.attributes)
+    if ((!product.attributes || Object.keys(product.attributes || {}).length === 0) && attrs) {
+      product.attributes = {
+        material: attrs.material,
+        gsm: attrs.gsm,
+        hoodType: attrs.hoodType,
+        pocketStyle: attrs.pocketStyle,
+        fit: attrs.fit,
+        gender: attrs.gender,
+        brand: attrs.brand,
+      };
     }
 
     const variants = await CatalogProductVariant.find({
