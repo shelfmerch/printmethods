@@ -222,7 +222,7 @@ const Settings = () => {
                     className="flex-1"
                   />
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    .yoursite.com
+                    .techvibz.org
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">

@@ -1688,4 +1688,65 @@ router.delete('/tokens/personal/:id', protect, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/test-login
+// @desc    Test-only: bypass OTP and return a real JWT for the given email.
+//          If the user doesn't exist it is created automatically.
+//          Completely disabled (returns 404) outside NODE_ENV=test.
+// @access  Test environment only
+router.post('/test-login', async (req, res) => {
+  if (process.env.NODE_ENV !== 'test') {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+
+  const { email, role } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'email is required' });
+  }
+
+  const allowedRoles = ['merchant', 'superadmin', 'staff'];
+  const assignedRole = allowedRoles.includes(role) ? role : 'merchant';
+
+  try {
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      user = await User.create({
+        name: 'Test User',
+        email: email.toLowerCase(),
+        role: assignedRole,
+        isOtpUser: true,
+        isEmailVerified: true,
+        isActive: true,
+      });
+    }
+
+    const token = generateToken(user._id.toString());
+    const refreshToken = generateRefreshToken(user._id.toString());
+
+    user.refreshToken = refreshToken;
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    return res.json({
+      success: true,
+      token,
+      refreshToken,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyName: user.companyName || '',
+        isEmailVerified: user.isEmailVerified,
+        isPhoneVerified: user.isPhoneVerified || false,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+      }
+    });
+  } catch (err) {
+    console.error('[test-login] Error:', err.message);
+    return res.status(500).json({ success: false, message: 'Test login failed' });
+  }
+});
+
 module.exports = router;

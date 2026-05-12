@@ -25,6 +25,8 @@ Updated by: Codex
 | 2026-04-28 | Codex | Simplified the brand dashboard and separated it from Products in the sidebar navigation | `src/components/layout/DashboardLayout.tsx`, `src/pages/Dashboard.tsx` |
 | 2026-04-28 | Codex | Cleaned Store Setup/Channels page to remove Etsy and keep only hosted swag store, Shopify, and API docs | `src/components/layout/DashboardLayout.tsx`, `src/pages/Stores.tsx` |
 | 2026-04-28 | Codex | Fixed catalog order design preview placement to use superadmin placeholder canvas math instead of guessed image-relative placement | `src/pages/CatalogOrderPage.tsx` |
+| 2026-05-09 | Codex | Small tester-bug pass: direct checkout phone validation, quotation name source, 50% quotation advance/full-payment status, invite accept page, safer email link bases, and non-blank order confirmation fallback | `backend/routes/quotations.js`, `backend/utils/quotationPayments.js`, `backend/routes/brandTeam.js`, `backend/routes/kitSends.js`, `src/shared/utils/phone.ts`, `src/modules/public/pages/DirectCheckout.tsx`, `src/modules/merchant/pages/BrandDraftOrders.tsx`, `src/modules/public/pages/AcceptBrandTeamInvite.tsx`, `src/modules/public/pages/OrderConfirmation.tsx`, `src/App.tsx` |
+| 2026-05-09 | Codex | Larger tester-bug pass: shared invoice generation/PDF attachments for direct orders, quotation payments, and kit sends; delivered status emails; superadmin kit orders visibility; and production queue logo placement context | `backend/models/FulfillmentInvoice.js`, `backend/utils/commercialInvoices.js`, `backend/routes/directOrders.js`, `backend/routes/quotations.js`, `backend/routes/kitSends.js`, `backend/routes/adminDirectOrders.js`, `backend/routes/adminKitFulfillment.js`, `backend/utils/mailer.js`, `src/lib/api.ts`, `src/modules/admin/components/AdminOrderManagement.tsx` |
 
 ## Verification
 
@@ -58,6 +60,9 @@ Updated by: Codex
 - `node --test backend/utils/kitFulfillment.test.js backend/utils/kitVariantSelections.test.js`
 - `node --check backend/utils/kitFulfillment.js`
 - `node --test backend/utils/planLimits.test.js`
+- `node --test backend/utils/quotationPayments.test.js`
+- `node --test backend/utils/commercialInvoices.test.js backend/utils/quotationPayments.test.js`
+- `npx vitest run src/shared/utils/phone.test.ts`
 - `npm run build`
 - `curl http://localhost:5002/health`
 - `curl -i http://localhost:5002/api/admin/direct-orders`
@@ -101,3 +106,11 @@ Updated by: Codex
 - Free is enforced as 1 swag store, 50 employees, 10 active/live store products, and 3 kits; Growth is 5 stores, 500 employees, 250 live products, and unlimited kits; Enterprise is unlimited.
 - Server-side limit checks now cover store creation, store product publishing, employee create/import, and kit creation, returning `PLAN_LIMIT_EXCEEDED` with upgrade-friendly copy.
 - Public Pricing plus brand Billing now use Free, Growth (`₹4,999/month`, about `$59/month`), and Enterprise positioning; product cost, packaging, shipping, taxes, and customization remain separate from subscription.
+- Direct checkout phone input now strips non-digits and caps at 10 digits. Quotation creation now prefers the checkout/shipping name over the signed-in Gmail profile name.
+- Draft order advance payment now enforces at least 50% and allows full payment; once cumulative payment reaches the quotation total, the quotation status becomes `paid` instead of staying `partially_paid`.
+- Brand team invite emails now point to a real `/brand-team/accept?token=...` frontend page. Kit redemption emails now prefer `CLIENT_URL` before `BASE_URL` so deployed frontend links are less likely to open the wrong host.
+- `/order-confirmation` no longer renders a blank screen when browser refresh/direct link loses React navigation state; it shows a confirmation fallback with dashboard/product actions.
+- Direct orders, quotation payments, and kit sends now create `FulfillmentInvoice` records through a shared commercial invoice utility and send simple PDF invoice attachments with confirmation emails. Existing store-order fulfillment invoices remain compatible through `orderModel: "StoreOrder"`.
+- Shipping notifications now cover both `shipped` and `delivered` status updates for direct orders; kit redemptions also have a delivered status update endpoint and delivered email.
+- Superadmin Order Management now shows a Kit Orders table before the production queue, so paid kit sends are visible even before recipients redeem. Production queue rows now expose product placement names and flag missing print placements next to logo links.
+- Still open after these passes: fully rendered production mockup previews in the admin queue (current pass shows logo + configured placement context, not a composited preview image), live SMTP/provider verification after deployment, and the Free-plan fourth-kit-to-billing UX.

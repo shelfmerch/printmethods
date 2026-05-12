@@ -1,10 +1,8 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import planLimits from './planLimits.js';
 
-const {
-  getPlanLimits,
-  assertWithinPlanLimit,
-} = require('./planLimits');
+const { getPlanLimits, assertWithinPlanLimit } = planLimits;
 
 test('free plan exposes the agreed store employee and product limits', () => {
   const plan = getPlanLimits('free');

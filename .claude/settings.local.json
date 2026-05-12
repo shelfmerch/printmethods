@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/konet/.claude/skills/gstack/**)",
+      "Bash(./setup)"
+    ]
+  },
+  "enabledMcpjsonServers": [],
+  "enableAllProjectMcpServers": true
+}

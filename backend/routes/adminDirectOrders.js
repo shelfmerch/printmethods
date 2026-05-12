@@ -107,12 +107,13 @@ router.put('/:id/status', adminOnly, async (req, res) => {
     appendStatusHistory(order, status, req.user, note || `Marked ${status}`);
     await order.save();
 
-    if (status === 'shipped') {
+    if (status === 'shipped' || status === 'delivered') {
       try {
         await sendShippingNotificationEmail({
           to: order.customerEmail,
           recipientName: order.customerName,
           orderId: order._id,
+          status,
           trackingNumber,
           carrier,
           trackingUrl,

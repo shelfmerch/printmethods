@@ -16,14 +16,24 @@ const FulfillmentInvoiceSchema = new mongoose.Schema(
         storeId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Store',
-            required: true,
             index: true,
         },
         orderId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'StoreOrder',
+            refPath: 'orderModel',
             required: true,
             unique: true, // One fulfillment invoice per order
+            index: true,
+        },
+        orderModel: {
+            type: String,
+            enum: ['StoreOrder', 'DirectOrder', 'KitSend'],
+            default: 'StoreOrder',
+        },
+        sourceType: {
+            type: String,
+            enum: ['store_order', 'direct_order', 'quotation', 'kit_send'],
+            default: 'store_order',
             index: true,
         },
         items: [

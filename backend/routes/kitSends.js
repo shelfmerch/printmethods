@@ -10,6 +10,12 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const { assertBrandAccess } = require('../utils/brandAccess');
 const razorpayService = require('../services/razorpayService');
 const { sendKitInviteEmail } = require('../utils/mailer');
+const Store = require('../models/Store');
+const {
+  buildKitSendInvoicePayload,
+  createCommercialInvoice,
+  generateInvoicePdfBuffer,
+} = require('../utils/commercialInvoices');
 const {
   attachVariantsToProducts,
   validateSelectionsForKit,
@@ -29,7 +35,7 @@ function cleanEmail(value) {
 }
 
 function buildRedemptionLink(token) {
-  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.CLIENT_PORT || 8080}`;
+  const baseUrl = process.env.CLIENT_URL || process.env.BASE_URL || `http://localhost:${process.env.CLIENT_PORT || 8080}`;
   return `${baseUrl.replace(/\/$/, '')}/redeem/${token}`;
 }
 
@@ -269,6 +275,37 @@ router.post('/razorpay/verify', protect, async (req, res) => {
     kitSend.payment = { razorpayOrderId, razorpayPaymentId, razorpaySignature };
     kitSend.status = ['surprise', 'single_location'].includes(kitSend.deliveryMode) ? 'completed' : 'paid';
     await kitSend.save();
+
+    try {
+      const [kitForInvoice, storeForInvoice] = await Promise.all([
+        Kit.findById(kitSend.kitId).populate('items.catalogProductId', 'name').lean(),
+        Store.findById(kitSend.brandId).select('merchant name brandProfile.companyName').lean(),
+      ]);
+      const invoice = await createCommercialInvoice(buildKitSendInvoicePayload({
+        kitSend,
+        kit: kitForInvoice,
+        store: storeForInvoice,
+      }));
+      const invoicePdf = await generateInvoicePdfBuffer({
+        invoice,
+        title: 'Kit Send Invoice',
+        customerName: storeForInvoice?.brandProfile?.companyName || storeForInvoice?.name || '',
+      });
+      const { sendOrderConfirmationEmail } = require('../utils/mailer');
+      const ownerEmail = req.user?.email;
+      if (ownerEmail) {
+        await sendOrderConfirmationEmail({
+          to: ownerEmail,
+          orderId: kitSend._id,
+          invoiceNumber: invoice.invoiceNumber,
+          items: invoice.items,
+          total: invoice.totalAmount,
+          attachments: [{ filename: `${invoice.invoiceNumber}.pdf`, content: invoicePdf }],
+        });
+      }
+    } catch (invoiceErr) {
+      console.error('[KitSends] Kit invoice email failed:', invoiceErr.message);
+    }
 
     const existingCount = await KitRedemption.countDocuments({ kitSendId: kitSend._id });
     if (!existingCount) {

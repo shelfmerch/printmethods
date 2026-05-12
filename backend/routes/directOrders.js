@@ -5,6 +5,11 @@ const Razorpay = require('razorpay');
 const { protect } = require('../middleware/auth');
 const DirectOrder = require('../models/DirectOrder');
 const CatalogProduct = require('../models/CatalogProduct');
+const {
+  buildDirectOrderInvoicePayload,
+  createCommercialInvoice,
+  generateInvoicePdfBuffer,
+} = require('../utils/commercialInvoices');
 const ALLOWED_STATUSES = ['on-hold', 'quotation', 'po_received', 'partially_paid', 'paid', 'in-production', 'shipped', 'delivered', 'fulfilled', 'cancelled', 'refunded'];
 
 const getRazorpay = () => {
@@ -112,9 +117,9 @@ router.post('/razorpay/create', protect, async (req, res) => {
     // Save a pending order record
     const order = await DirectOrder.create({
       merchantId: req.user._id,
-      customerEmail: req.user.email || shippingInfo?.email,
-      customerName: req.user.name || shippingInfo?.fullName,
-      customerPhone: req.user.phone || shippingInfo?.phone,
+      customerEmail: shippingInfo?.email || req.user.email,
+      customerName: shippingInfo?.fullName || req.user.name,
+      customerPhone: shippingInfo?.phone || req.user.phone || req.user.phoneNumber,
       orderType: orderType === 'sample' ? 'sample' : 'direct',
       items: normalizedItems,
       subtotal,
@@ -192,14 +197,26 @@ router.post('/razorpay/verify', protect, async (req, res) => {
 
     try {
       const { sendOrderConfirmationEmail } = require('../utils/mailer');
+      const invoice = await createCommercialInvoice(buildDirectOrderInvoicePayload(order));
+      const invoicePdf = await generateInvoicePdfBuffer({
+        invoice,
+        title: order.orderType === 'sample' ? 'Sample Order Invoice' : 'Direct Order Invoice',
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+      });
       await sendOrderConfirmationEmail({
-        to: req.user.email,
+        to: order.customerEmail || req.user.email,
         orderId: order._id,
+        invoiceNumber: invoice.invoiceNumber,
         items: order.items,
         total: order.total,
+        attachments: [{
+          filename: `${invoice.invoiceNumber}.pdf`,
+          content: invoicePdf,
+        }],
       });
     } catch (emailErr) {
-      console.error('Order confirmation email failed:', emailErr);
+      console.error('Order invoice/confirmation email failed:', emailErr);
       // Non-fatal - order is already saved as paid
     }
 

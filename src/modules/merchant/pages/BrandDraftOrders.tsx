@@ -60,6 +60,7 @@ export default function BrandDraftOrders() {
   useEffect(() => { loadQuotes(); }, []);
 
   const selectedDefaultAdvance = useMemo(() => selected ? Math.ceil(Number(selected.total || 0) / 2) : 0, [selected]);
+  const selectedTotal = useMemo(() => selected ? Number(selected.total || 0) : 0, [selected]);
 
   const downloadPdf = async (quote: any) => {
     try {
@@ -90,7 +91,12 @@ export default function BrandDraftOrders() {
     if (!selected) return;
     const loaded = await loadRazorpay();
     if (!loaded) return toast.error('Could not load payment gateway');
-    const amountPaise = Math.round(Number(advanceAmount || selectedDefaultAdvance) * 100);
+    const amount = Number(advanceAmount || selectedDefaultAdvance);
+    if (amount < selectedDefaultAdvance || amount > selectedTotal) {
+      toast.error(`Payment must be between ${money(selectedDefaultAdvance)} and ${money(selectedTotal)}`);
+      return;
+    }
+    const amountPaise = Math.round(amount * 100);
     setWorking(true);
     try {
       const order = await quotationsApi.createAdvance(selected._id, amountPaise);
@@ -109,7 +115,7 @@ export default function BrandDraftOrders() {
               razorpaySignature: response.razorpay_signature,
               amountPaise,
             });
-            toast.success('Advance payment recorded');
+            toast.success(amount >= selectedTotal ? 'Full payment recorded' : 'Advance payment recorded');
             setAdvanceOpen(false);
             loadQuotes();
           } catch (err: any) {
@@ -216,8 +222,17 @@ export default function BrandDraftOrders() {
           <DialogHeader><DialogTitle>Pay Advance</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Amount now (₹)</Label>
-              <Input type="number" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} />
+              <Label>Payment amount (₹)</Label>
+              <Input
+                type="number"
+                min={selectedDefaultAdvance}
+                max={selectedTotal}
+                value={advanceAmount}
+                onChange={(e) => setAdvanceAmount(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Minimum 50% advance: {money(selectedDefaultAdvance)}. You can pay up to the full total: {money(selectedTotal)}.
+              </p>
             </div>
             <Button onClick={payAdvance} disabled={working} className="w-full">{working && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Pay via Razorpay</Button>
           </div>

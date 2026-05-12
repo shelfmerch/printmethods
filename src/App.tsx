@@ -18,6 +18,7 @@ import DesignerEditor from "@/modules/design-editor/DesignEditorPage";
 import Auth from "@/modules/public/pages/Auth";
 import VerifyEmail from "@/modules/public/pages/VerifyEmail";
 import VerifyPhone from "@/modules/public/pages/VerifyPhone";
+import AcceptBrandTeamInvite from "@/modules/public/pages/AcceptBrandTeamInvite";
 import Dashboard from "@/modules/merchant/pages/Dashboard";
 import ProfilePage from "@/modules/merchant/pages/ProfilePage";
 import Orders from "@/modules/merchant/pages/Orders";
@@ -154,6 +155,7 @@ const App = () => {
                         <Route path="/auth" element={<Auth />} />
                         <Route path="/verify-email" element={<VerifyEmail />} />
                         <Route path="/verify-phone" element={<VerifyPhone />} />
+                        <Route path="/brand-team/accept" element={<AcceptBrandTeamInvite />} />
                         <Route path="/pricing" element={<PricingPage />} />
                         <Route path="/solutions/creators-agencies" element={<CreatorAgenciesPage />} />
                         <Route path="/solutions/fashion-apparel" element={<FashionApparelPage />} />

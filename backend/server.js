@@ -101,7 +101,7 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Host', 'X-API-Key', 'ngrok-skip-browser-warning'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Host', 'X-API-Key', 'ngrok-skip-browser-warning', 'x-test-token', 'x-test-email'],
   exposedHeaders: ['Authorization'],
   preflightContinue: false
 };
@@ -321,6 +321,11 @@ app.use('/api/care-icons', careIconsRoutes);
 // Routes that may use tenant but don't require it (legacy support)
 app.use('/api/stores', tenantResolver, storeRoutes);
 app.use('/api/stores', tenantResolver, storeBuilderRoutes); // Builder routes under /api/stores/:id/builder
+
+// Test-only auth bypass — registered BEFORE real auth routes so it wins the match
+if (process.env.NODE_ENV === 'test') {
+  app.use('/api/auth', require('./routes/testAuth'));
+}
 
 // Routes that don't need tenant resolution (admin, auth, catalog)
 app.use('/api/auth', authRoutes);
