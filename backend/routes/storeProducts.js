@@ -7,6 +7,8 @@ const StoreProduct = require('../models/StoreProduct');
 const StoreProductVariant = require('../models/StoreProductVariant');
 const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
+const CatalogProductCareInstruction = require('../models/CatalogProductCareInstruction');
+const { expandCareInstructionsForApi } = require('../utils/careInstructionsRefs');
 const { uploadToS3 } = require('../utils/s3Upload');
 const { compositeMockup, compositeMockupFromCanvas } = require('../utils/compositeMockup');
 const { v4: uuidv4 } = require('uuid');
@@ -328,6 +330,7 @@ router.get('/public/:storeId/:productId', async (req, res) => {
     })
       .populate({
         path: 'catalogProductId',
+        // Keep payload light: careInstructions are normalized and hydrated if needed
         select: '_id name description categoryId subcategoryIds productTypeCode gst stocks careInstructions',
         lean: true
       })
@@ -335,6 +338,25 @@ router.get('/public/:storeId/:productId', async (req, res) => {
 
     if (!storeProduct) {
       return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    // Care instructions on populated catalog snippet: resolve ref-only data then merge `careicons` for the client.
+    const catalogProductId = storeProduct.catalogProductId?._id || storeProduct.catalogProductId;
+    if (catalogProductId && storeProduct.catalogProductId) {
+      let ci = storeProduct.catalogProductId.careInstructions;
+      const hasCare =
+        ci &&
+        typeof ci === 'object' &&
+        ((typeof ci.text === 'string' && ci.text.trim() !== '') ||
+          (Array.isArray(ci.icons) && ci.icons.length > 0));
+      if (!hasCare) {
+        const doc = await CatalogProductCareInstruction.findOne({ productId: catalogProductId }).lean();
+        if (doc) ci = { text: doc.text || '', icons: doc.icons || [] };
+        else ci = { icons: [], text: '' };
+      }
+      storeProduct.catalogProductId.careInstructions = await expandCareInstructionsForApi(
+        ci || { icons: [], text: '' },
+      );
     }
 
     // Fetch variants for this product and populate catalog variant details (size/color)

@@ -108,10 +108,14 @@ export interface SizeChartData {
 }
 
 export interface CareInstructionIcon {
-  type: 'predefined' | 'custom';
+  /** Primary link to `careicons`; this is what gets stored on `catalogproducts`. */
+  careIconId?: string;
+  /** Optional per-product label override (default comes from `careicons`). */
+  label?: string;
+  /** Filled when the API expands refs for display (admin + storefront). */
+  type?: 'predefined' | 'custom';
   iconKey?: string;
-  iconUrl?: string; // S3 URL for custom icons
-  label?: string; // Text to display beside the icon
+  iconUrl?: string;
 }
 
 export interface CareInstructionsData {

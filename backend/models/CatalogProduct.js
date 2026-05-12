@@ -60,6 +60,12 @@ const SampleMockupImageSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+/** One selected care icon on a product — only refs `careicons` (no duplicate subdoc `_id`). */
+const CatalogCareInstructionIconSchema = new mongoose.Schema({
+  careIconId: { type: mongoose.Schema.Types.ObjectId, ref: 'CareIcon', required: true },
+  label: { type: String, default: '' },
+}, { _id: false });
+
 const CatalogProductDesignSchema = new mongoose.Schema({
   views: [ViewConfigSchema],
   sampleMockups: { type: [SampleMockupImageSchema], default: [] },
@@ -282,12 +288,7 @@ const CatalogProductSchema = new mongoose.Schema({
     currentStock: { type: Number }
   },
   careInstructions: {
-    icons: [{
-      type: { type: String, enum: ['predefined', 'custom'], default: 'predefined' },
-      iconKey: String,
-      iconUrl: String,
-      label: String,
-    }],
+    icons: { type: [CatalogCareInstructionIconSchema], default: [] },
     text: { type: String, default: '' }
   }
 }, {
