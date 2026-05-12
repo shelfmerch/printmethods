@@ -472,6 +472,9 @@ export const adminDirectOrdersApi = {
 };
 
 export const adminKitFulfillmentApi = {
+  getOrders: async () => {
+    return apiRequest<any[]>('/admin/kit-fulfillment/orders');
+  },
   getProductionQueue: async () => {
     return apiRequest<any[]>('/admin/kit-fulfillment/production-queue');
   },
@@ -483,6 +486,15 @@ export const adminKitFulfillmentApi = {
     payload: { trackingNumber: string; carrier?: string; trackingUrl?: string; note?: string }
   ) => {
     return apiRequest<any>(`/admin/kit-fulfillment/redemption/${encodeURIComponent(redemptionId)}/ship`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  updateRedemptionStatus: async (
+    redemptionId: string,
+    payload: { status: 'in-production' | 'shipped' | 'delivered'; note?: string }
+  ) => {
+    return apiRequest<any>(`/admin/kit-fulfillment/redemption/${encodeURIComponent(redemptionId)}/status`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });

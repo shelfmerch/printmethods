@@ -66,6 +66,7 @@ export function AdminOrderManagement() {
   const [savingStatus, setSavingStatus] = useState(false);
 
   const [queue, setQueue] = useState<any[]>([]);
+  const [kitOrders, setKitOrders] = useState<any[]>([]);
   const [queueLoading, setQueueLoading] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [trackingForms, setTrackingForms] = useState<Record<string, { carrier: string; trackingNumber: string; trackingUrl: string }>>({});
@@ -85,7 +86,11 @@ export function AdminOrderManagement() {
   const loadQueue = async () => {
     try {
       setQueueLoading(true);
-      const response = await adminKitFulfillmentApi.getProductionQueue();
+      const [ordersResponse, response] = await Promise.all([
+        adminKitFulfillmentApi.getOrders(),
+        adminKitFulfillmentApi.getProductionQueue(),
+      ]);
+      setKitOrders(Array.isArray(ordersResponse) ? ordersResponse : []);
       setQueue(Array.isArray(response) ? response : []);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load kit fulfillment queue');
@@ -179,6 +184,16 @@ export function AdminOrderManagement() {
       await loadQueue();
     } catch (error: any) {
       toast.error(error.message || 'Failed to mark shipped');
+    }
+  };
+
+  const markRecipientDelivered = async (redemptionId: string) => {
+    try {
+      await adminKitFulfillmentApi.updateRedemptionStatus(redemptionId, { status: 'delivered' });
+      toast.success('Recipient marked delivered');
+      await loadQueue();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to mark delivered');
     }
   };
 
@@ -287,6 +302,52 @@ export function AdminOrderManagement() {
         <TabsContent value="kits" className="space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Kit Orders</CardTitle>
+              <CardDescription>Paid and active kit sends across brands, including campaigns not yet redeemed.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {queueLoading ? (
+                <p className="text-sm text-muted-foreground">Loading kit orders...</p>
+              ) : kitOrders.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Brand</TableHead>
+                      <TableHead>Kit</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead>Recipients</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {kitOrders.map((order) => (
+                      <TableRow key={order._id}>
+                        <TableCell>{date(order.createdAt)}</TableCell>
+                        <TableCell>{order.brandName || '-'}</TableCell>
+                        <TableCell className="font-medium">{order.kitName}</TableCell>
+                        <TableCell>{String(order.deliveryMode || '').replace('_', ' ')}</TableCell>
+                        <TableCell>
+                          <div>{order.recipientCount || 0}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {order.stats?.redeemed || 0} redeemed · {order.stats?.shipped || 0} shipped · {order.stats?.delivered || 0} delivered
+                          </div>
+                        </TableCell>
+                        <TableCell>{money(order.total)}</TableCell>
+                        <TableCell><Badge className={statusBadgeClass(order.status)}>{order.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">No kit orders found.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Kit Fulfillment</CardTitle>
               <CardDescription>Production queue - items redeemed and ready to ship.</CardDescription>
             </CardHeader>
@@ -321,7 +382,16 @@ export function AdminOrderManagement() {
                             <TableCell>{group.color || '-'}</TableCell>
                             <TableCell>{group.size || '-'}</TableCell>
                             <TableCell>{group.totalQty}</TableCell>
-                            <TableCell>{group.campaignCount}</TableCell>
+                            <TableCell>
+                              <div>{group.campaignCount}</div>
+                              {group.placementViews?.length ? (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {group.placementViews.map((view: any) => `${view.view}: ${view.placeholders?.map((p: any) => p.name).join(', ')}`).join(' · ')}
+                                </div>
+                              ) : (
+                                <div className="mt-1 text-xs text-amber-600">No placement configured</div>
+                              )}
+                            </TableCell>
                             <TableCell className="text-right">
                               <Button variant="outline" size="sm" onClick={() => downloadLogos(group.catalogProductId)}>
                                 Download All Logos
@@ -356,12 +426,21 @@ export function AdminOrderManagement() {
                                             <TableCell className="max-w-[260px] text-xs text-muted-foreground">{recipient.addressText || '-'}</TableCell>
                                             <TableCell>
                                               {recipient.uploadedLogoUrl ? (
-                                                <Button variant="ghost" size="sm" asChild>
-                                                  <a href={recipient.uploadedLogoUrl} target="_blank" rel="noreferrer">
-                                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                                    Logo
-                                                  </a>
-                                                </Button>
+                                                <div className="space-y-2">
+                                                  <Button variant="ghost" size="sm" asChild>
+                                                    <a href={recipient.uploadedLogoUrl} target="_blank" rel="noreferrer">
+                                                      <ExternalLink className="mr-2 h-4 w-4" />
+                                                      Logo
+                                                    </a>
+                                                  </Button>
+                                                  {recipient.placementViews?.length ? (
+                                                    <div className="max-w-[220px] text-xs text-muted-foreground">
+                                                      {recipient.placementViews.map((view: any) => `${view.view}: ${view.placeholders?.map((p: any) => p.name).join(', ')}`).join(' · ')}
+                                                    </div>
+                                                  ) : (
+                                                    <div className="text-xs text-amber-600">No print placement</div>
+                                                  )}
+                                                </div>
                                               ) : '-'}
                                             </TableCell>
                                             <TableCell>
@@ -372,10 +451,15 @@ export function AdminOrderManagement() {
                                               </div>
                                             </TableCell>
                                             <TableCell className="text-right">
-                                              <Button size="sm" onClick={() => markRecipientShipped(recipient.redemptionId)}>
-                                                <Truck className="mr-2 h-4 w-4" />
-                                                Mark Shipped
-                                              </Button>
+                                              <div className="flex justify-end gap-2">
+                                                <Button size="sm" onClick={() => markRecipientShipped(recipient.redemptionId)}>
+                                                  <Truck className="mr-2 h-4 w-4" />
+                                                  Mark Shipped
+                                                </Button>
+                                                <Button size="sm" variant="outline" onClick={() => markRecipientDelivered(recipient.redemptionId)}>
+                                                  Delivered
+                                                </Button>
+                                              </div>
                                             </TableCell>
                                           </TableRow>
                                         );

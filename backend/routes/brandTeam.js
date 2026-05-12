@@ -7,6 +7,10 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { sendVerificationEmail } = require('../utils/mailer');
 
+function getClientBaseUrl() {
+  return (process.env.CLIENT_URL || process.env.BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+}
+
 // Helper: verify the requesting user owns or is admin of the given brandId
 async function assertBrandAccess(req, brandId) {
   const store = await Store.findById(brandId);
@@ -79,7 +83,7 @@ router.post('/:brandId/invite', protect, async (req, res) => {
     }
 
     // Send invite email
-    const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/brand-team/accept?token=${inviteToken}`;
+    const inviteLink = `${getClientBaseUrl()}/brand-team/accept?token=${inviteToken}`;
     try {
       await sendVerificationEmail(
         email,

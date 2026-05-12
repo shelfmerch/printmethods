@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const Kit = require('../models/Kit');
+const KitSend = require('../models/KitSend');
 const KitRedemption = require('../models/KitRedemption');
 const { sendShippingNotificationEmail } = require('../utils/mailer');
 
@@ -39,7 +40,7 @@ router.get('/production-queue', adminOnly, async (req, res) => {
         populate: [
           {
             path: 'kitId',
-            populate: { path: 'items.catalogProductId', select: 'name galleryImages' },
+            populate: { path: 'items.catalogProductId', select: 'name galleryImages design' },
           },
           { path: 'brandId', select: 'name slug brandProfile.companyName' },
         ],
@@ -64,6 +65,21 @@ router.get('/production-queue', adminOnly, async (req, res) => {
         const key = `${productId}|${color}|${size}`;
         const kitItem = kitItems.find((item) => idOf(item.catalogProductId) === productId);
 
+        const placementViews = Array.isArray(product?.design?.views)
+          ? product.design.views
+            .filter((view) => Array.isArray(view.placeholders) && view.placeholders.length)
+            .map((view) => ({
+              view: view.key,
+              placeholders: view.placeholders.map((placeholder) => ({
+                name: placeholder.name || placeholder.id || 'Print area',
+                xIn: placeholder.xIn,
+                yIn: placeholder.yIn,
+                widthIn: placeholder.widthIn,
+                heightIn: placeholder.heightIn,
+              })),
+            }))
+          : [];
+
         if (!groups.has(key)) {
           groups.set(key, {
             catalogProductId: productId,
@@ -72,6 +88,7 @@ router.get('/production-queue', adminOnly, async (req, res) => {
             size,
             totalQty: 0,
             campaignCount: 0,
+            placementViews,
             campaigns: new Set(),
             recipients: [],
           });
@@ -93,6 +110,7 @@ router.get('/production-queue', adminOnly, async (req, res) => {
           shippingAddress: redemption.shippingAddress || redemption.surpriseAddress || {},
           addressText: formatAddress(redemption.shippingAddress || redemption.surpriseAddress || {}),
           uploadedLogoUrl: kitItem?.uploadedLogoUrl || '',
+          placementViews,
           trackingNumber: redemption.trackingNumber || '',
           carrier: redemption.carrier || '',
           trackingUrl: redemption.trackingUrl || '',
@@ -113,6 +131,52 @@ router.get('/production-queue', adminOnly, async (req, res) => {
   } catch (err) {
     console.error('Admin kit fulfillment queue error:', err);
     res.status(500).json({ success: false, message: 'Failed to load kit fulfillment queue' });
+  }
+});
+
+router.get('/orders', adminOnly, async (req, res) => {
+  try {
+    const kitSends = await KitSend.find({})
+      .populate('kitId', 'name items')
+      .populate('brandId', 'name slug brandProfile.companyName merchant')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    const ids = kitSends.map((send) => send._id);
+    const redemptions = await KitRedemption.aggregate([
+      { $match: { kitSendId: { $in: ids } } },
+      { $group: { _id: { kitSendId: '$kitSendId', status: '$status', shippingStatus: '$shippingStatus' }, count: { $sum: 1 } } },
+    ]);
+
+    const statsBySend = new Map();
+    redemptions.forEach((entry) => {
+      const key = idOf(entry._id.kitSendId);
+      const current = statsBySend.get(key) || { pending: 0, redeemed: 0, shipped: 0, delivered: 0 };
+      if (entry._id.status === 'pending') current.pending += entry.count;
+      if (entry._id.status === 'redeemed') current.redeemed += entry.count;
+      if (entry._id.shippingStatus === 'shipped') current.shipped += entry.count;
+      if (entry._id.shippingStatus === 'delivered') current.delivered += entry.count;
+      statsBySend.set(key, current);
+    });
+
+    const data = kitSends.map((send) => ({
+      _id: idOf(send),
+      kitName: send.kitId?.name || 'Kit',
+      brandName: send.brandId?.brandProfile?.companyName || send.brandId?.name || '',
+      deliveryMode: send.deliveryMode,
+      recipientCount: send.recipientCount || send.singleLocationQuantity || 0,
+      status: send.status,
+      total: send.total,
+      createdAt: send.createdAt,
+      payment: send.payment || {},
+      stats: statsBySend.get(idOf(send)) || { pending: 0, redeemed: 0, shipped: 0, delivered: 0 },
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('Admin kit orders error:', err);
+    res.status(500).json({ success: false, message: 'Failed to load kit orders' });
   }
 });
 
@@ -203,6 +267,51 @@ router.put('/redemption/:redemptionId/ship', adminOnly, async (req, res) => {
   } catch (err) {
     console.error('Admin kit fulfillment ship error:', err);
     res.status(500).json({ success: false, message: 'Failed to mark kit item shipped' });
+  }
+});
+
+router.put('/redemption/:redemptionId/status', adminOnly, async (req, res) => {
+  try {
+    const { status, note = '' } = req.body || {};
+    if (!['in-production', 'shipped', 'delivered'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid kit shipping status' });
+    }
+
+    const redemption = await KitRedemption.findById(req.params.redemptionId)
+      .populate({
+        path: 'kitSendId',
+        populate: { path: 'kitId', select: 'name' },
+      });
+    if (!redemption) {
+      return res.status(404).json({ success: false, message: 'Kit redemption not found' });
+    }
+
+    redemption.shippingStatus = status;
+    if (status === 'delivered') redemption.deliveredAt = new Date();
+    redemption.shippingHistory = [
+      ...(redemption.shippingHistory || []),
+      { status, at: new Date(), note: note || `Marked ${status} by superadmin`, actor: buildActor(req.user) },
+    ];
+    await redemption.save();
+
+    if (status === 'delivered') {
+      try {
+        await sendShippingNotificationEmail({
+          to: redemption.recipientEmail,
+          recipientName: redemption.recipientName,
+          orderId: redemption.kitSendId?.kitId?.name || redemption._id,
+          status: 'delivered',
+          items: redemption.selectedItems,
+        });
+      } catch (emailErr) {
+        console.error('Kit redemption delivered email failed:', emailErr);
+      }
+    }
+
+    res.json({ success: true, data: redemption });
+  } catch (err) {
+    console.error('Admin kit fulfillment status error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update kit item status' });
   }
 });
 

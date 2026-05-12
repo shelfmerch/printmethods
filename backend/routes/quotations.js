@@ -5,6 +5,16 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const DirectOrder = require('../models/DirectOrder');
 const { notifySuperadminNewPO } = require('../utils/mailer');
+const {
+  getQuotationPaymentStatus,
+  validateAdvanceAmount,
+} = require('../utils/quotationPayments');
+const {
+  buildDirectOrderInvoicePayload,
+  createCommercialInvoice,
+  generateInvoicePdfBuffer,
+} = require('../utils/commercialInvoices');
+const { sendOrderConfirmationEmail } = require('../utils/mailer');
 
 const getRazorpay = () => {
   const key_id = process.env.RAZORPAY_KEY_ID;
@@ -56,9 +66,9 @@ router.post('/create', protect, async (req, res) => {
 
     const order = await DirectOrder.create({
       merchantId: req.user._id,
-      customerEmail: req.user.email || shippingInfo?.email,
-      customerName: req.user.name || shippingInfo?.fullName,
-      customerPhone: req.user.phone || shippingInfo?.phone,
+      customerEmail: shippingInfo?.email || req.user.email,
+      customerName: shippingInfo?.fullName || req.user.name,
+      customerPhone: shippingInfo?.phone || req.user.phone || req.user.phoneNumber,
       orderType: 'quotation',
       items,
       subtotal,
@@ -173,8 +183,14 @@ router.post('/:id/razorpay/advance-create', protect, async (req, res) => {
     const amountPaise = Math.round(Number(req.body?.amountPaise || 0));
     const quote = await DirectOrder.findOne({ _id: req.params.id, orderType: 'quotation', merchantId: req.user._id });
     if (!quote) return res.status(404).json({ success: false, message: 'Quotation not found' });
-    if (amountPaise < 1 || amountPaise > Math.round(Number(quote.total || 0) * 100)) {
-      return res.status(400).json({ success: false, message: 'Advance amount must be between ₹1 and the quotation total' });
+    const validation = validateAdvanceAmount(quote.total, amountPaise);
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validation.message,
+        minPaise: validation.minPaise,
+        maxPaise: validation.maxPaise,
+      });
     }
 
     const razorpay = getRazorpay();
@@ -209,11 +225,41 @@ router.post('/:id/razorpay/advance-verify', protect, async (req, res) => {
     if (!quote) return res.status(404).json({ success: false, message: 'Quotation not found' });
     quote.quotation.advancePaidPaise = Number(quote.quotation.advancePaidPaise || 0) + Math.round(Number(amountPaise || 0));
     quote.quotation.advanceRazorpayPaymentId = razorpayPaymentId;
-    if (quote.quotation.advancePaidPaise > 0 && quote.status === 'quotation') {
-      quote.status = 'partially_paid';
-      appendStatusHistory(quote, 'partially_paid', req.user, 'Advance payment verified');
+    const nextStatus = getQuotationPaymentStatus(quote.total, quote.quotation.advancePaidPaise);
+    if (nextStatus && quote.status !== nextStatus) {
+      quote.status = nextStatus;
+      appendStatusHistory(
+        quote,
+        nextStatus,
+        req.user,
+        nextStatus === 'paid' ? 'Full payment verified' : 'Advance payment verified'
+      );
     }
     await quote.save();
+
+    try {
+      const invoice = await createCommercialInvoice(buildDirectOrderInvoicePayload(quote, {
+        sourceType: 'quotation',
+        paidAmount: Number(amountPaise || 0) / 100,
+      }));
+      const invoicePdf = await generateInvoicePdfBuffer({
+        invoice,
+        title: nextStatus === 'paid' ? 'Quotation Payment Invoice' : 'Quotation Advance Invoice',
+        customerName: quote.customerName,
+        customerEmail: quote.customerEmail,
+      });
+      await sendOrderConfirmationEmail({
+        to: quote.customerEmail || req.user.email,
+        orderId: quote.quotation?.number || quote._id,
+        invoiceNumber: invoice.invoiceNumber,
+        items: quote.items,
+        total: invoice.totalAmount,
+        attachments: [{ filename: `${invoice.invoiceNumber}.pdf`, content: invoicePdf }],
+      });
+    } catch (invoiceErr) {
+      console.error('Quotation invoice email failed:', invoiceErr);
+    }
+
     res.json({ success: true, data: quote });
   } catch (err) {
     console.error('Quotation advance verify error:', err);

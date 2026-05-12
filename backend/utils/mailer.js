@@ -617,7 +617,7 @@ const sendKitInviteEmail = async ({ to, recipientName, fromName, message, redeem
   }
 };
 
-const sendOrderConfirmationEmail = async ({ to, orderId, items = [], total = 0 }) => {
+const sendOrderConfirmationEmail = async ({ to, orderId, invoiceNumber = '', items = [], total = 0, attachments = [] }) => {
   try {
     const transporter = createTransporter();
     const safeItems = Array.isArray(items) ? items : [];
@@ -642,12 +642,13 @@ const sendOrderConfirmationEmail = async ({ to, orderId, items = [], total = 0 }
     const mailOptions = {
       from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
       to,
-      subject: `Order confirmation #${orderId}`,
+      subject: `${invoiceNumber ? `Invoice ${invoiceNumber}` : 'Order confirmation'} #${orderId}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #111827;">
           <h1 style="margin: 0 0 12px; font-size: 28px;">Order confirmed</h1>
           <p style="margin: 0 0 20px; color: #4b5563;">Thanks for your order. We have received your payment and will start processing it.</p>
-          <p style="margin: 0 0 20px;"><strong>Order ID:</strong> #${orderId}</p>
+          <p style="margin: 0 0 8px;"><strong>Order ID:</strong> #${orderId}</p>
+          ${invoiceNumber ? `<p style="margin: 0 0 20px;"><strong>Invoice:</strong> ${invoiceNumber}</p>` : ''}
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <thead>
               <tr>
@@ -661,7 +662,8 @@ const sendOrderConfirmationEmail = async ({ to, orderId, items = [], total = 0 }
           <p style="font-size: 18px; font-weight: 700; text-align: right;">Total: ${formatCurrency(total)}</p>
         </div>
       `,
-      text: `Order confirmed\n\nOrder ID: #${orderId}\nTotal: ${formatCurrency(total)}\n\nItems:\n${safeItems.map((item) => `- ${item.productName || item.name || 'Selected item'} x ${item.quantity || 0}`).join('\n')}`,
+      text: `Order confirmed\n\nOrder ID: #${orderId}\n${invoiceNumber ? `Invoice: ${invoiceNumber}\n` : ''}Total: ${formatCurrency(total)}\n\nItems:\n${safeItems.map((item) => `- ${item.productName || item.name || 'Selected item'} x ${item.quantity || 0}`).join('\n')}`,
+      attachments,
     };
 
     return await transporter.sendMail(mailOptions);
@@ -675,6 +677,7 @@ const sendShippingNotificationEmail = async ({
   to,
   recipientName = '',
   orderId,
+  status = 'shipped',
   trackingNumber = '',
   carrier = '',
   trackingUrl = '',
@@ -684,6 +687,7 @@ const sendShippingNotificationEmail = async ({
     const transporter = createTransporter();
     const safeItems = Array.isArray(items) ? items : [];
     const safeName = recipientName || 'there';
+    const isDelivered = status === 'delivered';
     const trackingLine = trackingNumber
       ? `${carrier ? `${carrier} ` : ''}${trackingNumber}`
       : 'Tracking details will be shared by the carrier.';
@@ -691,19 +695,19 @@ const sendShippingNotificationEmail = async ({
     const mailOptions = {
       from: `"ShelfMerch" <${process.env.EMAIL_USER}@gmail.com>`,
       to,
-      subject: `Your ShelfMerch shipment is on the way${orderId ? ` - #${orderId}` : ''}`,
+      subject: `${isDelivered ? 'Your ShelfMerch order was delivered' : 'Your ShelfMerch shipment is on the way'}${orderId ? ` - #${orderId}` : ''}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px; color: #111827;">
-          <h1 style="margin: 0 0 12px; font-size: 28px;">Your shipment is on the way</h1>
+          <h1 style="margin: 0 0 12px; font-size: 28px;">${isDelivered ? 'Your order was delivered' : 'Your shipment is on the way'}</h1>
           <p style="margin: 0 0 12px;">Hi ${safeName},</p>
-          <p style="margin: 0 0 20px; color: #4b5563;">Your ShelfMerch order has been marked as shipped.</p>
+          <p style="margin: 0 0 20px; color: #4b5563;">Your ShelfMerch order has been marked as ${isDelivered ? 'delivered' : 'shipped'}.</p>
           ${orderId ? `<p style="margin: 0 0 8px;"><strong>Reference:</strong> #${orderId}</p>` : ''}
-          <p style="margin: 0 0 8px;"><strong>Tracking:</strong> ${trackingLine}</p>
+          ${isDelivered ? '' : `<p style="margin: 0 0 8px;"><strong>Tracking:</strong> ${trackingLine}</p>`}
           ${trackingUrl ? `<p style="margin: 0 0 20px;"><a href="${trackingUrl}" style="color: #2563eb;">Track shipment</a></p>` : ''}
           ${safeItems.length ? `<p style="margin: 20px 0 8px;"><strong>Items:</strong></p><ul>${safeItems.map((item) => `<li>${item.productName || item.name || 'Selected item'}${item.quantity ? ` x ${item.quantity}` : ''}</li>`).join('')}</ul>` : ''}
         </div>
       `,
-      text: `Hi ${safeName},\n\nYour ShelfMerch shipment is on the way.\n${orderId ? `Reference: #${orderId}\n` : ''}Tracking: ${trackingLine}${trackingUrl ? `\nTrack: ${trackingUrl}` : ''}`,
+      text: `Hi ${safeName},\n\nYour ShelfMerch order has been marked as ${isDelivered ? 'delivered' : 'shipped'}.\n${orderId ? `Reference: #${orderId}\n` : ''}${isDelivered ? '' : `Tracking: ${trackingLine}${trackingUrl ? `\nTrack: ${trackingUrl}` : ''}`}`,
     };
 
     return await transporter.sendMail(mailOptions);
