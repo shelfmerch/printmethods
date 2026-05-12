@@ -5,6 +5,9 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProductMockup = require('../models/CatalogProductMockup');
 const CatalogProductInventory = require('../models/CatalogProductInventory');
 const CatalogProductAttribute = require('../models/CatalogProductAttribute');
+const CatalogProductCareInstruction = require('../models/CatalogProductCareInstruction');
+const { attributesFromNormalizedDoc } = require('../utils/catalogAttributesMirror');
+const { expandCareInstructionsForApi } = require('../utils/careInstructionsRefs');
 
 // @route  GET /api/catalog
 // @desc   Public catalog — list all active+published products
@@ -112,9 +115,7 @@ router.get('/:id', async (req, res) => {
       CatalogProductInventory.findOne({ productId: product._id })
         .select('currentStock reservedStock incomingStock minimumQuantity lowStockAlertEnabled lowStockAlertEmail lowStockThreshold stockLocation outOfStockBehavior')
         .lean(),
-      CatalogProductAttribute.findOne({ productId: product._id })
-        .select('material gsm hoodType pocketStyle fit gender brand')
-        .lean(),
+      CatalogProductAttribute.findOne({ productId: product._id }).lean(),
     ]);
     product.design = product.design || {};
     if (!Array.isArray(product.design.sampleMockups) || product.design.sampleMockups.length === 0) {
@@ -138,17 +139,10 @@ router.get('/:id', async (req, res) => {
       if (product.stocks.outOfStockBehavior === undefined) product.stocks.outOfStockBehavior = inv.outOfStockBehavior;
     }
 
-    // Hydrate attributes into legacy response shape (product.attributes)
+    // Hydrate attributes into legacy response shape when embedded is empty
     if ((!product.attributes || Object.keys(product.attributes || {}).length === 0) && attrs) {
-      product.attributes = {
-        material: attrs.material,
-        gsm: attrs.gsm,
-        hoodType: attrs.hoodType,
-        pocketStyle: attrs.pocketStyle,
-        fit: attrs.fit,
-        gender: attrs.gender,
-        brand: attrs.brand,
-      };
+      const mirrored = attributesFromNormalizedDoc(attrs);
+      if (mirrored && Object.keys(mirrored).length > 0) product.attributes = mirrored;
     }
 
     const variants = await CatalogProductVariant.find({
@@ -185,6 +179,19 @@ router.get('/:id', async (req, res) => {
         specificPriceTaxExcl: sp.specificPriceTaxExcl,
       }));
 
+    let ci = product.careInstructions;
+    const hasCare =
+      ci &&
+      typeof ci === 'object' &&
+      ((typeof ci.text === 'string' && ci.text.trim() !== '') ||
+        (Array.isArray(ci.icons) && ci.icons.length > 0));
+    if (!hasCare) {
+      const doc = await CatalogProductCareInstruction.findOne({ productId: product._id }).lean();
+      if (doc) ci = { text: doc.text || '', icons: doc.icons || [] };
+      else ci = { icons: [], text: '' };
+    }
+    const careInstructionsOut = await expandCareInstructionsForApi(ci || { icons: [], text: '' });
+
     res.json({
       success: true,
       data: {
@@ -207,6 +214,7 @@ router.get('/:id', async (req, res) => {
         sizes,
         pricingTiers: tiers,
         shipping: product.shipping,
+        careInstructions: careInstructionsOut,
       },
     });
   } catch (err) {

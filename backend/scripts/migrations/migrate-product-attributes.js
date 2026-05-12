@@ -4,31 +4,15 @@ const mongoose = require('mongoose');
 
 const CatalogProduct = require('../../models/CatalogProduct');
 const CatalogProductAttribute = require('../../models/CatalogProductAttribute');
+const { mirrorCatalogAttributes, unsetLegacyCatalogProductAttributeFields } = require('../../utils/catalogAttributesMirror');
 
 /**
  * Non-destructive, idempotent migration:
- * - CatalogProduct.attributes -> catalogproductattributes (1:1)
+ * - CatalogProduct.attributes -> catalogproductattributes.attributes (full mirror)
  *
  * Does NOT remove embedded CatalogProduct.attributes.
+ * Re-run any time to resync from catalog (source of truth).
  */
-
-const FIELDS = ['material', 'gsm', 'hoodType', 'pocketStyle', 'fit', 'gender', 'brand'];
-
-function pickAttributes(attrs) {
-  if (!attrs || typeof attrs !== 'object') return null;
-  const out = {};
-  let any = false;
-  for (const k of FIELDS) {
-    const v = attrs[k];
-    if (v !== undefined && v !== null && v !== '') {
-      out[k] = String(v);
-      any = true;
-    } else {
-      out[k] = '';
-    }
-  }
-  return any ? out : out; // keep consistent keys even if empty
-}
 
 async function main() {
   const mongoUrl = process.env.MONGO_URL;
@@ -43,6 +27,7 @@ async function main() {
   let scanned = 0;
   let ops = 0;
   const bulk = [];
+  const legacyUnset = unsetLegacyCatalogProductAttributeFields();
 
   const flush = async () => {
     if (!bulk.length) return;
@@ -54,13 +39,8 @@ async function main() {
   for await (const p of cursor) {
     scanned += 1;
     const productId = p._id;
-
-    // CatalogProduct.attributes may be a Map or plain object in lean() output
     const attrs = p.attributes && typeof p.attributes === 'object' ? p.attributes : null;
-    if (!attrs) continue;
-
-    const picked = pickAttributes(attrs);
-    if (!picked) continue;
+    const plain = mirrorCatalogAttributes(attrs || {});
 
     bulk.push({
       updateOne: {
@@ -71,9 +51,10 @@ async function main() {
             createdAt: p.createdAt,
           },
           $set: {
-            ...picked,
+            attributes: plain,
             updatedAt: p.updatedAt,
           },
+          $unset: legacyUnset,
         },
         upsert: true,
       },
@@ -95,4 +76,3 @@ main().catch((err) => {
   console.error('[attr-migrate] failed', err);
   process.exitCode = 1;
 });
-

@@ -3,6 +3,7 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProductMockup = require('../models/CatalogProductMockup');
 const CatalogProductInventory = require('../models/CatalogProductInventory');
 const CatalogProductAttribute = require('../models/CatalogProductAttribute');
+const { attributesFromNormalizedDoc } = require('../utils/catalogAttributesMirror');
 const { NotFoundError } = require('../public-api/core/errors');
 const {
   toCatalogSummaryDTO,
@@ -91,8 +92,9 @@ async function hydrateAttributesForProducts(products, { includeAttributes = fals
     if (p.attributes && typeof p.attributes === 'object' && Object.keys(p.attributes).length > 0) continue;
     const d = byProduct.get(pid);
     if (!d) continue;
-    const { material, gsm, hoodType, pocketStyle, fit, gender, brand } = d;
-    p.attributes = { material, gsm, hoodType, pocketStyle, fit, gender, brand };
+    const mirrored = attributesFromNormalizedDoc(d);
+    if (!mirrored || Object.keys(mirrored).length === 0) continue;
+    p.attributes = mirrored;
   }
 
   return products;

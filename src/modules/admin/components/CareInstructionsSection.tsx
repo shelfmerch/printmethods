@@ -57,28 +57,27 @@ export const CareInstructionsSection = ({ data, onChange }: CareInstructionsSect
     }
   };
 
+  const resolvePreviewSrc = (icon: CareInstructionIcon): string => {
+    const g = globalIcons.find((x) => String(x._id) === String(icon.careIconId));
+    if (g?.type === 'predefined' && g.iconKey) {
+      const localDef = getCareIconByKey(g.iconKey);
+      if (localDef) return localDef.icon;
+    }
+    return icon.iconUrl || g?.url || '';
+  };
+
   const handleToggleIcon = (globalIcon: GlobalCareIcon, checked: boolean) => {
     let newIcons = [...safeData.icons];
     if (checked) {
-      // Check if already selected (by key for predefined, or URL for custom)
-      const exists = globalIcon.type === 'predefined'
-        ? newIcons.some(i => i.type === 'predefined' && i.iconKey === globalIcon.iconKey)
-        : newIcons.some(i => i.type === 'custom' && i.iconUrl === globalIcon.url);
-
+      const exists = newIcons.some((i) => String(i.careIconId) === String(globalIcon._id));
       if (!exists) {
         newIcons.push({
-          type: globalIcon.type,
-          iconKey: globalIcon.iconKey,
-          iconUrl: globalIcon.url,
-          label: globalIcon.label // Initial label from global default
+          careIconId: globalIcon._id,
+          label: globalIcon.label,
         });
       }
     } else {
-      newIcons = newIcons.filter(i => 
-        globalIcon.type === 'predefined' 
-          ? !(i.type === 'predefined' && i.iconKey === globalIcon.iconKey)
-          : !(i.type === 'custom' && i.iconUrl === globalIcon.url)
-      );
+      newIcons = newIcons.filter((i) => String(i.careIconId) !== String(globalIcon._id));
     }
     onChange({ ...safeData, icons: newIcons });
   };
@@ -114,10 +113,14 @@ export const CareInstructionsSection = ({ data, onChange }: CareInstructionsSect
         await fetchGlobalIcons();
         
         // Automatically select for current product
+        const id = newIconItem._id || newIconItem.id;
+        if (!id) {
+          toast({ title: 'Error', description: 'Created icon has no id', variant: 'destructive' });
+          return;
+        }
         const newIcon: CareInstructionIcon = {
-          type: 'custom',
-          iconUrl: newIconItem.url,
-          label: newIconLabel
+          careIconId: String(id),
+          label: newIconLabel,
         };
         onChange({ ...safeData, icons: [...safeData.icons, newIcon] });
 
@@ -172,9 +175,7 @@ export const CareInstructionsSection = ({ data, onChange }: CareInstructionsSect
               if (localDef) iconSrc = localDef.icon;
             }
 
-            const isChecked = icon.type === 'predefined'
-              ? safeData.icons.some(i => i.type === 'predefined' && i.iconKey === icon.iconKey)
-              : safeData.icons.some(i => i.type === 'custom' && i.iconUrl === icon.url);
+            const isChecked = safeData.icons.some((i) => String(i.careIconId) === String(icon._id));
 
             return (
               <div key={icon._id} className="flex items-start space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors group cursor-pointer" 
@@ -261,18 +262,16 @@ export const CareInstructionsSection = ({ data, onChange }: CareInstructionsSect
             </p>
           ) : (
             safeData.icons.map((icon, index) => {
-              let iconSrc = icon.iconUrl || '';
-              if (icon.type === 'predefined' && icon.iconKey) {
-                const localDef = getCareIconByKey(icon.iconKey);
-                if (localDef) iconSrc = localDef.icon;
-              }
-
+              const iconSrc = resolvePreviewSrc(icon);
               return (
-                <div key={`${icon.type}-${index}`} className="flex items-center gap-4 bg-muted/30 p-2 rounded-lg group animate-in zoom-in-95 duration-200">
+                <div
+                  key={`${icon.careIconId ?? 'icon'}-${index}`}
+                  className="flex items-center gap-4 bg-muted/30 p-2 rounded-lg group animate-in zoom-in-95 duration-200"
+                >
                   <div className="w-12 h-12 flex-shrink-0 border rounded bg-white flex items-center justify-center p-1.5 shadow-sm">
                     <img src={iconSrc} alt="Care Icon" className="w-full h-full object-contain" />
                   </div>
-                  
+
                   <div className="flex-1">
                     <Input
                       placeholder="Customize label for this product..."
