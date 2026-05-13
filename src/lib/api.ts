@@ -184,11 +184,10 @@ export const storeProductsApi = {
     return json as { success: boolean; message: string; data: any };
   },
 
-  // Save mockup preview with type separation (flat vs model)
+  // Save flat mockup preview URL only (model mockups are server-generated via generateMockups).
   saveMockup: async (id: string, payload: {
-    mockupType: 'flat' | 'model';
+    mockupType: 'flat';
     viewKey: string;
-    colorKey?: string;  // Required for model mockups
     imageUrl: string;
   }) => {
     const token = getToken();
