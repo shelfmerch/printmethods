@@ -212,6 +212,38 @@ export const storeProductsApi = {
     return json as { success: boolean; message: string; data: any };
   },
 
+  // Trigger server-side mockup generation (and optional Konva realism bake-in).
+  // withKonvaRealism: true  → apply the same multiply-0.20 + soft-light-0.18 full-frame
+  // passes that MockupKonva renders in MockupsLibrary so the stored images match the preview.
+  generateMockups: async (
+    id: string,
+    payload?: {
+      colorFilter?: string;
+      withKonvaRealism?: boolean;
+      designOnlyImages?: Record<string, string>;
+    },
+  ) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/store-products/${id}/generate-mockups`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload ?? {}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(errorData.message || 'Failed to generate mockups', response.status, errorData.errors);
+    }
+
+    const json = await response.json();
+    return json as { success: boolean; modelMockups: Record<string, Record<string, string>>; errors?: string[] };
+  },
+
   // Delete a store product
   delete: async (id: string) => {
     const token = getToken();

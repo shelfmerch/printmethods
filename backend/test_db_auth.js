@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
-const MONGO_URI = 'mongodb+srv://shelfmerchcom_db_user:Karaoke%400313@shelfmerch.6uk2ux2.mongodb.net/shelfmerch_mouaz';
+const MONGO_URL = 'mongodb+srv://shelfmerchcom_db_user:Karaoke%400313@shelfmerch.6uk2ux2.mongodb.net/shelfmerch_mouaz';
 
 async function main() {
   try {
-    await mongoose.connect(MONGO_URI);
+    await mongoose.connect(MONGO_URL);
     console.log("✅ Successfully connected to the database!");
     
     const db = mongoose.connection.db;

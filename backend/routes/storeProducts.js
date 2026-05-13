@@ -10,7 +10,7 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProductCareInstruction = require('../models/CatalogProductCareInstruction');
 const { expandCareInstructionsForApi } = require('../utils/careInstructionsRefs');
 const { uploadToS3 } = require('../utils/s3Upload');
-const { compositeMockup, compositeMockupFromCanvas } = require('../utils/compositeMockup');
+const { compositeMockup, compositeMockupFromCanvas, applyKonvaRealismPasses } = require('../utils/compositeMockup');
 const { v4: uuidv4 } = require('uuid');
 const { assertWithinPlanLimit } = require('../utils/planLimits');
 
@@ -1087,6 +1087,11 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
     // Optional: restrict generation to a single color (sent by MockupsLibrary for lazy sequential loading)
     const colorFilter = req.body?.colorFilter || null;
 
+    // When true, apply the MockupKonva two-pass realism (multiply 0.20 + soft-light 0.18) using the
+    // garment-only image after each composite is built. This bakes in the exact visual effect that
+    // MockupsLibrary.tsx renders client-side so the stored images match what the user sees on screen.
+    const withKonvaRealism = req.body?.withKonvaRealism === true;
+
     // Fallback color discovery for older drafts where selectedColors wasn't persisted
     const allColors = (() => {
       if (selectedColors.length > 0) return selectedColors;
@@ -1225,6 +1230,25 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
             // eslint-disable-next-line no-await-in-loop
             const resp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
             imageBuffer = Buffer.from(resp.data);
+          }
+
+          // ── Konva realism passes (optional) ──────────────────────────────
+          // When withKonvaRealism is true, replicate the full-frame blend passes
+          // that MockupKonva applies in MockupsLibrary.tsx so the stored image
+          // matches the on-screen preview exactly.
+          if (withKonvaRealism && mockup.imageUrl) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const garmentBuf = await fetchBuffer(mockup.imageUrl);
+              // eslint-disable-next-line no-await-in-loop
+              imageBuffer = await applyKonvaRealismPasses(imageBuffer, garmentBuf);
+              console.log(`[generate-mockups] konva realism applied for ${colorKey}/${viewKey}`);
+            } catch (konvaErr) {
+              console.warn(
+                `[generate-mockups] konva realism skipped for ${colorKey}/${viewKey}:`,
+                konvaErr.message,
+              );
+            }
           }
 
           const filename = `generated-${uuidv4()}.png`;
