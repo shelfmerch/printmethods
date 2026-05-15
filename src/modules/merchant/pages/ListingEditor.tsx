@@ -472,6 +472,22 @@ const ListingEditor = () => {
         ),
       );
 
+      // ── Pre-publish: generate (or regenerate) final mockups with Konva realism ──
+      // This bakes the same multiply-0.20 + soft-light-0.18 full-frame passes that
+      // MockupsLibrary renders into the stored images, so modelMockups always contains
+      // the final, visually-accurate mockups when the product goes live.
+      if (targetStatus === 'published' && storeProductId) {
+        toast.loading('Finalising product mockups…', { id: 'publish-mockups' });
+        try {
+          await storeProductsApi.generateMockups(storeProductId, { withKonvaRealism: true });
+          toast.dismiss('publish-mockups');
+        } catch (mockupErr: any) {
+          toast.dismiss('publish-mockups');
+          console.warn('[publish] mockup finalisation failed (continuing):', mockupErr?.message);
+          // Non-fatal — continue with publish even if mockup generation fails
+        }
+      }
+
       // Build base update payload
       const currentDesignData = draftData?.designData || state?.designData || {};
       const basePayload: any = {

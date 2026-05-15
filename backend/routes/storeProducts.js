@@ -10,7 +10,7 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProductCareInstruction = require('../models/CatalogProductCareInstruction');
 const { expandCareInstructionsForApi } = require('../utils/careInstructionsRefs');
 const { uploadToS3 } = require('../utils/s3Upload');
-const { compositeMockup, compositeMockupFromCanvas } = require('../utils/compositeMockup');
+const { compositeMockup, compositeMockupFromCanvas, applyKonvaRealismPasses } = require('../utils/compositeMockup');
 const { v4: uuidv4 } = require('uuid');
 const { assertWithinPlanLimit } = require('../utils/planLimits');
 
@@ -111,6 +111,14 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       delete cleanDesignData.previewImagesByView;
       delete cleanDesignData.tags;
       delete cleanDesignData.galleryImages;
+      // modelMockups may only be written by POST .../generate-mockups (never from client body)
+      delete cleanDesignData.modelMockups;
+      if (
+        existingSp?.designData?.modelMockups &&
+        typeof existingSp.designData.modelMockups === 'object'
+      ) {
+        cleanDesignData.modelMockups = existingSp.designData.modelMockups;
+      }
     }
 
     const spUpdateData = {
@@ -674,15 +682,14 @@ router.patch('/:id/design-preview', protect, authorize('merchant', 'superadmin')
 });
 
 // @route   PATCH /api/store-products/:id/mockup
-// @desc    Save a mockup preview (flat or model) with proper type separation
+// @desc    Save a flat mockup preview URL (model mockups are server-only via POST .../generate-mockups)
 // @access  Private (merchant, superadmin)
 router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      mockupType,  // 'flat' | 'model'
+      mockupType,  // must be 'flat' — model mockups use POST .../generate-mockups
       viewKey,     // 'front' | 'back' | 'left' | 'right'
-      colorKey,    // Required for model mockups (e.g., 'cerulean-frost')
       imageUrl
     } = req.body;
 
@@ -694,17 +701,18 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
       });
     }
 
-    if (!['flat', 'model'].includes(mockupType)) {
+    if (mockupType === 'model') {
       return res.status(400).json({
         success: false,
-        message: 'mockupType must be "flat" or "model"'
+        message:
+          'Model mockups are generated only by the server. Use POST /api/store-products/:id/generate-mockups instead of PATCH .../mockup.',
       });
     }
 
-    if (mockupType === 'model' && !colorKey) {
+    if (mockupType !== 'flat') {
       return res.status(400).json({
         success: false,
-        message: 'colorKey is required for model mockups'
+        message: 'mockupType must be "flat"',
       });
     }
 
@@ -722,47 +730,32 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    // Initialize designData structures
-    // if (!sp.designData) sp.designData = {};
-    // if (!sp.designData.previewImagesByView) sp.designData.previewImagesByView = {};
+    if (!sp.designData) sp.designData = {};
 
-    if (mockupType === 'flat') {
-      // Store flat mockups separately
-      if (!sp.designData.flatMockups) sp.designData.flatMockups = {};
-      sp.designData.flatMockups[viewKey] = imageUrl;
+    // Store flat mockups separately
+    if (!sp.designData.flatMockups) sp.designData.flatMockups = {};
+    sp.designData.flatMockups[viewKey] = imageUrl;
 
-      // Update legacy field for backward compatibility
-      // sp.designData.previewImagesByView[viewKey] = imageUrl;
+    // Update legacy field for backward compatibility
+    // sp.designData.previewImagesByView[viewKey] = imageUrl;
 
-      // Update primary preview if front view
-      if (viewKey === 'front') {
-        sp.designData.previewImageUrl = imageUrl;
-      }
-
-      console.log(`[Mockup] Saved flat mockup for ${viewKey}:`, imageUrl.substring(0, 50) + '...');
-    } else {
-      // Store model mockups separately, keyed by color
-      if (!sp.designData.modelMockups) sp.designData.modelMockups = {};
-      if (!sp.designData.modelMockups[colorKey]) sp.designData.modelMockups[colorKey] = {};
-      sp.designData.modelMockups[colorKey][viewKey] = imageUrl;
-
-      // Update legacy field for backward compatibility with color-prefixed key
-      // const legacyKey = `mockup-${colorKey}-${viewKey}`;
-      // sp.designData.previewImagesByView[legacyKey] = imageUrl;
-
-      console.log(`[Mockup] Saved model mockup for ${colorKey}/${viewKey}:`, imageUrl.substring(0, 50) + '...');
+    // Update primary preview if front view
+    if (viewKey === 'front') {
+      sp.designData.previewImageUrl = imageUrl;
     }
+
+    console.log(`[Mockup] Saved flat mockup for ${viewKey}:`, imageUrl.substring(0, 50) + '...');
 
     sp.markModified('designData');
     await sp.save();
 
     return res.json({
       success: true,
-      message: `${mockupType} mockup saved for ${mockupType === 'model' ? `${colorKey}/${viewKey}` : viewKey}`,
+      message: `flat mockup saved for ${viewKey}`,
       data: {
-        mockupType,
+        mockupType: 'flat',
         viewKey,
-        colorKey: colorKey || null,
+        colorKey: null,
         imageUrl,
         flatMockups: sp.designData.flatMockups,
         modelMockups: sp.designData.modelMockups
@@ -828,7 +821,9 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       delete cleanDesignData.previewImagesByView;
       delete cleanDesignData.tags;
       delete cleanDesignData.galleryImages;
-      
+      // modelMockups may only be written by POST .../generate-mockups
+      delete cleanDesignData.modelMockups;
+
       sp.designData = { ...(sp.designData || {}), ...cleanDesignData };
       
       // Also delete from existing designData if they are already present
@@ -1087,6 +1082,11 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
     // Optional: restrict generation to a single color (sent by MockupsLibrary for lazy sequential loading)
     const colorFilter = req.body?.colorFilter || null;
 
+    // When true, apply the MockupKonva two-pass realism (multiply 0.20 + soft-light 0.18) using the
+    // garment-only image after each composite is built. This bakes in the exact visual effect that
+    // MockupsLibrary.tsx renders client-side so the stored images match what the user sees on screen.
+    const withKonvaRealism = req.body?.withKonvaRealism === true;
+
     // Fallback color discovery for older drafts where selectedColors wasn't persisted
     const allColors = (() => {
       if (selectedColors.length > 0) return selectedColors;
@@ -1225,6 +1225,25 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
             // eslint-disable-next-line no-await-in-loop
             const resp = await axios.get(mockup.imageUrl, { responseType: 'arraybuffer' });
             imageBuffer = Buffer.from(resp.data);
+          }
+
+          // ── Konva realism passes (optional) ──────────────────────────────
+          // When withKonvaRealism is true, replicate the full-frame blend passes
+          // that MockupKonva applies in MockupsLibrary.tsx so the stored image
+          // matches the on-screen preview exactly.
+          if (withKonvaRealism && mockup.imageUrl) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const garmentBuf = await fetchBuffer(mockup.imageUrl);
+              // eslint-disable-next-line no-await-in-loop
+              imageBuffer = await applyKonvaRealismPasses(imageBuffer, garmentBuf);
+              console.log(`[generate-mockups] konva realism applied for ${colorKey}/${viewKey}`);
+            } catch (konvaErr) {
+              console.warn(
+                `[generate-mockups] konva realism skipped for ${colorKey}/${viewKey}:`,
+                konvaErr.message,
+              );
+            }
           }
 
           const filename = `generated-${uuidv4()}.png`;

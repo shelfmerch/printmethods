@@ -15,9 +15,9 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 const mongoose = require('mongoose');
 
 async function cleanup() {
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URL;
   if (!uri) {
-    console.error('❌ No MONGODB_URI or MONGO_URI found in .env');
+    console.error('❌ No MONGODB_URI or MONGO_URL found in .env');
     process.exit(1);
   }
 

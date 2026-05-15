@@ -213,7 +213,7 @@ async function createProduct(userId, data) {
             selectedSizes: data.design_data.selected_sizes,
             selectedSizesByColor: data.design_data.selected_sizes_by_color || {},
             primaryColorHex: data.design_data.primary_color_hex || null,
-            modelMockups: data.design_data.model_mockups || {},
+            // modelMockups: server-only (POST .../generate-mockups); never from API body
             displacementSettings: catalogProduct.design?.displacementSettings || {},
         },
         variantsSummary,

@@ -542,4 +542,71 @@ async function compositeMockupFromCanvas(
     .toBuffer();
 }
 
-module.exports = { compositeMockup, compositeMockupFromCanvas, convertPlaceholderToPixels };
+/**
+ * Scales the alpha channel of an RGBA image buffer by a factor in [0, 1].
+ * Used to produce a partially-transparent overlay for blend-mode compositing.
+ */
+async function scaleAlpha(imageBuffer, opacity) {
+  const { data, info } = await sharp(imageBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const out = Buffer.from(data);
+  for (let i = 3; i < out.length; i += 4) {
+    out[i] = Math.round(out[i] * opacity);
+  }
+  return sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } })
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Replicates the MockupKonva two-pass realism layer (MockupsLibrary.tsx) on
+ * the server using sharp, so the stored image matches the on-screen display.
+ *
+ * The frontend MockupKonva component renders:
+ *   Layer 1  — server composite    (design + garment already merged)
+ *   Layer 2  — garment-only image via multiply  @ globalAlpha 0.20
+ *   Layer 2  — garment-only image via soft-light @ globalAlpha 0.18
+ *
+ * Both blend passes are drawn over the ENTIRE canvas (full-frame), not just
+ * the print area, which gives the garment fabric its colour/texture feel.
+ *
+ * @param {Buffer} compositeBuffer  - PNG from generate-mockups (design on garment)
+ * @param {Buffer} garmentBuffer    - Original garment-only image (mockup.imageUrl)
+ * @returns {Promise<Buffer>}       - Final PNG with realism passes baked in
+ */
+async function applyKonvaRealismPasses(compositeBuffer, garmentBuffer) {
+  const { width, height } = await sharp(compositeBuffer).metadata();
+  if (!width || !height) return compositeBuffer;
+
+  // Resize garment to exactly match the composite dimensions.
+  // The composite was built on top of this very garment image, so dimensions
+  // should already match; resize is a safety net for any edge cases.
+  const garmentFull = await sharp(garmentBuffer)
+    .resize(width, height, { fit: 'fill', kernel: 'lanczos3' })
+    .ensureAlpha()
+    .toBuffer();
+
+  // Pass 1 — multiply @ 0.20  (garment colour / shadows bleed through design)
+  const garmentMultiply = await scaleAlpha(garmentFull, 0.20);
+  const afterMultiply = await sharp(compositeBuffer)
+    .composite([{ input: garmentMultiply, blend: 'multiply' }])
+    .png()
+    .toBuffer();
+
+  // Pass 2 — soft-light @ 0.18  (surface sheen and highlights)
+  const garmentSoftLight = await scaleAlpha(garmentFull, 0.18);
+  return sharp(afterMultiply)
+    .composite([{ input: garmentSoftLight, blend: 'soft-light' }])
+    .png()
+    .toBuffer();
+}
+
+module.exports = {
+  compositeMockup,
+  compositeMockupFromCanvas,
+  convertPlaceholderToPixels,
+  applyKonvaRealismPasses,
+};
