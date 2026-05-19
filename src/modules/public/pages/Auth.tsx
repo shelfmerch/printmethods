@@ -779,8 +779,8 @@ const Auth = () => {
           if (isAddProductFlow) {
             const me = await authApi.getMe().catch(() => null as any);
             const u = me?.user || me?.data?.user;
-            const emailOk = Boolean(u?.isEmailVerified);
-            const phoneOk = Boolean(u?.isPhoneVerified);
+            const emailOk = Boolean(u?.email);
+            const phoneOk = Boolean(u?.phoneNumber);
 
             if (!emailOk || !phoneOk) {
               const target = consumeReturnToForVerification();
@@ -938,8 +938,8 @@ const Auth = () => {
           // Verify-gate for Add Product: only proceed to mockups if both verified.
           const me = await authApi.getMe().catch(() => null as any);
           const u = me?.user || me?.data?.user;
-          const emailOk = Boolean(u?.isEmailVerified);
-          const phoneOk = Boolean(u?.isPhoneVerified);
+          const emailOk = Boolean(u?.email);
+          const phoneOk = Boolean(u?.phoneNumber);
 
           if (!emailOk || !phoneOk) {
             const target = consumeReturnToForVerification();
@@ -991,8 +991,8 @@ const Auth = () => {
           if (isAddProductFlow) {
             const me = await authApi.getMe().catch(() => null as any);
             const u = me?.user || me?.data?.user;
-            const emailOk = Boolean(u?.isEmailVerified);
-            const phoneOk = Boolean(u?.isPhoneVerified);
+            const emailOk = Boolean(u?.email);
+            const phoneOk = Boolean(u?.phoneNumber);
 
             if (!emailOk || !phoneOk) {
               const target = consumeReturnToForVerification();

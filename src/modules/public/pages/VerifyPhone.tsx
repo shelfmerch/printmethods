@@ -31,7 +31,6 @@ const VerifyPhone: React.FC = () => {
     const isMandatory = sourceParam === 'add-product' || locationState.from === 'add-product' || locationState.triggerPublish;
 
     const handleSendOtp = async () => {
-        // Basic phone validation (digits only, at least 10 chars)
         const phoneClean = phone.replace(/\D/g, '');
         if (phoneClean.length < 10) {
             toast.error('Please enter a valid phone number');
@@ -40,7 +39,7 @@ const VerifyPhone: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const res = await authApi.sendPhoneVerificationLater(phone);
+            const res = await authApi.sendPhoneVerificationLater(phoneClean);
             if (res.success) {
                 if (res.serverOtp) setServerOtp(res.serverOtp);
                 setStep('OTP');
@@ -62,7 +61,8 @@ const VerifyPhone: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const res = await authApi.confirmPhoneVerificationLater(otpValue);
+            const phoneClean = phone.replace(/\D/g, '');
+            const res = await authApi.confirmPhoneVerificationLater(otpValue, phoneClean);
             if (res.success) {
                 toast.success('Phone verified successfully!');
                 await refreshUser(); // Refresh user data to update verification status

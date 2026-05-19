@@ -13,8 +13,6 @@ export interface User {
   phoneNumber?: string; // Add phoneNumber to match backend
   name: string;
   role: UserRole;
-  isEmailVerified: boolean;
-  isPhoneVerified: boolean;
   createdAt: string;
   lastLogin?: string;
   upiId?: string;
@@ -58,8 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               phoneNumber: response.user.phoneNumber,
               name: response.user.name,
               role: response.user.role as UserRole,
-              isEmailVerified: response.user.isEmailVerified || false,
-              isPhoneVerified: response.user.isPhoneVerified || false,
               createdAt: response.user.createdAt,
               lastLogin: response.user.lastLogin,
               upiId: response.user.upiId
@@ -93,8 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phoneNumber: response.user.phoneNumber,
           name: response.user.name,
           role: response.user.role as UserRole,
-          isEmailVerified: response.user.isEmailVerified || false,
-          isPhoneVerified: response.user.isPhoneVerified || false,
+
           createdAt: response.user.createdAt,
           upiId: response.user.upiId
         });
@@ -142,8 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phoneNumber: response.user.phoneNumber,
           name: response.user.name,
           role: response.user.role as UserRole,
-          isEmailVerified: response.user.isEmailVerified || false,
-          isPhoneVerified: response.user.isPhoneVerified || false,
+
           createdAt: response.user.createdAt,
           upiId: response.user.upiId
         });
@@ -197,8 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phoneNumber: response.user.phoneNumber,
           name: response.user.name,
           role: response.user.role as UserRole,
-          isEmailVerified: response.user.isEmailVerified || false,
-          isPhoneVerified: response.user.isPhoneVerified || false,
+
           createdAt: response.user.createdAt,
           lastLogin: response.user.lastLogin,
           upiId: response.user.upiId

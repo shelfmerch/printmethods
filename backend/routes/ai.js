@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const UserGeneratedImages = require('../models/UserGeneratedImages');
 const { protect } = require('../middleware/auth');
 
 /**
@@ -62,26 +63,30 @@ router.post('/generate', protect, async (req, res) => {
             throw new Error("No image URL returned from generator");
         }
 
-        // 3. Save to MongoDB
+        // 3. Deduct credit and save new image to UserGeneratedImages collection
         user.credits -= 1;
-        user.generatedImages.unshift({
-            url: generatedUrl,
-            prompt,
-            style: style || 'illustration'
-        });
+        await user.save();
+
+        const newImage = { url: generatedUrl, prompt, style: style || 'illustration' };
+
+        // Upsert: find existing doc for this user or create one, then prepend image
+        let imageDoc = await UserGeneratedImages.findOne({ user: userId });
+        if (!imageDoc) {
+            imageDoc = new UserGeneratedImages({ user: userId, images: [] });
+        }
+        imageDoc.images.unshift(newImage);
 
         // Keep only last 20 images in history to avoid document bloat
-        if (user.generatedImages.length > 20) {
-            user.generatedImages = user.generatedImages.slice(0, 20);
+        if (imageDoc.images.length > 20) {
+            imageDoc.images = imageDoc.images.slice(0, 20);
         }
-
-        await user.save();
+        await imageDoc.save();
 
         res.json({
             success: true,
             image_url: generatedUrl,
             credits: user.credits,
-            history: user.generatedImages.slice(0, 6) // Return 6 most recent for UI
+            history: imageDoc.images.slice(0, 6) // Return 6 most recent for UI
         });
 
     } catch (error) {
@@ -99,11 +104,12 @@ router.post('/generate', protect, async (req, res) => {
  */
 router.get('/me', protect, async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select('credits generatedImages');
+        const user = await User.findById(req.user._id).select('credits');
+        const imageDoc = await UserGeneratedImages.findOne({ user: req.user._id });
         res.json({
             success: true,
             credits: user.credits,
-            history: user.generatedImages.slice(0, 10)
+            history: imageDoc ? imageDoc.images.slice(0, 10) : []
         });
     } catch (error) {
         res.status(500).json({ success: false, error: "Failed to fetch AI stats" });

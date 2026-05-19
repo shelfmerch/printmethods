@@ -3041,7 +3041,9 @@ const DesignEditor: React.FC = () => {
       console.log('Mockup Generation Init:', { hasSampleMockups, count: sampleMockups.length, selectedColors });
 
       // --- VERIFICATION GATE (POST-DRAFT) ---
-      if (!user.isEmailVerified || !user.isPhoneVerified) {
+      const hasEmail = !!user.email;
+      const hasPhone = !!user.phoneNumber;
+      if (!hasEmail || !hasPhone) {
         saveStateForReturn();
         const targetPath = hasSampleMockups ? '/mockups-library' : '/listing-editor';
         const targetState = {
@@ -3056,7 +3058,7 @@ const DesignEditor: React.FC = () => {
           displacementSettings: product.design?.displacementSettings
         };
 
-        if (!user.isEmailVerified && !user.isPhoneVerified) {
+        if (!hasEmail && !hasPhone) {
           toast.info('Please verify your email and phone to continue.');
           navigate('/verify-email?source=add-product', {
             state: {
@@ -3067,7 +3069,7 @@ const DesignEditor: React.FC = () => {
               from: 'add-product'
             }
           });
-        } else if (!user.isEmailVerified) {
+        } else if (!hasEmail) {
           toast.info('Please verify your email to continue.');
           navigate('/verify-email?source=add-product', {
             state: {

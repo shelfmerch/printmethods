@@ -122,25 +122,19 @@ const userSchema = new mongoose.Schema({
   credits: {
     type: Number,
     default: 10
-  },
-  generatedImages: [{
-    url: String,
-    prompt: String,
-    style: String,
-    createdAt: { type: Date, default: Date.now }
-  }]
+  }
 }, {
   timestamps: true
 });
 
 // Store per-user preview images per product: { [productId]: { [viewKey]: url } }
-userSchema.add({
-  previewImagesByProduct: {
-    type: Map,
-    of: Object,
-    default: {}
-  }
-});
+// userSchema.add({
+//   previewImagesByProduct: {
+//     type: Map,
+//     of: Object,
+//     default: {}
+//   }
+// });
 
 // Hash password before saving (only if password is provided and modified)
 userSchema.pre('save', async function (next) {
