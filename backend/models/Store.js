@@ -59,17 +59,17 @@ const storeSchema = new mongoose.Schema({
     accessToken: { type: String, select: false },
     webhookUrl: { type: String }
   },
-  settings: {
-    currency: { type: String, default: 'INR' },
-    timezone: { type: String, default: 'UTC' },
-    logoUrl: { type: String },
-    faviconUrl: { type: String },
-    primaryColor: { type: String, default: '#000000' },
-    defaultShippingCost: { type: Number, default: 0 },
-    freeShippingThreshold: { type: Number },
-    taxEnabled: { type: Boolean, default: false },
-    taxRate: { type: Number, default: 0 }
-  },
+  // settings: {
+  //   currency: { type: String, default: 'INR' },
+  //   timezone: { type: String, default: 'UTC' },
+  //   logoUrl: { type: String },
+  //   faviconUrl: { type: String },
+  //   primaryColor: { type: String, default: '#000000' },
+  //   defaultShippingCost: { type: Number, default: 0 },
+  //   freeShippingThreshold: { type: Number },
+  //   taxEnabled: { type: Boolean, default: false },
+  //   taxRate: { type: Number, default: 0 }
+  // },
   domain: {
     type: String,
     sparse: true,
