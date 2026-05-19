@@ -1709,7 +1709,6 @@ export const authApi = {
         emailDomain?: string;
         role: string;
         createdAt: string;
-        isEmailVerified: boolean;
       };
       token?: string;
       refreshToken?: string;
@@ -1743,8 +1742,6 @@ export const authApi = {
         phone?: string;
         phoneNumber?: string;
         role: string;
-        isEmailVerified?: boolean;
-        isPhoneVerified?: boolean;
         createdAt: string;
         lastLogin?: string;
         upiId?: string;
@@ -1787,8 +1784,6 @@ export const authApi = {
         phone?: string;
         phoneNumber?: string;
         role: string;
-        isEmailVerified?: boolean;
-        isPhoneVerified?: boolean;
         createdAt: string;
         lastLogin?: string;
         upiId?: string;
@@ -1999,13 +1994,13 @@ export const authApi = {
     });
   },
 
-  confirmEmailVerificationLater: async (otp: string, serverOtp?: string) => {
+  confirmEmailVerificationLater: async (otp: string, email: string, serverOtp?: string) => {
     return apiRequest<{
       success: boolean;
       message: string;
     }>('/auth/verify-email-later/confirm', {
       method: 'POST',
-      body: JSON.stringify({ otp, serverOtp }),
+      body: JSON.stringify({ otp, email, serverOtp }),
     });
   },
 
@@ -2020,13 +2015,13 @@ export const authApi = {
     });
   },
 
-  confirmPhoneVerificationLater: async (otp: string) => {
+  confirmPhoneVerificationLater: async (otp: string, phone: string) => {
     return apiRequest<{
       success: boolean;
       message: string;
     }>('/auth/verify-phone-later/confirm', {
       method: 'POST',
-      body: JSON.stringify({ otp }),
+      body: JSON.stringify({ otp, phone }),
     });
   },
 }

@@ -54,21 +54,13 @@ const userSchema = new mongoose.Schema({
   // For staff: which stores they can access
   assignedStores: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Store'
+    ref: 'Stores'
   }],
   // For staff: permissions (optional, can be expanded)
   permissions: {
     canManageProducts: { type: Boolean, default: false },
     canManageOrders: { type: Boolean, default: false },
     canViewAnalytics: { type: Boolean, default: false }
-  },
-  isEmailVerified: {
-    type: Boolean,
-    default: false
-  },
-  isPhoneVerified: {
-    type: Boolean,
-    default: false
   },
   emailVerificationToken: {
     type: String,
@@ -130,25 +122,19 @@ const userSchema = new mongoose.Schema({
   credits: {
     type: Number,
     default: 10
-  },
-  generatedImages: [{
-    url: String,
-    prompt: String,
-    style: String,
-    createdAt: { type: Date, default: Date.now }
-  }]
+  }
 }, {
   timestamps: true
 });
 
 // Store per-user preview images per product: { [productId]: { [viewKey]: url } }
-userSchema.add({
-  previewImagesByProduct: {
-    type: Map,
-    of: Object,
-    default: {}
-  }
-});
+// userSchema.add({
+//   previewImagesByProduct: {
+//     type: Map,
+//     of: Object,
+//     default: {}
+//   }
+// });
 
 // Hash password before saving (only if password is provided and modified)
 userSchema.pre('save', async function (next) {

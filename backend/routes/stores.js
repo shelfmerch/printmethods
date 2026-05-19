@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Store = require('../models/Store');
 const StoreProduct = require('../models/StoreProduct');
+const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { normalizePlanId, assertWithinPlanLimit } = require('../utils/planLimits');
 
@@ -229,6 +230,8 @@ router.post('/', protect, async (req, res) => {
       isActive: true,
       isConnected: false,
     });
+
+    await User.findByIdAndUpdate(user._id, { $addToSet: { assignedStores: store._id } });
 
     const frontendStore = mapStoreToFrontend(store);
 

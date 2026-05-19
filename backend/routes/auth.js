@@ -101,45 +101,45 @@ const authLimiter = rateLimit({
 // @route   GET /api/auth/me/previews/:productId
 // @desc    Get current user's saved preview images for a product
 // @access  Private
-router.get('/me/previews/:productId', protect, async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const user = await User.findById(req.user.id);
-    const map = user.previewImagesByProduct || new Map();
-    const previews = map.get(productId) || {};
-    res.status(200).json({ success: true, data: previews });
-  } catch (error) {
-    console.error('Get user previews error:', error);
-    res.status(500).json({ success: false, message: 'Server error while fetching previews' });
-  }
-});
+// router.get('/me/previews/:productId', protect, async (req, res) => {
+//   try {
+//     const { productId } = req.params;
+//     const user = await User.findById(req.user.id);
+//     const map = user.previewImagesByProduct || new Map();
+//     const previews = map.get(productId) || {};
+//     res.status(200).json({ success: true, data: previews });
+//   } catch (error) {
+//     console.error('Get user previews error:', error);
+//     res.status(500).json({ success: false, message: 'Server error while fetching previews' });
+//   }
+// });
 
 // @route   PUT /api/auth/me/previews/:productId
 // @desc    Upsert current user's preview images for a product (per view)
 // @access  Private
-router.put('/me/previews/:productId', protect, async (req, res) => {
-  try {
-    const { productId } = req.params;
-    const { previews } = req.body; // expected shape { [viewKey]: url }
+// router.put('/me/previews/:productId', protect, async (req, res) => {
+//   try {
+//     const { productId } = req.params;
+//     const { previews } = req.body; // expected shape { [viewKey]: url }
 
-    if (!previews || typeof previews !== 'object') {
-      return res.status(400).json({ success: false, message: 'Invalid previews payload' });
-    }
+//     if (!previews || typeof previews !== 'object') {
+//       return res.status(400).json({ success: false, message: 'Invalid previews payload' });
+//     }
 
-    const user = await User.findById(req.user.id);
-    if (!user.previewImagesByProduct) user.previewImagesByProduct = new Map();
+//     const user = await User.findById(req.user.id);
+//     if (!user.previewImagesByProduct) user.previewImagesByProduct = new Map();
 
-    const existing = user.previewImagesByProduct.get(productId) || {};
-    const merged = { ...existing, ...previews };
-    user.previewImagesByProduct.set(productId, merged);
-    await user.save({ validateBeforeSave: false });
+//     const existing = user.previewImagesByProduct.get(productId) || {};
+//     const merged = { ...existing, ...previews };
+//     user.previewImagesByProduct.set(productId, merged);
+//     await user.save({ validateBeforeSave: false });
 
-    res.status(200).json({ success: true, data: merged });
-  } catch (error) {
-    console.error('Update user previews error:', error);
-    res.status(500).json({ success: false, message: 'Server error while saving previews' });
-  }
-});
+//     res.status(200).json({ success: true, data: merged });
+//   } catch (error) {
+//     console.error('Update user previews error:', error);
+//     res.status(500).json({ success: false, message: 'Server error while saving previews' });
+//   }
+// });
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -248,7 +248,6 @@ router.post(
         email,
         password,
         role: userRole,
-        isEmailVerified: false,
         emailVerificationToken: emailVerificationToken,
         emailVerificationTokenExpiry: emailVerificationTokenExpiry
       });
@@ -272,8 +271,7 @@ router.post(
           id: user._id,
           name: user.name,
           email: user.email,
-          role: user.role,
-          isEmailVerified: false
+          role: user.role
         }
       });
     } catch (error) {
@@ -399,8 +397,7 @@ router.get('/verify-email', async (req, res) => {
       });
     }
 
-    // Mark as verified and clear token
-    user.isEmailVerified = true;
+    // Clear token
     user.emailVerificationToken = undefined;
     user.emailVerificationTokenExpiry = undefined;
     await user.save();
@@ -486,8 +483,6 @@ router.get('/me', protect, async (req, res) => {
         emailDomain: user.emailDomain || '',
         phoneNumber: user.phoneNumber,
         role: user.role,
-        isEmailVerified: user.isEmailVerified,
-        isPhoneVerified: user.isPhoneVerified,
         createdAt: user.createdAt,
         lastLogin: user.lastLogin,
         upiId: user.upiId
@@ -965,10 +960,8 @@ router.post('/otp/send', async (req, res) => {
 
       if (otpType === 'email') {
         userData.email = identifier;
-        userData.isEmailVerified = false;
       } else {
         userData.phoneNumber = identifier;
-        userData.isPhoneVerified = false;
       }
 
       try {
@@ -1080,13 +1073,11 @@ router.post('/otp/verify', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
-    // Mark verified and clear field
+    // Clear OTP fields
     if (otpType === 'email') {
-      user.isEmailVerified = true;
       user.emailVerificationToken = undefined;
       user.emailVerificationTokenExpiry = undefined;
     } else {
-      user.isPhoneVerified = true;
       user.phoneVerificationToken = undefined;
       user.phoneVerificationTokenExpiry = undefined;
     }
@@ -1222,7 +1213,6 @@ router.post('/login/otp/verify', async (req, res) => {
           user = await User.create({
             name: 'Shopify Reviewer',
             email: identifier.toLowerCase(),
-            isEmailVerified: true,
             isOtpUser: true,
             role: 'merchant'
           });
@@ -1240,7 +1230,6 @@ router.post('/login/otp/verify', async (req, res) => {
           user = await User.create({
             name: identifier.split('@')[0],
             email: identifier.toLowerCase(),
-            isEmailVerified: true,
             isOtpUser: true,
             role: 'merchant'
           });
@@ -1281,7 +1270,6 @@ router.post('/login/otp/verify', async (req, res) => {
           user = await User.create({
             name: `User ${identifier.slice(-4)}`,
             phoneNumber: identifier,
-            isPhoneVerified: true,
             isOtpUser: true,
             role: 'merchant'
           });
@@ -1372,11 +1360,9 @@ router.post('/signup/otp/complete', async (req, res) => {
 
     if (email) {
       userData.email = email.toLowerCase();
-      userData.isEmailVerified = true;
     }
     if (phone) {
       userData.phoneNumber = phone;
-      userData.isPhoneVerified = true;
     }
     if (password) {
       userData.password = password;
@@ -1483,17 +1469,15 @@ router.post('/verify-email-later', protect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email already in use' });
     }
 
-    // Generate OTP
+    // Generate OTP — do NOT save the new email yet; only save after verification
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Update user with email and OTP
     const user = await User.findById(req.user.id);
-    user.email = email.toLowerCase();
     user.emailVerificationToken = otp;
     user.emailVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await user.save({ validateBeforeSave: false });
 
-    // Send OTP email
+    // Send OTP to the new email address (not yet in DB)
     await sendEmailOTP(email, otp, user.name, 'verification');
 
     res.json({
@@ -1508,34 +1492,43 @@ router.post('/verify-email-later', protect, async (req, res) => {
 });
 
 // @route   POST /api/auth/verify-email-later/confirm
-// @desc    Verify email OTP and mark as verified
+// @desc    Verify email OTP then (and only then) persist the new email
 // @access  Private
 router.post('/verify-email-later/confirm', protect, async (req, res) => {
   try {
-    const { otp, serverOtp } = req.body;
+    const { otp, email, serverOtp } = req.body;
 
     if (!otp) {
       return res.status(400).json({ success: false, message: 'OTP is required' });
     }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: 'Valid email is required' });
+    }
+
+    // Re-check uniqueness at confirm time in case another user claimed it
+    const conflict = await User.findOne({ email: email.toLowerCase(), _id: { $ne: req.user.id } });
+    if (conflict) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
 
     const user = await User.findById(req.user.id).select('+emailVerificationToken +emailVerificationTokenExpiry');
 
-    // Verify OTP
     const isValid = (user.emailVerificationToken === otp && user.emailVerificationTokenExpiry > Date.now()) || otp === serverOtp;
 
     if (!isValid) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
-    // Mark email as verified
-    user.isEmailVerified = true;
+    // OTP passed — now it is safe to write the verified email
+    user.email = email.toLowerCase();
+    user.emailDomain = extractEmailDomain(email);
     user.emailVerificationToken = undefined;
     user.emailVerificationTokenExpiry = undefined;
     await user.save({ validateBeforeSave: false });
 
     res.json({
       success: true,
-      message: 'Email verified successfully'
+      message: 'Email verified and saved successfully'
     });
   } catch (err) {
     console.error('Confirm email error:', err);
@@ -1549,19 +1542,20 @@ router.post('/verify-email-later/confirm', protect, async (req, res) => {
 router.post('/verify-phone-later', protect, async (req, res) => {
   try {
     const { phone } = req.body;
+    const phoneClean = (phone || '').replace(/\D/g, '');
 
-    if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+    if (!phoneClean || !/^\d{10}$/.test(phoneClean)) {
       return res.status(400).json({ success: false, message: 'Valid 10-digit phone number is required' });
     }
 
     // Check if phone is already taken by another user
-    const existingUser = await User.findOne({ phoneNumber: phone, _id: { $ne: req.user.id } });
+    const existingUser = await User.findOne({ phoneNumber: phoneClean, _id: { $ne: req.user.id } });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Phone number already in use' });
     }
 
-    // Send OTP via MSG91
-    const result = await sendPhoneOTP(phone);
+    // Send OTP via MSG91 — do NOT save the new phone yet; only save after verification
+    const result = await sendPhoneOTP(phoneClean);
 
     if (!result.success) {
       return res.status(400).json({
@@ -1570,9 +1564,7 @@ router.post('/verify-phone-later', protect, async (req, res) => {
       });
     }
 
-    // Update user with phone and OTP
     const user = await User.findById(req.user.id);
-    user.phoneNumber = phone;
     user.phoneVerificationToken = result.otp;
     user.phoneVerificationTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await user.save({ validateBeforeSave: false });
@@ -1589,39 +1581,47 @@ router.post('/verify-phone-later', protect, async (req, res) => {
 });
 
 // @route   POST /api/auth/verify-phone-later/confirm
-// @desc    Verify phone OTP and mark as verified
+// @desc    Verify phone OTP then (and only then) persist the new phone number
 // @access  Private
 router.post('/verify-phone-later/confirm', protect, async (req, res) => {
   try {
-    const { otp } = req.body;
+    const { otp, phone } = req.body;
+    const phoneClean = (phone || '').replace(/\D/g, '');
 
     if (!otp) {
       return res.status(400).json({ success: false, message: 'OTP is required' });
     }
+    if (!phoneClean || !/^\d{10}$/.test(phoneClean)) {
+      return res.status(400).json({ success: false, message: 'Valid 10-digit phone number is required' });
+    }
+
+    // Re-check uniqueness at confirm time
+    const conflict = await User.findOne({ phoneNumber: phoneClean, _id: { $ne: req.user.id } });
+    if (conflict) {
+      return res.status(400).json({ success: false, message: 'Phone number already in use' });
+    }
 
     const user = await User.findById(req.user.id).select('+phoneVerificationToken +phoneVerificationTokenExpiry');
 
-    // Verify OTP
     const isValid = user.phoneVerificationToken === otp && user.phoneVerificationTokenExpiry > Date.now();
 
     if (!isValid) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
-    // Mark phone as verified
-    user.isPhoneVerified = true;
+    // OTP passed — now it is safe to write the verified phone number
+    user.phoneNumber = phoneClean;
     user.phoneVerificationToken = undefined;
     user.phoneVerificationTokenExpiry = undefined;
     await user.save({ validateBeforeSave: false });
 
     res.json({
       success: true,
-      message: 'Phone verified successfully'
+      message: 'Phone verified and saved successfully'
     });
   } catch (err) {
     console.error('Confirm phone error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
-
   }
 });
 
@@ -1652,7 +1652,6 @@ router.post('/test-login', async (req, res) => {
         email: email.toLowerCase(),
         role: assignedRole,
         isOtpUser: true,
-        isEmailVerified: true,
         isActive: true,
       });
     }
@@ -1674,8 +1673,6 @@ router.post('/test-login', async (req, res) => {
         name: user.name,
         role: user.role,
         companyName: user.companyName || '',
-        isEmailVerified: user.isEmailVerified,
-        isPhoneVerified: user.isPhoneVerified || false,
         createdAt: user.createdAt,
         lastLogin: user.lastLogin,
       }

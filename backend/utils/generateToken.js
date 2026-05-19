@@ -81,8 +81,6 @@ const sendTokenResponse = async (user, statusCode, res) => {
           phoneNumber: user.phoneNumber,
           phone: user.phoneNumber, // For compatibility
           role: user.role,
-          isEmailVerified: user.isEmailVerified,
-          isPhoneVerified: user.isPhoneVerified,
           createdAt: user.createdAt,
           lastLogin: user.lastLogin,
           upiId: user.upiId

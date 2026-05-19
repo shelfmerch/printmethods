@@ -55,8 +55,6 @@ const sendCustomerTokenResponse = (customer, statusCode, res) => {
             name: customer.name,
             email: customer.email,
             phoneNumber: customer.phoneNumber,
-            isEmailVerified: customer.isEmailVerified,
-            isPhoneVerified: customer.isPhoneVerified,
             signupMethod: customer.signupMethod,
         },
     });
@@ -203,12 +201,10 @@ router.post('/otp/verify', async (req, res) => {
         }
 
         if (otpType === 'email') {
-            customer.isEmailVerified = true;
             customer.emailVerificationToken = undefined;
             customer.emailVerificationTokenExpiry = undefined;
             if (!customer.signupMethod) customer.signupMethod = 'email';
         } else {
-            customer.isPhoneVerified = true;
             customer.phoneVerificationToken = undefined;
             customer.phoneVerificationTokenExpiry = undefined;
             if (!customer.signupMethod) customer.signupMethod = 'phone';
@@ -247,8 +243,6 @@ router.post('/signup/complete', verifyStoreToken, async (req, res) => {
                 name: customer.name,
                 email: customer.email,
                 phoneNumber: customer.phoneNumber,
-                isEmailVerified: customer.isEmailVerified,
-                isPhoneVerified: customer.isPhoneVerified,
             }
         });
     } catch (err) {
@@ -387,7 +381,6 @@ router.put('/me', verifyStoreToken, async (req, res) => {
             const current = await StoreCustomer.findById(customerId);
             if (current.email !== cleanEmail) {
                 updates.email = cleanEmail;
-                updates.isEmailVerified = false;
             }
         }
         if (typeof phoneNumber === 'string') {
@@ -397,7 +390,6 @@ router.put('/me', verifyStoreToken, async (req, res) => {
                 const current = await StoreCustomer.findById(customerId);
                 if (current.phoneNumber !== cleanPhone) {
                     updates.phoneNumber = cleanPhone;
-                    updates.isPhoneVerified = false;
                 }
             }
         }
@@ -422,14 +414,14 @@ router.put('/me', verifyStoreToken, async (req, res) => {
 // GET /api/store-auth/verification-status
 router.get('/verification-status', verifyStoreToken, async (req, res) => {
     try {
-        const customer = await StoreCustomer.findById(req.customer.customer.id).select('isEmailVerified isPhoneVerified phoneNumber email');
+        const customer = await StoreCustomer.findById(req.customer.customer.id).select('phoneNumber email');
         if (!customer) {
             return res.status(404).json({ success: false, message: 'Customer not found' });
         }
         res.json({
             success: true,
-            isEmailVerified: customer.isEmailVerified,
-            isPhoneVerified: customer.isPhoneVerified,
+            isEmailVerified: !!customer.email,
+            isPhoneVerified: !!customer.phoneNumber,
             hasPhone: !!customer.phoneNumber,
             hasEmail: !!customer.email
         });
@@ -558,7 +550,6 @@ router.post('/verify-email/confirm', verifyStoreToken, async (req, res) => {
         const customer = await StoreCustomer.findById(req.customer.customer.id).select('+emailVerificationToken +emailVerificationTokenExpiry');
 
         if (customer.emailVerificationToken === otp && customer.emailVerificationTokenExpiry > Date.now()) {
-            customer.isEmailVerified = true;
             customer.emailVerificationToken = undefined;
             customer.emailVerificationTokenExpiry = undefined;
             await customer.save();
@@ -611,7 +602,6 @@ router.post('/verify-phone/confirm', verifyStoreToken, async (req, res) => {
         const customer = await StoreCustomer.findById(req.customer.customer.id).select('+phoneVerificationToken +phoneVerificationTokenExpiry');
 
         if (customer.phoneVerificationToken === otp && customer.phoneVerificationTokenExpiry > Date.now()) {
-            customer.isPhoneVerified = true;
             customer.phoneVerificationToken = undefined;
             customer.phoneVerificationTokenExpiry = undefined;
             await customer.save();
