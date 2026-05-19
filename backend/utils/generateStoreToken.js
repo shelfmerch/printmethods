@@ -49,8 +49,6 @@ const sendStoreTokenResponse = async (user, statusCode, res) => {
                     email: user.email,
                     phoneNumber: user.phoneNumber,
                     phone: user.phoneNumber, // For compatibility
-                    isEmailVerified: user.isEmailVerified,
-                    isPhoneVerified: user.isPhoneVerified,
                     createdAt: user.createdAt,
                     lastLogin: user.lastLogin,
                 }

@@ -60,14 +60,6 @@ const StoreCustomerSchema = new mongoose.Schema(
       orderUpdates: { type: Boolean, default: true },
       marketingEmails: { type: Boolean, default: false },
     },
-    isEmailVerified: {
-      type: Boolean,
-      default: false
-    },
-    isPhoneVerified: {
-      type: Boolean,
-      default: false
-    },
     emailVerificationToken: {
       type: String,
       select: false,

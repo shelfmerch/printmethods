@@ -47,7 +47,6 @@ module.exports = function(passport) {
                   name: profile.displayName,
                   email: email,
                   avatar: profile.photos[0].value,
-                  isEmailVerified: true,
                   role: 'merchant'
                 };
                 user = await User.create(newUser);

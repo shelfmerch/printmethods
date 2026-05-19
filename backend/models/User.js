@@ -54,21 +54,13 @@ const userSchema = new mongoose.Schema({
   // For staff: which stores they can access
   assignedStores: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Store'
+    ref: 'Stores'
   }],
   // For staff: permissions (optional, can be expanded)
   permissions: {
     canManageProducts: { type: Boolean, default: false },
     canManageOrders: { type: Boolean, default: false },
     canViewAnalytics: { type: Boolean, default: false }
-  },
-  isEmailVerified: {
-    type: Boolean,
-    default: false
-  },
-  isPhoneVerified: {
-    type: Boolean,
-    default: false
   },
   emailVerificationToken: {
     type: String,

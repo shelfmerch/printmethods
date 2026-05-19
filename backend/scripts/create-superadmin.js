@@ -67,7 +67,6 @@ async function createSuperadmin() {
       email: 'shabahatsyed101@gmail.com',
       password: 'Admin123',
       role: 'superadmin',
-      isEmailVerified: true, // Set as verified for superadmin
       isActive: true
     });
 
