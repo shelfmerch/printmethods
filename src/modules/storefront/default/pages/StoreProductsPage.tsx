@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { getProductImageGroups } from '@/shared/utils/productImageUtils';
 import { getTenantSlugFromLocation, buildStorePath } from '@/shared/utils/tenantUtils';
@@ -284,8 +284,9 @@ const StoreProductsPage: React.FC = () => {
               designs: sp.designData?.designs || {},
               designBoundaries: sp.designData?.designBoundaries,
               // Match CategoryProducts naming for robust filtering logic
-              availableColors: sp.designData?.selectedColors || (sp.variantsSummary || []).map((v: any) => v.color).filter(Boolean),
-              availableSizes: sp.designData?.selectedSizes || (sp.variantsSummary || []).map((v: any) => v.size).filter(Boolean),
+              availableColors: sp.designData?.selectedColors || (sp.variants || []).map((v: any) => v.color).filter(Boolean),
+              availableSizes: sp.designData?.selectedSizes || (sp.variants || []).map((v: any) => v.size).filter(Boolean),
+              variantOptions: Array.isArray(sp.variants) ? sp.variants : [],
               variants: {
                 colors: sp.designData?.selectedColors || [],
                 sizes: sp.designData?.selectedSizes || [],
@@ -299,7 +300,7 @@ const StoreProductsPage: React.FC = () => {
                 ? catalogProduct.subcategoryIds.map((id: any) => id?.toString() || id)
                 : [],
               catalogProduct: catalogProduct,
-              tags: sp.tags || [],
+              tags: Array.isArray(catalogProduct?.tags) ? catalogProduct.tags : [],
               createdAt: sp.createdAt || new Date().toISOString(),
               updatedAt: sp.updatedAt || new Date().toISOString(),
             };
@@ -1009,7 +1010,7 @@ const StoreProductsPage: React.FC = () => {
                         {/* Product Image */}
                         <div className="relative w-32 h-32 flex-shrink-0 rounded-xl overflow-hidden bg-muted/50">
                           {(() => {
-                            const isOOS = product.variantsSummary?.every(v => v.isActive === false) && (product.variantsSummary?.length || 0) > 0;
+                            const isOOS = product.variantOptions?.every(v => v.isActive === false) && (product.variantOptions?.length || 0) > 0;
                             return (
                               <>
                                 {isOOS && (

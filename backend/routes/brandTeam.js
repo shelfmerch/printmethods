@@ -8,7 +8,7 @@ const { protect } = require('../middleware/auth');
 const { sendVerificationEmail } = require('../utils/mailer');
 
 function getClientBaseUrl() {
-  return (process.env.CLIENT_URL || process.env.BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+  return (process.env.CLIENT_URL || process.env.BASE_URL || 'http://localhost:8081').replace(/\/$/, '');
 }
 
 // Helper: verify the requesting user owns or is admin of the given brandId

@@ -55,9 +55,9 @@ export const SHOPIFY_API_BASE_URL = import.meta.env.VITE_SHOPIFY_API_BASE_URL ||
   API_BASE_URL;
 
 // Store Base URL - Where the storefronts are hosted
-// In development, this is typically localhost:8080 or similar
+// In development, this is typically localhost:8081 or similar
 // In production, this should be the main domain, e.g., https://techvibz.org
-export const STORE_BASE_URL = import.meta.env.VITE_STORE_BASE_URL || 'http://localhost:8080';
+export const STORE_BASE_URL = import.meta.env.VITE_STORE_BASE_URL || 'http://localhost:8081';
 
 // Helper to get raw API URL (without /api suffix if needed)
 export const RAW_API_URL = API_BASE_URL.endsWith('/api')

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useStore } from '@/shared/contexts/StoreContext';
@@ -180,7 +180,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           <Button variant={isActiveRoute('/products') || isActiveRoute('/catalog') || isActiveRoute('/designer') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/products"><Package className="mr-2 h-4 w-4" />Products</Link>
           </Button>
-          <Button variant={isActiveRoute('/stores') || isActiveRoute('/connect-store') || isActiveRoute('/dashboard/shopify') || isActiveRoute('/settings/developer') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
+          <Button variant={isActiveRoute('/stores') || isActiveRoute('/connect-store') || isActiveRoute('/dashboard/shopify') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>
             <Link to="/stores"><Store className="mr-2 h-4 w-4" />Store Setup</Link>
           </Button>
           <Button variant={isActiveRoute('/orders') ? 'secondary' : 'ghost'} className="w-full justify-start" asChild>

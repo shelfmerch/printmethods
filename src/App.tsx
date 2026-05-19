@@ -1,4 +1,4 @@
-﻿import { Toaster } from "@/shared/components/ui/toaster";
+import { Toaster } from "@/shared/components/ui/toaster";
 import { Toaster as Sonner } from "@/shared/components/ui/sonner";
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -27,8 +27,6 @@ import Stores from "@/modules/merchant/pages/Stores";
 import ConnectStore from "@/modules/merchant/pages/ConnectStore";
 import Analytics from "@/modules/merchant/pages/Analytics";
 import Settings from "@/modules/merchant/pages/Settings";
-import DeveloperDashboard from "@/modules/merchant/pages/DeveloperDashboard";
-import PersonalAccessTokensPage from "@/modules/merchant/pages/PersonalAccessTokens";
 import Customers from "@/modules/merchant/pages/Customers";
 import Admin from '@/modules/admin/pages/Admin';
 import AdminOrderDetail from '@/modules/admin/pages/AdminOrderDetail';
@@ -95,7 +93,6 @@ import PrivacyPolicy from "@/modules/public/pages/PrivacyPolicy";
 import DataDeletionPolicy from "@/modules/public/pages/DataDeletionPolicy";
 import TermsOfConditions from "@/modules/public/pages/TermsOfConditions";
 
-//DEVELOPERS
 import Causes from "@/modules/public/pages/Causes";
 import { ScrollToTop } from "@/shared/components/common/ScrollToTop";
 
@@ -332,22 +329,6 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <Settings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/settings/developer"
-                      element={
-                        <ProtectedRoute>
-                          <DeveloperDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/settings/developer/tokens"
-                      element={
-                        <ProtectedRoute>
-                          <PersonalAccessTokensPage />
                         </ProtectedRoute>
                       }
                     />

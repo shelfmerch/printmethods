@@ -1,4 +1,4 @@
-﻿export type OrderStatus = 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'canceled' | 'cancelled' | 'refunded';
+export type OrderStatus = 'on-hold' | 'paid' | 'in-production' | 'shipped' | 'delivered' | 'fulfilled' | 'canceled' | 'cancelled' | 'refunded';
 
 export type StoreTheme = 'modern' | 'classic' | 'minimal';
 
@@ -48,18 +48,20 @@ export interface Product {
     sizeChart?: SizeChartData;
     careInstructions?: CareInstructionsData;
   };
-  variantsSummary?: Array<{
-    size: string;
-    color: string;
-    colorHex: string;
-    isActive: boolean;
+  /** Per size/color rows from storeproductvariants (attached on list APIs). */
+  variantOptions?: Array<{
+    size?: string;
+    color?: string;
+    colorHex?: string;
+    isActive?: boolean;
     basePrice?: number;
   }>;
   createdAt: string;
   updatedAt: string;
   minimumQuantity?: number;
   previewImagesUrl?: any[];
-  galleryImages?: any[];
+  /** Filter tags (from catalog product when available). */
+  tags?: string[];
 }
 
 export interface CartItem {

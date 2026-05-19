@@ -28,7 +28,7 @@ const EnhancedProductCard = ({ product, onProductClick, onAddToCart }: EnhancedP
     }
   };
 
-  const isOOS = product.variantsSummary?.every(v => v.isActive === false) && (product.variantsSummary?.length || 0) > 0;
+  const isOOS = product.variantOptions?.every(v => v.isActive === false) && (product.variantOptions?.length || 0) > 0;
 
   return (
     <article

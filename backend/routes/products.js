@@ -2,34 +2,48 @@ const express = require('express');
 const router = express.Router();
 const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
+const {
+  resolveViewImagesToMockupIds,
+  hydrateViewImageUrlsForVariants,
+  applyViewImagesUrlsToVariantObject,
+} = require('../utils/viewImagesRef');
+
+async function transformVariantsForApi(variantDocs) {
+  const objs = variantDocs.map((v) =>
+    applyViewImagesUrlsToVariantObject(v.toObject ? v.toObject() : { ...v })
+  );
+  await hydrateViewImageUrlsForVariants(objs);
+  return objs.map((variant) => ({
+    ...variant,
+    sku: variant.skuTemplate || variant.sku,
+    price: variant.basePrice,
+    skuTemplate: undefined,
+    basePrice: undefined,
+  }));
+}
 const Placeholder = require('../models/Placeholder');
 const CatalogProductAttribute = require('../models/CatalogProductAttribute');
 const CatalogProductMockup = require('../models/CatalogProductMockup');
 const CatalogProductInventory = require('../models/CatalogProductInventory');
 const { mirrorCatalogAttributes, unsetLegacyCatalogProductAttributeFields } = require('../utils/catalogAttributesMirror');
 const {
+  designInputWithoutSampleMockups,
+  stripDeprecatedEmbeddedFields,
+  hydrateCatalogProductRelations,
+  hydrateCatalogProductRelationsBatch,
+  syncCatalogProductRelationRefs,
+} = require('../utils/catalogProductRefs');
+const {
   toCatalogCareInstructionsRefs,
   expandCareInstructionsForApi,
 } = require('../utils/careInstructionsRefs');
 const { protect, authorize } = require('../middleware/auth');
 
-async function upsertCareInstructionsForProduct(productId, careInstructions) {
-  const refs = await toCatalogCareInstructionsRefs(
-    careInstructions && typeof careInstructions === 'object' ? careInstructions : { icons: [], text: '' },
-  );
-  await CatalogProductCareInstruction.findOneAndUpdate(
-    { productId },
-    { $set: { productId, text: refs.text, icons: refs.icons } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
-  );
-}
+async function upsertCatalogProductAttributesMirror(productId, attrsSource) {
+  const id = typeof productId === 'object' && productId?._id ? productId._id : productId;
+  const plain = mirrorCatalogAttributes(attrsSource ?? {});
 
-async function upsertCatalogProductAttributesMirror(productOrId, attrsSource) {
-  const id = typeof productOrId === 'object' && productOrId?._id ? productOrId._id : productOrId;
-  const plain =
-    attrsSource !== undefined ? mirrorCatalogAttributes(attrsSource) : mirrorCatalogAttributes(productOrId?.attributes);
-
-  await CatalogProductAttribute.findOneAndUpdate(
+  return CatalogProductAttribute.findOneAndUpdate(
     { productId: id },
     {
       $set: { productId: id, attributes: plain },
@@ -67,11 +81,11 @@ async function upsertMockupsForProduct(productId, sampleMockups) {
 }
 
 async function upsertInventoryForProduct(productId, stocks) {
-  if (!stocks || typeof stocks !== 'object') return;
+  if (!stocks || typeof stocks !== 'object') return null;
   const hasAnyStockData = Object.keys(stocks).some((k) => stocks[k] !== undefined && stocks[k] !== null && stocks[k] !== '');
-  if (!hasAnyStockData) return;
+  if (!hasAnyStockData) return null;
 
-  await CatalogProductInventory.findOneAndUpdate(
+  return CatalogProductInventory.findOneAndUpdate(
     { productId },
     {
       $setOnInsert: { productId },
@@ -83,12 +97,11 @@ async function upsertInventoryForProduct(productId, stocks) {
         lowStockAlertEmail: stocks.lowStockAlertEmail ?? '',
         lowStockThreshold: stocks.lowStockThreshold ?? 10,
         outOfStockBehavior: stocks.outOfStockBehavior ?? 'default',
-        // extracted-collection-only fields (default safe)
         reservedStock: 0,
         incomingStock: 0,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 }
 
@@ -242,15 +255,14 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       subcategoryIds: Array.isArray(catalogue.subcategoryIds) ? catalogue.subcategoryIds : [],
       productTypeCode: catalogue.productTypeCode,
       tags: Array.isArray(catalogue.tags) ? catalogue.tags : [],
-      attributes: catalogue.attributes || req.body.attributes || new Map(),
       basePrice: catalogue.basePrice,
       sampleAvailable: Boolean(catalogue.sampleAvailable || req.body.sampleAvailable),
       careInstructions: careRefs,
       design: {
+        ...designInputWithoutSampleMockups(design),
         views: filteredViews,
-        sampleMockups: Array.isArray(design.sampleMockups) ? design.sampleMockups : [],
         dpi: design.dpi || 300,
-        physicalDimensions: design.physicalDimensions
+        physicalDimensions: design.physicalDimensions,
       },
       shipping,
       fulfillmentType: fulfillmentType || stocks?.fulfillmentType || 'print_on_demand',
@@ -259,7 +271,6 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       details: details || {},
       pricing: pricing || {}, // Preserve pricing object if sent from frontend
       gst: (pricing && pricing.gst) ? pricing.gst : { slab: 18, mode: 'EXCLUSIVE', hsn: '' },
-      stocks: stocks || {},
       allowedPrintMethodIds: Array.isArray(allowedPrintMethodIds) ? allowedPrintMethodIds : [],
       createdBy: req.user.id,
       isActive: true,
@@ -271,18 +282,13 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
 
     console.log('Product created successfully:', product._id);
 
-    // Dual-write: catalogproductattributes.attributes mirrors CatalogProduct.attributes
     try {
-      await upsertCatalogProductAttributesMirror(product);
+      await upsertCatalogProductAttributesMirror(
+        product._id,
+        catalogue.attributes || req.body.attributes,
+      );
     } catch (attrErr) {
       console.error('Error upserting catalog product attributes:', attrErr);
-    }
-
-    // Dual-write: normalized care doc mirrors ref-only embedded careInstructions
-    try {
-      await upsertCareInstructionsForProduct(product._id, product.careInstructions);
-    } catch (ciErr) {
-      console.error('Error upserting catalog product care instructions:', ciErr);
     }
 
     // Dual-write: upsert extracted mockups + inventory
@@ -295,6 +301,12 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       if (stocks !== undefined) await upsertInventoryForProduct(product._id, stocks);
     } catch (iErr) {
       console.error('Error upserting catalog product inventory:', iErr);
+    }
+
+    try {
+      await syncCatalogProductRelationRefs(product._id);
+    } catch (refErr) {
+      console.error('Error syncing catalog product relation refs:', refErr);
     }
 
     // Create placeholders in new collection
@@ -336,16 +348,21 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     let createdVariants = [];
     if (Array.isArray(variants) && variants.length > 0) {
       console.log(`Creating ${variants.length} catalog variants for product ${product._id}...`);
-      const catalogVariants = variants.map(v => ({
-        catalogProductId: product._id,
-        size: v.size,
-        color: v.color,
-        colorHex: v.colorHex,
-        skuTemplate: v.sku || `${catalogue.productTypeCode}-${v.size}-${v.color}`,
-        basePrice: v.price !== undefined ? v.price : undefined,
-        isActive: v.isActive !== false,
-        viewImages: v.viewImages || { front: '', back: '', left: '', right: '' }
-      }));
+      const catalogVariants = await Promise.all(
+        variants.map(async (v) => ({
+          catalogProductId: product._id,
+          size: v.size,
+          color: v.color,
+          colorHex: v.colorHex,
+          skuTemplate: v.sku || `${catalogue.productTypeCode}-${v.size}-${v.color}`,
+          basePrice: v.price !== undefined ? v.price : undefined,
+          isActive: v.isActive !== false,
+          viewImages: await resolveViewImagesToMockupIds(v.viewImages || {}, {
+            catalogProductId: product._id,
+            color: v.color,
+          }),
+        }))
+      );
 
       try {
         createdVariants = await CatalogProductVariant.insertMany(catalogVariants, {
@@ -359,9 +376,12 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       }
     }
 
-    // Transform response to old structure for backward compatibility with frontend
     const productResponse = product.toObject();
-    // Add catalogue wrapper for backward compatibility
+    await hydrateCatalogProductRelations(productResponse, {
+      includeMockups: true,
+      includeInventory: true,
+      includeAttributes: true,
+    });
     productResponse.catalogue = {
       name: product.name,
       description: product.description,
@@ -371,22 +391,12 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       subcategoryIds: product.subcategoryIds,
       productTypeCode: product.productTypeCode,
       tags: product.tags,
-      attributes: product.attributes,
+      attributes: productResponse.attributes,
       basePrice: product.basePrice,
       sampleAvailable: Boolean(product.sampleAvailable),
       careInstructions: await expandCareInstructionsForApi(product.careInstructions || { icons: [], text: '' }),
     };
-    // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
-    productResponse.variants = createdVariants.map(v => {
-      const variant = v.toObject ? v.toObject() : v;
-      return {
-        ...variant,
-        sku: variant.skuTemplate || variant.sku,
-        price: variant.basePrice,
-        skuTemplate: undefined, // Remove skuTemplate to avoid confusion
-        basePrice: undefined // Remove basePrice to avoid confusion
-      };
-    });
+    productResponse.variants = await transformVariantsForApi(createdVariants);
     productResponse.pricing = {
       ...(productResponse.pricing || {}),
       gst: product.gst
@@ -498,53 +508,50 @@ router.get('/', protect, async (req, res) => {
       isActive: true
     }).sort({ size: 1, color: 1 });
 
-    // Group variants by product ID
+    const allVariantsForApi = await transformVariantsForApi(allVariants);
+
     const variantsByProduct = {};
-    allVariants.forEach(v => {
-      if (!variantsByProduct[v.catalogProductId]) {
-        variantsByProduct[v.catalogProductId] = [];
-      }
-      variantsByProduct[v.catalogProductId].push(v);
+    allVariantsForApi.forEach((v) => {
+      const pid = String(v.catalogProductId);
+      if (!variantsByProduct[pid]) variantsByProduct[pid] = [];
+      variantsByProduct[pid].push(v);
     });
 
     const includeCareInstructions = req.query.includeCareInstructions === 'true';
 
-    const transformedProducts = products.map(p => {
-      const productObj = p.toObject();
-      const variants = variantsByProduct[p._id] || [];
-      // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
-      const transformedVariants = variants.map(v => {
-        const variant = v.toObject ? v.toObject() : v;
-        return {
-          ...variant,
-          sku: variant.skuTemplate || variant.sku,
-          price: variant.basePrice,
-          skuTemplate: undefined, // Remove skuTemplate to avoid confusion
-          basePrice: undefined // Remove basePrice to avoid confusion
-        };
-      });
+    const plainProducts = products.map((p) => p.toObject());
+    await hydrateCatalogProductRelationsBatch(plainProducts, {
+      includeMockups: true,
+      includeInventory: true,
+      includeAttributes: true,
+    });
+
+    const transformedProducts = plainProducts.map((productObj) => {
+      const transformedVariants = variantsByProduct[String(productObj._id)] || [];
       return {
         ...productObj,
         catalogue: {
-          name: p.name,
-          description: p.description,
-          shortDescription: p.shortDescription || '',
-          highlights: p.highlights || [],
-          categoryId: p.categoryId,
-          subcategoryIds: p.subcategoryIds,
-          productTypeCode: p.productTypeCode,
-          tags: p.tags,
-          attributes: p.attributes,
-          basePrice: p.basePrice,
-          careInstructions: includeCareInstructions ? (p.careInstructions || { icons: [], text: '' }) : { icons: [], text: '' }
+          name: productObj.name,
+          description: productObj.description,
+          shortDescription: productObj.shortDescription || '',
+          highlights: productObj.highlights || [],
+          categoryId: productObj.categoryId,
+          subcategoryIds: productObj.subcategoryIds,
+          productTypeCode: productObj.productTypeCode,
+          tags: productObj.tags,
+          attributes: productObj.attributes,
+          basePrice: productObj.basePrice,
+          careInstructions: includeCareInstructions
+            ? (productObj.careInstructions || { icons: [], text: '' })
+            : { icons: [], text: '' },
         },
         pricing: {
-          ...(p.pricing ? (p.pricing.toObject ? p.pricing.toObject() : p.pricing) : {}),
-          gst: p.gst
+          ...(productObj.pricing || {}),
+          gst: productObj.gst,
         },
         variants: transformedVariants,
-        availableSizes: [...new Set(transformedVariants.map(v => v.size))],
-        availableColors: [...new Set(transformedVariants.map(v => v.color))]
+        availableSizes: [...new Set(transformedVariants.map((v) => v.size))],
+        availableColors: [...new Set(transformedVariants.map((v) => v.color))],
       };
     });
 
@@ -708,53 +715,50 @@ router.get('/catalog/active', async (req, res) => {
       isActive: true
     }).sort({ size: 1, color: 1 });
 
-    // Group variants by product ID
+    const allVariantsForApi = await transformVariantsForApi(allVariants);
+
     const variantsByProduct = {};
-    allVariants.forEach(v => {
-      if (!variantsByProduct[v.catalogProductId]) {
-        variantsByProduct[v.catalogProductId] = [];
-      }
-      variantsByProduct[v.catalogProductId].push(v);
+    allVariantsForApi.forEach((v) => {
+      const pid = String(v.catalogProductId);
+      if (!variantsByProduct[pid]) variantsByProduct[pid] = [];
+      variantsByProduct[pid].push(v);
     });
 
     const includeCareInstructions = req.query.includeCareInstructions === 'true';
 
-    const transformedProducts = products.map(p => {
-      const productObj = p.toObject();
-      const variants = variantsByProduct[p._id] || [];
-      // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
-      const transformedVariants = variants.map(v => {
-        const variant = v.toObject ? v.toObject() : v;
-        return {
-          ...variant,
-          sku: variant.skuTemplate || variant.sku,
-          price: variant.basePrice,
-          skuTemplate: undefined, // Remove skuTemplate to avoid confusion
-          basePrice: undefined // Remove basePrice to avoid confusion
-        };
-      });
+    const plainActiveProducts = products.map((p) => p.toObject());
+    await hydrateCatalogProductRelationsBatch(plainActiveProducts, {
+      includeMockups: true,
+      includeInventory: true,
+      includeAttributes: true,
+    });
+
+    const transformedProducts = plainActiveProducts.map((productObj) => {
+      const transformedVariants = variantsByProduct[String(productObj._id)] || [];
       return {
         ...productObj,
         catalogue: {
-          name: p.name,
-          description: p.description,
-          shortDescription: p.shortDescription || '',
-          highlights: p.highlights || [],
-          categoryId: p.categoryId,
-          subcategoryIds: p.subcategoryIds,
-          productTypeCode: p.productTypeCode,
-          tags: p.tags,
-          attributes: p.attributes,
-          basePrice: p.basePrice,
-          careInstructions: includeCareInstructions ? (p.careInstructions || { icons: [], text: '' }) : { icons: [], text: '' }
+          name: productObj.name,
+          description: productObj.description,
+          shortDescription: productObj.shortDescription || '',
+          highlights: productObj.highlights || [],
+          categoryId: productObj.categoryId,
+          subcategoryIds: productObj.subcategoryIds,
+          productTypeCode: productObj.productTypeCode,
+          tags: productObj.tags,
+          attributes: productObj.attributes,
+          basePrice: productObj.basePrice,
+          careInstructions: includeCareInstructions
+            ? (productObj.careInstructions || { icons: [], text: '' })
+            : { icons: [], text: '' },
         },
         pricing: {
-          ...(p.pricing ? (p.pricing.toObject ? p.pricing.toObject() : p.pricing) : {}),
-          gst: p.gst
+          ...(productObj.pricing || {}),
+          gst: productObj.gst,
         },
         variants: transformedVariants,
-        availableSizes: [...new Set(transformedVariants.map(v => v.size))],
-        availableColors: [...new Set(transformedVariants.map(v => v.color))]
+        availableSizes: [...new Set(transformedVariants.map((v) => v.size))],
+        availableColors: [...new Set(transformedVariants.map((v) => v.color))],
       };
     });
 
@@ -820,27 +824,16 @@ router.get('/:id', async (req, res) => {
       catalogProductId: product._id,
     }).sort({ size: 1, color: 1 });
 
-    // Care instructions: merge embedded or normalized doc with `careicons` for API consumers.
-    let ci = product.careInstructions?.toObject?.() || product.careInstructions;
-    const hasEmbeddedCare =
-      ci &&
-      typeof ci === 'object' &&
-      ((typeof ci.text === 'string' && ci.text.trim() !== '') ||
-        (Array.isArray(ci.icons) && ci.icons.length > 0));
+    const expandedCareInstructions = await expandCareInstructionsForApi(
+      product.careInstructions || { icons: [], text: '' },
+    );
 
-    if (!hasEmbeddedCare) {
-      const doc = await CatalogProductCareInstruction.findOne({ productId: product._id }).lean();
-      if (doc) {
-        ci = { text: doc.text || '', icons: doc.icons || [] };
-      } else {
-        ci = { icons: [], text: '' };
-      }
-    }
-
-    const expandedCareInstructions = await expandCareInstructionsForApi(ci || { icons: [], text: '' });
-
-    // Transform to old structure for backward compatibility
     const productResponse = product.toObject();
+    await hydrateCatalogProductRelations(productResponse, {
+      includeMockups: true,
+      includeInventory: true,
+      includeAttributes: true,
+    });
     productResponse.careInstructions = expandedCareInstructions;
     productResponse.catalogue = {
       name: product.name,
@@ -851,22 +844,12 @@ router.get('/:id', async (req, res) => {
       subcategoryIds: product.subcategoryIds,
       productTypeCode: product.productTypeCode,
       tags: product.tags,
-      attributes: product.attributes,
+      attributes: productResponse.attributes,
       basePrice: product.basePrice,
       sampleAvailable: Boolean(product.sampleAvailable),
       careInstructions: expandedCareInstructions,
     };
-    // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
-    productResponse.variants = variants.map(v => {
-      const variant = v.toObject ? v.toObject() : v;
-      return {
-        ...variant,
-        sku: variant.skuTemplate || variant.sku,
-        price: variant.basePrice,
-        skuTemplate: undefined, // Remove skuTemplate to avoid confusion
-        basePrice: undefined // Remove basePrice to avoid confusion
-      };
-    });
+    productResponse.variants = await transformVariantsForApi(variants);
     productResponse.pricing = {
       ...(productResponse.pricing || {}),
       gst: product.gst
@@ -930,7 +913,6 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       if (catalogue.subcategoryIds !== undefined) product.subcategoryIds = catalogue.subcategoryIds;
       if (catalogue.productTypeCode !== undefined) product.productTypeCode = catalogue.productTypeCode;
       if (catalogue.tags !== undefined) product.tags = catalogue.tags;
-      if (catalogue.attributes !== undefined) product.attributes = catalogue.attributes;
       if (catalogue.basePrice !== undefined) product.basePrice = catalogue.basePrice;
       if (catalogue.sampleAvailable !== undefined) product.sampleAvailable = Boolean(catalogue.sampleAvailable);
       if (catalogue.careInstructions !== undefined) {
@@ -941,7 +923,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     }
     if (req.body.sampleAvailable !== undefined) product.sampleAvailable = Boolean(req.body.sampleAvailable);
     if (details !== undefined) product.details = details;
-    if (design) product.design = design;
+    if (design) product.design = designInputWithoutSampleMockups(design);
     if (shipping) product.shipping = shipping;
     if (fulfillmentType !== undefined || stocks?.fulfillmentType !== undefined) {
       product.fulfillmentType = fulfillmentType || stocks?.fulfillmentType || 'print_on_demand';
@@ -951,7 +933,6 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     }
     if (pricing) product.pricing = pricing;
     if (galleryImages) product.galleryImages = galleryImages;
-    if (stocks !== undefined) product.stocks = stocks;
     if (isActive !== undefined) product.isActive = isActive;
     if (isPublished !== undefined) product.isPublished = isPublished;
     if (allowedPrintMethodIds !== undefined) product.allowedPrintMethodIds = Array.isArray(allowedPrintMethodIds) ? allowedPrintMethodIds : [];
@@ -963,20 +944,19 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       product.gst = req.body.gst;
     }
 
+    stripDeprecatedEmbeddedFields(product);
     await product.save();
 
-    // Dual-write: normalized row always mirrors embedded attributes after save
     try {
-      await upsertCatalogProductAttributesMirror(product);
+      const attrSource =
+        catalogue?.attributes !== undefined
+          ? catalogue.attributes
+          : req.body.attributes;
+      if (attrSource !== undefined) {
+        await upsertCatalogProductAttributesMirror(product._id, attrSource);
+      }
     } catch (attrErr) {
       console.error('Error upserting catalog product attributes:', attrErr);
-    }
-
-    // Dual-write: normalized care doc mirrors embedded ref-only careInstructions
-    try {
-      await upsertCareInstructionsForProduct(product._id, product.careInstructions);
-    } catch (ciErr) {
-      console.error('Error upserting catalog product care instructions:', ciErr);
     }
 
     // Dual-write: upsert extracted mockups + inventory
@@ -989,6 +969,12 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       if (stocks !== undefined) await upsertInventoryForProduct(product._id, stocks);
     } catch (iErr) {
       console.error('Error upserting catalog product inventory:', iErr);
+    }
+
+    try {
+      await syncCatalogProductRelationRefs(product._id);
+    } catch (refErr) {
+      console.error('Error syncing catalog product relation refs:', refErr);
     }
 
     // Update placeholders
@@ -1048,6 +1034,10 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
                 size: v.size,
                 color: v.color,
               };
+              const viewImages = await resolveViewImagesToMockupIds(v.viewImages || {}, {
+                catalogProductId: product._id,
+                color: v.color,
+              });
               const update = {
                 $set: {
                   catalogProductId: product._id,
@@ -1057,7 +1047,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
                   skuTemplate: v.sku || `${product.productTypeCode}-${v.size}-${v.color}`,
                   basePrice: v.price !== undefined ? v.price : undefined,
                   isActive: v.isActive !== false,
-                  viewImages: v.viewImages || { front: '', back: '', left: '', right: '' },
+                  viewImages,
                 },
               };
               return CatalogProductVariant.findOneAndUpdate(filter, update, {
@@ -1090,8 +1080,12 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       }).sort({ size: 1, color: 1 });
     }
 
-    // Transform to old structure for backward compatibility
     const productResponse = product.toObject();
+    await hydrateCatalogProductRelations(productResponse, {
+      includeMockups: true,
+      includeInventory: true,
+      includeAttributes: true,
+    });
     productResponse.catalogue = {
       name: product.name,
       description: product.description,
@@ -1099,22 +1093,12 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       subcategoryIds: product.subcategoryIds,
       productTypeCode: product.productTypeCode,
       tags: product.tags,
-      attributes: product.attributes,
+      attributes: productResponse.attributes,
       basePrice: product.basePrice,
       sampleAvailable: Boolean(product.sampleAvailable),
       careInstructions: await expandCareInstructionsForApi(product.careInstructions || { icons: [], text: '' }),
     };
-    // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
-    productResponse.variants = updatedVariants.map(v => {
-      const variant = v.toObject ? v.toObject() : v;
-      return {
-        ...variant,
-        sku: variant.skuTemplate || variant.sku,
-        price: variant.basePrice,
-        skuTemplate: undefined, // Remove skuTemplate to avoid confusion
-        basePrice: undefined // Remove basePrice to avoid confusion
-      };
-    });
+    productResponse.variants = await transformVariantsForApi(updatedVariants);
     productResponse.pricing = {
       ...(productResponse.pricing || {}),
       gst: product.gst

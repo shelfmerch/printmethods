@@ -172,7 +172,7 @@ const ProductCard: React.FC<{
   onClick?: () => void;
 }> = ({ product, layout, showPrice = true, showAddToCart = true, onClick }) => {
   const primaryImage = product.mockupUrl || product.mockupUrls?.[0];
-  const isOOS = product.variantsSummary?.every(v => v.isActive === false) && (product.variantsSummary?.length || 0) > 0;
+  const isOOS = product.variantOptions?.every(v => v.isActive === false) && (product.variantOptions?.length || 0) > 0;
 
   if (layout === 'list') {
     return (

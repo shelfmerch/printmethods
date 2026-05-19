@@ -9,6 +9,7 @@ const StoreCustomer = require('../models/StoreCustomer');
 const StoreOrder = require('../models/StoreOrder');
 const StoreProduct = require('../models/StoreProduct');
 const CatalogProduct = require('../models/CatalogProduct');
+const { hydrateCatalogProductRelations, getCatalogMinimumQuantity } = require('../utils/catalogProductRefs');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const FulfillmentInvoice = require('../models/FulfillmentInvoice');
 const User = require('../models/User');
@@ -504,10 +505,14 @@ router.post('/:subdomain', verifyStoreToken, async (req, res) => {
         subtotal += itemPrice * item.quantity;
 
         // Fetch production cost and GST from catalog product
-        const cp = await CatalogProduct.findById(sp.catalogProductId);
+        const cp = await CatalogProduct.findById(sp.catalogProductId).lean();
         if (cp) {
-          // Check for minimum quantity
-          const minQty = (cp.stocks && cp.stocks.minimumQuantity) || 1;
+          await hydrateCatalogProductRelations(cp, {
+            includeInventory: true,
+            includeMockups: false,
+            includeAttributes: false,
+          });
+          const minQty = getCatalogMinimumQuantity(cp);
           if (item.quantity < minQty) {
             return res.status(400).json({
               success: false,
@@ -835,10 +840,14 @@ router.post('/:subdomain/razorpay/verify-payment', verifyStoreToken, async (req,
         subtotal += itemPrice * item.quantity;
 
         // Fetch production cost and GST from catalog product
-        const cp = await CatalogProduct.findById(sp.catalogProductId);
+        const cp = await CatalogProduct.findById(sp.catalogProductId).lean();
         if (cp) {
-          // Check for minimum quantity
-          const minQty = (cp.stocks && cp.stocks.minimumQuantity) || 1;
+          await hydrateCatalogProductRelations(cp, {
+            includeInventory: true,
+            includeMockups: false,
+            includeAttributes: false,
+          });
+          const minQty = getCatalogMinimumQuantity(cp);
           if (item.quantity < minQty) {
             return res.status(400).json({
               success: false,

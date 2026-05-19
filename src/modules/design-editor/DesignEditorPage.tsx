@@ -2928,6 +2928,7 @@ const DesignEditor: React.FC = () => {
         _id: storeProductId,
         catalogProductId,
         sellingPrice,
+        tags: [catalogProductId],
         status: 'draft' as const,
         designData: {
           elements: elements, // Save entire elements array (do not rename fields)

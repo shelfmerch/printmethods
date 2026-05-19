@@ -1,4 +1,4 @@
-﻿import type { Product, Store } from '@/shared/types';
+import type { Product, Store } from '@/shared/types';
 import { getProductImageGroups } from '@/shared/utils/productImageUtils';
 
 export function mapStoreProductsToProducts(store: Store, storeProducts: any[]): Product[] {
@@ -33,7 +33,11 @@ export function mapStoreProductsToProducts(store: Store, storeProducts: any[]): 
       mockupUrls: allImages,
       designs: sp.designData?.designs || {},
       designBoundaries: sp.designData?.designBoundaries,
-      variants: { colors: [], sizes: [] },
+      variantOptions: Array.isArray(sp.variants) ? sp.variants : [],
+      variants: {
+        colors: sp.designData?.selectedColors || [],
+        sizes: sp.designData?.selectedSizes || [],
+      },
       categoryId: catalogProduct?.categoryId?.toString?.() || catalogProduct?.categoryId,
       subcategoryId:
         catalogProduct?.subcategoryIds?.[0]?.toString?.() ||
@@ -43,6 +47,7 @@ export function mapStoreProductsToProducts(store: Store, storeProducts: any[]): 
         ? catalogProduct.subcategoryIds.map((x: any) => x?.toString?.() || x)
         : [],
       catalogProduct,
+      tags: Array.isArray(catalogProduct?.tags) ? catalogProduct.tags : [],
       createdAt: sp.createdAt || new Date().toISOString(),
       updatedAt: sp.updatedAt || new Date().toISOString(),
     };

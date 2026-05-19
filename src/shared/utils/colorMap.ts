@@ -8,12 +8,12 @@ export const COLOR_MAP: Record<string, string> = {
   // Basic colors
   'white': '#FFFFFF',
   'black': '#000000',
-  'gray': '#808080',
-  'grey': '#808080',
+  'gray': '#808180',
+  'grey': '#808180',
   'light gray': '#D3D3D3',
   'lightgrey': '#D3D3D3',
   'light grey': '#D3D3D3',
-  
+
   // Primary colors
   'red': '#FF0000',
   'blue': '#0000FF',
@@ -22,7 +22,7 @@ export const COLOR_MAP: Record<string, string> = {
   'orange': '#FFA500',
   'pink': '#FFC0CB',
   'purple': '#800080',
-  
+
   // Navy and blues
   'navy': '#000080',
   'royal blue': '#4169E1',
@@ -35,16 +35,16 @@ export const COLOR_MAP: Record<string, string> = {
   'ceruleanfrost': '#6D9BC3',
   'heather blue': '#B7C3D0',
   'heatherblue': '#B7C3D0',
-  
+
   // Greens
   'forest green': '#228B22',
   'forestgreen': '#228B22',
   'mint green': '#98FF98',
   'mintgreen': '#98FF98',
-  'olive': '#808000',
+  'olive': '#808100',
   'olive drab': '#6B8E23',
   'olivedrab': '#6B8E23',
-  
+
   // Browns and tans
   'brown': '#A52A2A',
   'tan': '#D2B48C',
@@ -52,21 +52,21 @@ export const COLOR_MAP: Record<string, string> = {
   'beige-gray': '#9F9F9F',
   'beigegray': '#9F9F9F',
   'khaki': '#C3B091',
-  
+
   // Reds and maroons
   'maroon': '#800000',
   'burgundy': '#800020',
   'crimson': '#DC143C',
-  
+
   // Grays and charcoals
   'charcoal': '#36454F',
   'silver': '#C0C0C0',
-  
+
   // Metallics
   'gold': '#FFD700',
   'rose gold': '#E8B4B8',
   'rosegold': '#E8B4B8',
-  
+
   // Pastels and light colors
   'cream': '#FFFDD0',
   'ivory': '#FFFFF0',
@@ -76,19 +76,19 @@ export const COLOR_MAP: Record<string, string> = {
   'lavender purple': '#9678B6',
   'lavenderpurple': '#9678B6',
   'peach': '#FFE5B4',
-  'teal': '#008080',
+  'teal': '#008081',
   'cyan': '#00FFFF',
   'lime': '#00FF00',
   'magenta': '#FF00FF',
   'mint': '#98FF98',
-  
+
   // Violets and purples
   'violet': '#8A2BE2',
   'electric violet': '#8B00FF',
   'electricviolet': '#8B00FF',
   'deep violet': '#9400D3',
   'deepviolet': '#9400D3',
-  
+
   // Aquamarine and turquoise
   'aquamarine': '#7FFFD4',
   'deep aquamarine': '#40826D',
@@ -96,7 +96,7 @@ export const COLOR_MAP: Record<string, string> = {
   'turquoise': '#40E0D0',
   'dark turquoise': '#00CED1',
   'darkturquoise': '#00CED1',
-  
+
   // Additional blues
   'deep blue': '#00008B',
   'deepblue': '#00008B',
@@ -106,7 +106,7 @@ export const COLOR_MAP: Record<string, string> = {
   'darkblue': '#00008B',
   'steel blue': '#4682B4',
   'steelblue': '#4682B4',
-  
+
   // Additional greens
   'deep green': '#006400',
   'deepgreen': '#006400',
@@ -114,7 +114,7 @@ export const COLOR_MAP: Record<string, string> = {
   'darkgreen': '#006400',
   'light green': '#90EE90',
   'lightgreen': '#90EE90',
-  
+
   // Additional reds
   'deep red': '#8B0000',
   'deepred': '#8B0000',
@@ -122,17 +122,17 @@ export const COLOR_MAP: Record<string, string> = {
   'darkred': '#8B0000',
   'light red': '#FF6B6B',
   'lightred': '#FF6B6B',
-  
+
   // Additional grays
   'dark gray': '#A9A9A9',
   'darkgray': '#A9A9A9',
   'dark grey': '#A9A9A9',
   'darkgrey': '#A9A9A9',
-  'medium gray': '#808080',
-  'mediumgray': '#808080',
-  'medium grey': '#808080',
-  'mediumgrey': '#808080',
-  
+  'medium gray': '#808180',
+  'mediumgray': '#808180',
+  'medium grey': '#808180',
+  'mediumgrey': '#808180',
+
   // Special colors
   'natural': '#F5F5DC',
   'clear': '#FFFFFF',
@@ -141,7 +141,7 @@ export const COLOR_MAP: Record<string, string> = {
   'wood': '#8B4513',
   'cork': '#D4A574',
   'slate': '#708090',
-  
+
   // Jewelry metals
   'white gold': '#F5F5DC',
   'whitegold': '#F5F5DC',
@@ -149,7 +149,7 @@ export const COLOR_MAP: Record<string, string> = {
   'copper': '#B87333',
   'brass': '#B5A642',
   'platinum': '#E5E4E2',
-  
+
   // Frosted/Amber
   'frosted': '#F0F0F0',
   'amber': '#FFBF00',
@@ -164,14 +164,14 @@ export const COLOR_MAP: Record<string, string> = {
  */
 export const getColorHex = (colorName: string): string => {
   if (!colorName) return '#CCCCCC';
-  
+
   const normalized = colorName.toLowerCase().trim();
-  
+
   // Direct lookup
   if (COLOR_MAP[normalized]) {
     return COLOR_MAP[normalized];
   }
-  
+
   // Try with common variations (more comprehensive matching)
   const variations = [
     normalized.replace(/\s+/g, ''), // Remove all spaces
@@ -180,13 +180,13 @@ export const getColorHex = (colorName: string): string => {
     normalized.replace(/-/g, ' '), // Replace hyphens with spaces
     normalized.replace(/\s+/g, '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase(), // Handle camelCase
   ];
-  
+
   for (const variation of variations) {
     if (COLOR_MAP[variation]) {
       return COLOR_MAP[variation];
     }
   }
-  
+
   // Try partial matching for compound color names (e.g., "Light Blue" -> "light blue" or "blue")
   // This helps with colors like "Light Blue", "Dark Blue", etc.
   const words = normalized.split(/\s+/);
@@ -196,14 +196,14 @@ export const getColorHex = (colorName: string): string => {
     if (COLOR_MAP[lastWord]) {
       return COLOR_MAP[lastWord];
     }
-    
+
     // Try the first word (e.g., "Navy Blue" -> try "navy")
     const firstWord = words[0];
     if (COLOR_MAP[firstWord]) {
       return COLOR_MAP[firstWord];
     }
   }
-  
+
   // Default fallback
   return '#CCCCCC';
 };

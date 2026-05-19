@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       host: "::",
-      port: 8080,
+      port: 8081,
       proxy: {
         // Dev-only: avoids browser CORS by proxying through Vite (same-origin)
         "/api/partner": {

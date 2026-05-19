@@ -197,7 +197,6 @@ router.post('/', protect, async (req, res) => {
       type: 'native',
       currency: (currency || 'INR').toUpperCase(),
       country: country || 'India',
-      status: 'active',
       description: description || '',
       theme: theme || 'modern',
       settings: {

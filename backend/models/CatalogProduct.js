@@ -1,6 +1,37 @@
 const mongoose = require('mongoose');
 const { isValidCategory } = require('../config/productCategories');
 
+/** Legacy embedded copies — use attributeId, mockupIds, shipping.inventoryId instead. */
+const DEPRECATED_CATALOG_PRODUCT_UNSET = {
+  attributes: 1,
+  stocks: 1,
+  'design.sampleMockups': 1,
+};
+
+function stripDeprecatedEmbeddedFields(product) {
+  if (!product) return;
+  if (product.attributes !== undefined) {
+    product.set?.('attributes', undefined);
+    delete product.attributes;
+  }
+  if (product.stocks !== undefined) {
+    product.set?.('stocks', undefined);
+    delete product.stocks;
+  }
+  if (product.design?.sampleMockups !== undefined) {
+    const design = { ...(product.design.toObject?.() || product.design) };
+    delete design.sampleMockups;
+    product.design = design;
+    product.markModified?.('design');
+  }
+}
+
+function mergeDeprecatedCatalogUnset(update) {
+  const next = update && typeof update === 'object' ? { ...update } : {};
+  next.$unset = { ...DEPRECATED_CATALOG_PRODUCT_UNSET, ...(next.$unset || {}) };
+  return next;
+}
+
 const PlaceholderSchema = new mongoose.Schema({
   id: { type: String, required: true },
   name: { type: String, default: '' },
@@ -11,7 +42,6 @@ const PlaceholderSchema = new mongoose.Schema({
   rotationDeg: { type: Number, default: 0 },
   scale: { type: Number, default: 1.0 },
   lockSize: { type: Boolean, default: false },
-  // Polygon / magnetic lasso support
   shapeType: { type: String, enum: ['rect', 'polygon'], default: 'rect' },
   polygonPoints: {
     type: [{
@@ -26,60 +56,31 @@ const ViewConfigSchema = new mongoose.Schema({
   key: {
     type: String,
     required: true,
-    enum: ['front', 'back', 'left', 'right']
+    enum: ['front', 'back', 'left', 'right'],
   },
-  // Store URL, not base64!
   mockupImageUrl: { type: String, required: true },
-  placeholders: { type: [PlaceholderSchema], default: [] }
-}, { _id: false });
-
-const SampleMockupImageSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  viewKey: {
-    type: String,
-    required: true,
-    enum: ['front', 'back', 'left', 'right']
-  },
-  colorKey: { type: String, default: '' }, // Color this mockup is for (e.g., "Olive")
-  imageUrl: { type: String, required: true }, // Store URL, not base64!
   placeholders: { type: [PlaceholderSchema], default: [] },
-  // Per-mockup displacement settings for WebGL previews
-  displacementSettings: {
-    scaleX: { type: Number, default: 20 },
-    scaleY: { type: Number, default: 20 },
-    contrastBoost: { type: Number, default: 1.5 }
-  },
-  metadata: {
-    imageType: {
-      type: String,
-      enum: ['lifestyle', 'flat-front', 'flat-back', 'folded', 'person', 'detail', 'other'],
-      default: 'other'
-    },
-    caption: { type: String, default: '' },
-    order: { type: Number, default: 0 }
-  }
 }, { _id: false });
 
-/** One selected care icon on a product — only refs `careicons` (no duplicate subdoc `_id`). */
-const CatalogCareInstructionIconSchema = new mongoose.Schema({
-  careIconId: { type: mongoose.Schema.Types.ObjectId, ref: 'CareIcon', required: true },
-  label: { type: String, default: '' },
-}, { _id: false });
-
+/** Editor canvas config only — sample mockups live in catalogproductmockups (productId → CatalogProduct). */
 const CatalogProductDesignSchema = new mongoose.Schema({
   views: [ViewConfigSchema],
-  sampleMockups: { type: [SampleMockupImageSchema], default: [] },
   dpi: { type: Number, default: 300 },
   physicalDimensions: {
     width: { type: Number },
     height: { type: Number },
-    length: { type: Number }
+    length: { type: Number },
   },
   displacementSettings: {
     scaleX: { type: Number, default: 20 },
     scaleY: { type: Number, default: 20 },
-    contrastBoost: { type: Number, default: 1.5 }
-  }
+    contrastBoost: { type: Number, default: 1.5 },
+  },
+}, { _id: false });
+
+const CatalogCareInstructionIconSchema = new mongoose.Schema({
+  careIconId: { type: mongoose.Schema.Types.ObjectId, ref: 'CareIcon', required: true },
+  label: { type: String, default: '' },
 }, { _id: false });
 
 const CatalogProductShippingSchema = new mongoose.Schema({
@@ -90,7 +91,7 @@ const CatalogProductShippingSchema = new mongoose.Schema({
   deliveryTimeOption: {
     type: String,
     enum: ['none', 'default', 'specific'],
-    default: 'specific'
+    default: 'specific',
   },
   inStockDeliveryTime: { type: String, default: '' },
   outOfStockDeliveryTime: { type: String, default: '' },
@@ -98,22 +99,28 @@ const CatalogProductShippingSchema = new mongoose.Schema({
   carrierSelection: {
     type: String,
     enum: ['all', 'selected'],
-    default: 'all'
+    default: 'all',
   },
-  selectedCarriers: { type: [String], default: [] }
+  selectedCarriers: { type: [String], default: [] },
+  /** ObjectId ref → catalogproductinventories (stock policy / MOQ). */
+  inventoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CatalogProductInventory',
+    default: null,
+  },
 }, { _id: false });
 
 const CatalogProductGalleryImageSchema = new mongoose.Schema({
   id: { type: String, required: true },
-  url: { type: String, required: true }, // URL, not base64
+  url: { type: String, required: true },
   position: { type: Number, required: true },
   isPrimary: { type: Boolean, default: false },
   imageType: {
     type: String,
     enum: ['lifestyle', 'flat-front', 'flat-back', 'size-chart', 'detail', 'other'],
-    default: 'other'
+    default: 'other',
   },
-  altText: { type: String, default: '' }
+  altText: { type: String, default: '' },
 }, { _id: false });
 
 const SpecificPriceSchema = new mongoose.Schema({
@@ -149,87 +156,51 @@ const ProductPricingSchema = new mongoose.Schema({
 }, { _id: false });
 
 const CatalogProductSchema = new mongoose.Schema({
-  // Basic info
   name: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
-  description: {
-    type: String
-  },
-  shortDescription: {
-    type: String,
-    default: ''
-  },
-  highlights: {
-    type: [String],
-    default: []
-  },
+  description: { type: String },
+  shortDescription: { type: String, default: '' },
+  highlights: { type: [String], default: [] },
   categoryId: {
     type: String,
     required: true,
     validate: {
-      validator: function (v) {
+      validator(v) {
         return isValidCategory(v);
       },
-      message: props => `${props.value} is not a valid category ID`
-    }
+      message: (props) => `${props.value} is not a valid category ID`,
+    },
   },
   subcategoryIds: [String],
-  productTypeCode: {
-    type: String,
-    required: true
-  },
+  productTypeCode: { type: String, required: true },
   tags: [String],
 
-  // Attributes (dynamic fields from CatalogueFieldTemplate)
-  attributes: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {}
-  },
+  basePrice: { type: Number, required: true, min: 0 },
+  sampleAvailable: { type: Boolean, default: false },
+  currency: { type: String, default: 'INR' },
 
-  // Base price (what manufacturer charges)
-  basePrice: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-
-  sampleAvailable: {
-    type: Boolean,
-    default: false
-  },
-
-  currency: {
-    type: String,
-    default: 'INR'
-  },
-
-  // GST Settings
   gst: {
     slab: { type: Number, enum: [0, 5, 12, 18], default: 18 },
     mode: { type: String, enum: ['EXCLUSIVE', 'INCLUSIVE'], default: 'EXCLUSIVE' },
-    hsn: { type: String, default: '' }
+    hsn: { type: String, default: '' },
   },
 
-  // Print methods allowed for this product (superadmin assigns)
   allowedPrintMethodIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PrintMethod',
   }],
 
-  // Design (mockups, placeholders)
   design: {
     type: CatalogProductDesignSchema,
-    required: true
+    required: true,
   },
 
-  // Shipping specs
   shipping: {
     type: CatalogProductShippingSchema,
-    required: true
+    required: true,
   },
 
   fulfillmentType: {
@@ -239,69 +210,103 @@ const CatalogProductSchema = new mongoose.Schema({
     index: true,
   },
 
-  productionHours: {
-    type: Number,
-    default: 120,
-    min: 1,
-  },
+  productionHours: { type: Number, default: 120, min: 1 },
 
-  // Gallery images
   galleryImages: [CatalogProductGalleryImageSchema],
 
-  // Pricing (including specific prices)
   pricing: {
     type: ProductPricingSchema,
-    default: () => ({})
+    default: () => ({}),
   },
 
-  // Product details (barcodes, etc.)
   details: {
     mpn: { type: String, default: '' },
     upc: { type: String, default: '' },
     ean13: { type: String, default: '' },
-    isbn: { type: String, default: '' }
+    isbn: { type: String, default: '' },
   },
 
-  // Metadata
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
   },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  isPublished: {
-    type: Boolean,
-    default: false // SUPERADMIN must publish to make available to merchants
-  },
+  isActive: { type: Boolean, default: true },
+  isPublished: { type: Boolean, default: false },
 
-  // Stocks & Inventory
-  stocks: {
-    minimumQuantity: { type: Number, default: 1, min: 1 },
-    stockLocation: { type: String, default: '' },
-    lowStockAlertEnabled: { type: Boolean, default: false },
-    lowStockAlertEmail: { type: String, default: '' },
-    lowStockThreshold: { type: Number, default: 10 },
-    outOfStockBehavior: { type: String, enum: ['deny', 'allow', 'default'], default: 'default' },
-    currentStock: { type: Number }
-  },
   careInstructions: {
     icons: { type: [CatalogCareInstructionIconSchema], default: [] },
-    text: { type: String, default: '' }
-  }
+    text: { type: String, default: '' },
+  },
+
+  /** ObjectId refs → side collections (canonical relations on catalogproducts). */
+  attributeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CatalogProductAttribute',
+    default: null,
+    index: true,
+  },
+  mockupIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CatalogProductMockup',
+  }],
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
 });
 
-// Indexes
+// ——— Populate helpers (localField = ObjectId ref on this document) ———
+
+CatalogProductSchema.virtual('mockupDocs', {
+  ref: 'CatalogProductMockup',
+  localField: 'mockupIds',
+  foreignField: '_id',
+});
+
+CatalogProductSchema.virtual('inventoryDoc', {
+  ref: 'CatalogProductInventory',
+  localField: 'shipping.inventoryId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+CatalogProductSchema.virtual('attributeDoc', {
+  ref: 'CatalogProductAttribute',
+  localField: 'attributeId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+CatalogProductSchema.virtual('variantDocs', {
+  ref: 'CatalogProductVariant',
+  localField: '_id',
+  foreignField: 'catalogProductId',
+});
+
+CatalogProductSchema.pre('save', function preSaveStripDeprecatedCatalog(next) {
+  stripDeprecatedEmbeddedFields(this);
+  next();
+});
+
+const catalogUpdateMiddleware = function preUpdateStripDeprecatedCatalog(next) {
+  this.setUpdate(mergeDeprecatedCatalogUnset(this.getUpdate()));
+  next();
+};
+
+CatalogProductSchema.pre('findOneAndUpdate', catalogUpdateMiddleware);
+CatalogProductSchema.pre('updateOne', catalogUpdateMiddleware);
+CatalogProductSchema.pre('updateMany', catalogUpdateMiddleware);
+CatalogProductSchema.pre('findByIdAndUpdate', catalogUpdateMiddleware);
+
 CatalogProductSchema.index({ name: 'text', description: 'text' });
 CatalogProductSchema.index({ createdBy: 1 });
 CatalogProductSchema.index({ isActive: 1, isPublished: 1 });
 CatalogProductSchema.index({ createdAt: -1 });
 CatalogProductSchema.index({ categoryId: 1 });
 CatalogProductSchema.index({ productTypeCode: 1 });
-CatalogProductSchema.index({ 'design.sampleMockups.colorKey': 1 });
 
-module.exports = mongoose.model('CatalogProduct', CatalogProductSchema);
+const CatalogProduct = mongoose.model('CatalogProduct', CatalogProductSchema);
+
+module.exports = CatalogProduct;
+module.exports.DEPRECATED_CATALOG_PRODUCT_UNSET = DEPRECATED_CATALOG_PRODUCT_UNSET;

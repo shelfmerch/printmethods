@@ -44,9 +44,9 @@ curl -I -H "Host: merch.shelfmerch.in" http://localhost:5000/store/merch/product
 npm run dev
 
 # Test path-based routing (should work)
-# Navigate to: http://localhost:8080/store/merch
-# Navigate to: http://localhost:8080/store/merch/products
-# Navigate to: http://localhost:8080/store/merch/product/123
+# Navigate to: http://localhost:8081/store/merch
+# Navigate to: http://localhost:8081/store/merch/products
+# Navigate to: http://localhost:8081/store/merch/product/123
 
 # Verify:
 # - All pages load correctly
@@ -61,9 +61,9 @@ npm run dev
 # Edit hosts file (Windows: C:\Windows\System32\drivers\etc\hosts)
 # Add: 127.0.0.1 merch.localhost
 
-# Navigate to: http://merch.localhost:8080
-# Navigate to: http://merch.localhost:8080/products
-# Navigate to: http://merch.localhost:8080/product/123
+# Navigate to: http://merch.localhost:8081
+# Navigate to: http://merch.localhost:8081/products
+# Navigate to: http://merch.localhost:8081/product/123
 
 # Verify:
 # - Routes work without /store/:slug prefix

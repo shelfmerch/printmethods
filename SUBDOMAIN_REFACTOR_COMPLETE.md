@@ -70,8 +70,8 @@ This refactor changes store routing from path-based (`/store/:slug/*`) to subdom
 - `shelfmerch.in/store/merch/products` → 301 redirects to `merch.shelfmerch.in/products`
 
 ### Development
-- `localhost:8080/store/merch/products` → Works (path-based routing)
-- `merch.localhost:8080/products` → Works if hosts file configured (subdomain routing)
+- `localhost:8081/store/merch/products` → Works (path-based routing)
+- `merch.localhost:8081/products` → Works if hosts file configured (subdomain routing)
 
 ## Next Steps
 

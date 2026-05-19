@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/shared/contexts/AuthContext";
 import { useStore } from "@/shared/contexts/StoreContext";
@@ -21,7 +21,6 @@ import {
     Paintbrush,
     Loader2,
     Terminal,
-    ExternalLink,
 } from "lucide-react";
 
 import { Separator } from "@/shared/components/ui/separator";
@@ -142,7 +141,6 @@ export default function ConnectStore() {
                         sellingPrice: baseSellingPrice,
                         title: state.title,
                         description: state.description,
-                        galleryImages: state.galleryImages,
                         designData: state.designData,
                         variants: variantsPayload.length > 0 ? variantsPayload : undefined,
                     });
@@ -416,41 +414,6 @@ export default function ConnectStore() {
                             </Card>
                         </div>
                     </div>
-                </div>
-
-                {/* Developer API Section */}
-                <div className="space-y-6 pt-4">
-                    <h2 className="text-2xl font-semibold flex items-center gap-2">
-                        API Integration
-                    </h2>
-                    <p className="text-muted-foreground">
-                        Integrate ShelfMerch with your own custom storefront or platform using our API.
-                    </p>
-
-                    <Card className="p-8 bg-slate-50 border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-xl font-bold text-slate-800">Custom API Integration</h3>
-                                <Badge variant="secondary" className="bg-slate-200 text-slate-700 font-normal hover:bg-slate-200 hover:text-slate-800">
-                                    Advanced
-                                </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground max-w-2xl">
-                                Build your own custom integration. Programmatically create listings, sync products, manage orders, and automate your entire workflow with our comprehensive developer API.
-                            </p>
-                        </div>
-
-                        <div className="flex shrink-0">
-                            <Button
-                                size="lg"
-                                className="bg-slate-900 text-white hover:bg-slate-800 gap-2"
-                                onClick={() => window.open('https://api.techvibz.org/docs', '_blank')}
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                                View API Docs
-                            </Button>
-                        </div>
-                    </Card>
                 </div>
 
                 {/* Create Store Dialog */}

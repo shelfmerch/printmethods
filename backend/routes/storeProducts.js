@@ -4,12 +4,20 @@ const mongoose = require('mongoose');
 const { protect, authorize } = require('../middleware/auth');
 const Store = require('../models/Store');
 const StoreProduct = require('../models/StoreProduct');
+const { mergeDeprecatedUnset, stripDeprecatedFromStoreProductDoc } = require('../models/StoreProduct');
 const StoreProductVariant = require('../models/StoreProductVariant');
 const CatalogProduct = require('../models/CatalogProduct');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
-const CatalogProductCareInstruction = require('../models/CatalogProductCareInstruction');
-const { expandCareInstructionsForApi } = require('../utils/careInstructionsRefs');
 const { uploadToS3 } = require('../utils/s3Upload');
+const {
+  CATALOG_REF_SELECT,
+  syncStoreProductCareFromCatalog,
+  shapeStoreProductForApi,
+  shapeStoreProductsForList,
+  attachVariantsToStoreProducts,
+  hydratePopulatedCatalogRef,
+} = require('../utils/storeProductRefs');
+const { getCatalogMinimumQuantity } = require('../utils/catalogProductRefs');
 const { compositeMockup, compositeMockupFromCanvas, applyKonvaRealismPasses } = require('../utils/compositeMockup');
 const { v4: uuidv4 } = require('uuid');
 const { assertWithinPlanLimit } = require('../utils/planLimits');
@@ -111,14 +119,6 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       delete cleanDesignData.previewImagesByView;
       delete cleanDesignData.tags;
       delete cleanDesignData.galleryImages;
-      // modelMockups may only be written by POST .../generate-mockups (never from client body)
-      delete cleanDesignData.modelMockups;
-      if (
-        existingSp?.designData?.modelMockups &&
-        typeof existingSp.designData.modelMockups === 'object'
-      ) {
-        cleanDesignData.modelMockups = existingSp.designData.modelMockups;
-      }
     }
 
     const spUpdateData = {
@@ -140,12 +140,6 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       } : {}),
     };
 
-    // Stamp source/channel only on creation (not on update)
-    if (!spId) {
-      spUpdateData.source = 'native';
-      spUpdateData.channel = 'web';
-    }
-
     // Resolve StoreProduct: If ID provided, update; otherwise create new.
     // This avoids overwriting other listings of the same catalog product.
 
@@ -153,7 +147,7 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
     if (spId && mongoose.Types.ObjectId.isValid(spId)) {
       storeProduct = await StoreProduct.findOneAndUpdate(
         { _id: spId, storeId: store._id },
-        { $set: spUpdateData },
+        mergeDeprecatedUnset({ $set: spUpdateData }),
         { new: true }
       );
       if (!storeProduct) {
@@ -199,40 +193,17 @@ router.post('/', protect, authorize('merchant', 'superadmin'), async (req, res) 
       console.log(`[StoreProducts] Synced variants for ${storeProduct._id}. Kept ${createdVariants.length}.`);
     }
 
-    // Rebuild embedded variantsSummary on the StoreProduct so that
-    // storefronts and dashboards can quickly read per-variant pricing.
-    const allVariants = await StoreProductVariant.find({
-      storeProductId: storeProduct._id,
-      // We now include even inactive variants in the summary so they can be greyed out
-      // but we filter them at reading time if needed.
-    }).populate({
-      path: 'catalogProductVariantId',
-      select: 'size color colorHex basePrice skuTemplate isActive',
-    });
-
-    storeProduct.variantsSummary = allVariants
-      .filter(v => v.catalogProductVariantId) // Filter out orphaned variants
-      .map((v) => {
-        const cv = v.catalogProductVariantId;
-        return {
-          catalogProductVariantId: cv._id,
-          size: cv.size,
-          color: cv.color,
-          colorHex: cv.colorHex,
-          sku: v.sku || cv.skuTemplate,
-          sellingPrice: typeof v.sellingPrice === 'number' ? v.sellingPrice : undefined,
-          basePrice: typeof cv.basePrice === 'number' ? cv.basePrice : undefined,
-          isActive: v.isActive && cv.isActive, // Active only if both are active
-        };
-      });
-
+    await syncStoreProductCareFromCatalog(storeProduct);
+    stripDeprecatedFromStoreProductDoc(storeProduct);
     await storeProduct.save();
+
+    await storeProduct.populate({ path: 'catalogProductId', select: CATALOG_REF_SELECT });
 
     return res.status(201).json({
       success: true,
       message: 'Store product saved',
       data: {
-        storeProduct,
+        storeProduct: await shapeStoreProductForApi(storeProduct),
         variants: createdVariants,
       },
     });
@@ -284,13 +255,15 @@ router.get(['/public', '/public/:storeId'], async (req, res) => {
     })
       .populate({
         path: 'catalogProductId',
-        select: '_id name description categoryId subcategoryIds productTypeCode',
-        lean: true
+        select: CATALOG_REF_SELECT,
+        lean: true,
       })
       .sort({ updatedAt: -1 })
       .lean();
 
-    return res.json({ success: true, data: products });
+    await attachVariantsToStoreProducts(products);
+
+    return res.json({ success: true, data: await shapeStoreProductsForList(products) });
   } catch (error) {
     console.error('Error listing public store products:', error);
     return res.status(500).json({ success: false, message: 'Failed to list store products' });
@@ -338,33 +311,13 @@ router.get('/public/:storeId/:productId', async (req, res) => {
     })
       .populate({
         path: 'catalogProductId',
-        // Keep payload light: careInstructions are normalized and hydrated if needed
-        select: '_id name description categoryId subcategoryIds productTypeCode gst stocks careInstructions',
-        lean: true
+        select: CATALOG_REF_SELECT,
+        lean: true,
       })
       .lean();
 
     if (!storeProduct) {
       return res.status(404).json({ success: false, message: 'Product not found' });
-    }
-
-    // Care instructions on populated catalog snippet: resolve ref-only data then merge `careicons` for the client.
-    const catalogProductId = storeProduct.catalogProductId?._id || storeProduct.catalogProductId;
-    if (catalogProductId && storeProduct.catalogProductId) {
-      let ci = storeProduct.catalogProductId.careInstructions;
-      const hasCare =
-        ci &&
-        typeof ci === 'object' &&
-        ((typeof ci.text === 'string' && ci.text.trim() !== '') ||
-          (Array.isArray(ci.icons) && ci.icons.length > 0));
-      if (!hasCare) {
-        const doc = await CatalogProductCareInstruction.findOne({ productId: catalogProductId }).lean();
-        if (doc) ci = { text: doc.text || '', icons: doc.icons || [] };
-        else ci = { icons: [], text: '' };
-      }
-      storeProduct.catalogProductId.careInstructions = await expandCareInstructionsForApi(
-        ci || { icons: [], text: '' },
-      );
     }
 
     // Fetch variants for this product and populate catalog variant details (size/color)
@@ -463,14 +416,12 @@ router.get('/public/:storeId/:productId', async (req, res) => {
       }));
     }
 
-    // Extract minimumQuantity from catalog product stocks
-    const catalogProduct = storeProduct.catalogProductId;
-    const minimumQuantity = (catalogProduct?.stocks?.minimumQuantity) || 1;
-
+    const shaped = await shapeStoreProductForApi(storeProduct);
+    const minimumQuantity = getCatalogMinimumQuantity(shaped.catalogProductId);
     return res.json({
       success: true,
       data: {
-        ...storeProduct,
+        ...shaped,
         minimumQuantity,
         variants,
       },
@@ -492,7 +443,10 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
       return res.status(400).json({ success: false, message: 'Invalid store product ID' });
     }
 
-    const sp = await StoreProduct.findById(id);
+    const sp = await StoreProduct.findById(id).populate({
+      path: 'catalogProductId',
+      select: CATALOG_REF_SELECT,
+    });
     if (!sp) {
       return res.status(404).json({ success: false, message: 'Store product not found' });
     }
@@ -507,7 +461,7 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    return res.json({ success: true, data: sp });
+    return res.json({ success: true, data: await shapeStoreProductForApi(sp) });
   } catch (error) {
     console.error('Error fetching store product by id:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch store product' });
@@ -547,57 +501,13 @@ router.get('/', protect, authorize('merchant', 'superadmin'), async (req, res) =
     if (isActive !== undefined) spFilter.isActive = isActive === 'true';
 
     const products = await StoreProduct.find(spFilter)
+      .populate({ path: 'catalogProductId', select: CATALOG_REF_SELECT })
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Live-refresh variantsSummary.isActive from catalog variants so the
-    // dashboard always reflects current stock, even if the product was
-    // published before a variant went out of stock.
-    if (products.length > 0) {
-      const productIds = products.map(p => p._id);
+    await attachVariantsToStoreProducts(products);
 
-      // Fetch all store variants for these products in one query
-      const storeVariants = await StoreProductVariant.find({
-        storeProductId: { $in: productIds },
-      }).populate({
-        path: 'catalogProductVariantId',
-        select: 'size color colorHex basePrice skuTemplate isActive',
-      }).lean();
-
-      // Index by storeProductId for quick lookup
-      const variantsByProduct = {};
-      storeVariants.forEach(sv => {
-        const spId = sv.storeProductId.toString();
-        if (!variantsByProduct[spId]) variantsByProduct[spId] = [];
-        variantsByProduct[spId].push(sv);
-      });
-
-      // Patch each product's variantsSummary with live isActive
-      products.forEach(product => {
-        const spId = product._id.toString();
-        const liveVariants = variantsByProduct[spId];
-        if (!liveVariants || liveVariants.length === 0) return;
-
-        product.variantsSummary = liveVariants
-          .filter(sv => sv.catalogProductVariantId)
-          .map(sv => {
-            const cv = sv.catalogProductVariantId;
-            return {
-              catalogProductVariantId: cv._id,
-              size: cv.size,
-              color: cv.color,
-              colorHex: cv.colorHex,
-              sku: sv.sku || cv.skuTemplate,
-              sellingPrice: typeof sv.sellingPrice === 'number' ? sv.sellingPrice : undefined,
-              basePrice: typeof cv.basePrice === 'number' ? cv.basePrice : undefined,
-              // Live join: OOS if either the store variant or catalog variant is inactive
-              isActive: sv.isActive !== false && cv.isActive !== false,
-            };
-          });
-      });
-    }
-
-    return res.json({ success: true, data: products });
+    return res.json({ success: true, data: await shapeStoreProductsForList(products) });
   } catch (error) {
     console.error('Error listing store products:', error);
     return res.status(500).json({ success: false, message: 'Failed to list store products' });
@@ -682,14 +592,15 @@ router.patch('/:id/design-preview', protect, authorize('merchant', 'superadmin')
 });
 
 // @route   PATCH /api/store-products/:id/mockup
-// @desc    Save a flat mockup preview URL (model mockups are server-only via POST .../generate-mockups)
+// @desc    Save a mockup preview (flat or model) with proper type separation
 // @access  Private (merchant, superadmin)
 router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      mockupType,  // must be 'flat' — model mockups use POST .../generate-mockups
+      mockupType,  // 'flat' | 'model'
       viewKey,     // 'front' | 'back' | 'left' | 'right'
+      colorKey,    // Required for model mockups (e.g., 'cerulean-frost')
       imageUrl
     } = req.body;
 
@@ -701,18 +612,17 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
       });
     }
 
-    if (mockupType === 'model') {
+    if (!['flat', 'model'].includes(mockupType)) {
       return res.status(400).json({
         success: false,
-        message:
-          'Model mockups are generated only by the server. Use POST /api/store-products/:id/generate-mockups instead of PATCH .../mockup.',
+        message: 'mockupType must be "flat" or "model"'
       });
     }
 
-    if (mockupType !== 'flat') {
+    if (mockupType === 'model' && !colorKey) {
       return res.status(400).json({
         success: false,
-        message: 'mockupType must be "flat"',
+        message: 'colorKey is required for model mockups'
       });
     }
 
@@ -730,32 +640,48 @@ router.patch('/:id/mockup', protect, authorize('merchant', 'superadmin'), async 
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    if (!sp.designData) sp.designData = {};
+    // Initialize designData structures
+    // if (!sp.designData) sp.designData = {};
+    // if (!sp.designData.previewImagesByView) sp.designData.previewImagesByView = {};
 
-    // Store flat mockups separately
-    if (!sp.designData.flatMockups) sp.designData.flatMockups = {};
-    sp.designData.flatMockups[viewKey] = imageUrl;
+    if (mockupType === 'flat') {
+      // Store flat mockups separately
+      if (!sp.designData.flatMockups) sp.designData.flatMockups = {};
+      sp.designData.flatMockups[viewKey] = imageUrl;
 
-    // Update legacy field for backward compatibility
-    // sp.designData.previewImagesByView[viewKey] = imageUrl;
+      // Update legacy field for backward compatibility
+      // sp.designData.previewImagesByView[viewKey] = imageUrl;
 
-    // Update primary preview if front view
-    if (viewKey === 'front') {
-      sp.designData.previewImageUrl = imageUrl;
+      // Update primary preview if front view
+      if (viewKey === 'front') {
+        sp.designData.previewImageUrl = imageUrl;
+      }
+
+      console.log(`[Mockup] Saved flat mockup for ${viewKey}:`, imageUrl.substring(0, 50) + '...');
+    } else {
+      // Store model mockups separately, keyed by color
+      if (!sp.designData.modelMockups) sp.designData.modelMockups = {};
+      if (!sp.designData.modelMockups[colorKey]) sp.designData.modelMockups[colorKey] = {};
+      sp.designData.modelMockups[colorKey][viewKey] = imageUrl;
+
+      // Update legacy field for backward compatibility with color-prefixed key
+      // const legacyKey = `mockup-${colorKey}-${viewKey}`;
+      // sp.designData.previewImagesByView[legacyKey] = imageUrl;
+
+      console.log(`[Mockup] Saved model mockup for ${colorKey}/${viewKey}:`, imageUrl.substring(0, 50) + '...');
     }
 
-    console.log(`[Mockup] Saved flat mockup for ${viewKey}:`, imageUrl.substring(0, 50) + '...');
-
     sp.markModified('designData');
+    stripDeprecatedFromStoreProductDoc(sp);
     await sp.save();
 
     return res.json({
       success: true,
-      message: `flat mockup saved for ${viewKey}`,
+      message: `${mockupType} mockup saved for ${mockupType === 'model' ? `${colorKey}/${viewKey}` : viewKey}`,
       data: {
-        mockupType: 'flat',
+        mockupType,
         viewKey,
-        colorKey: null,
+        colorKey: colorKey || null,
         imageUrl,
         flatMockups: sp.designData.flatMockups,
         modelMockups: sp.designData.modelMockups
@@ -821,9 +747,7 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       delete cleanDesignData.previewImagesByView;
       delete cleanDesignData.tags;
       delete cleanDesignData.galleryImages;
-      // modelMockups may only be written by POST .../generate-mockups
-      delete cleanDesignData.modelMockups;
-
+      
       sp.designData = { ...(sp.designData || {}), ...cleanDesignData };
       
       // Also delete from existing designData if they are already present
@@ -836,7 +760,7 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       sp.markModified('designData');
     }
 
-    // Persist basic StoreProduct field changes before working with variants
+    stripDeprecatedFromStoreProductDoc(sp);
     await sp.save();
 
     let updatedVariants = [];
@@ -882,37 +806,15 @@ router.patch('/:id', protect, authorize('merchant', 'superadmin'), async (req, r
       console.log(`[StoreProducts] Synced variants for ${sp._id}. Kept ${updatedVariants.length}.`);
     }
 
-    // Rebuild embedded variantsSummary from ALL StoreProductVariant docs
-    // (include inactive ones so dashboard can show OOS), joining live catalog isActive
-    const allVariants = await StoreProductVariant.find({
-      storeProductId: sp._id,
-    }).populate({
-      path: 'catalogProductVariantId',
-      select: 'size color colorHex basePrice skuTemplate isActive',
-    });
-
-    sp.variantsSummary = allVariants
-      .filter(v => v.catalogProductVariantId) // Filter out orphaned variants
-      .map((v) => {
-        const cv = v.catalogProductVariantId;
-        return {
-          catalogProductVariantId: cv._id,
-          size: cv.size,
-          color: cv.color,
-          colorHex: cv.colorHex,
-          sku: v.sku || cv.skuTemplate,
-          sellingPrice: typeof v.sellingPrice === 'number' ? v.sellingPrice : undefined,
-          basePrice: typeof cv.basePrice === 'number' ? cv.basePrice : undefined,
-          // isActive: true only if BOTH the store variant AND the catalog variant are active
-          isActive: v.isActive !== false && cv.isActive !== false,
-        };
-      });
-
+    await syncStoreProductCareFromCatalog(sp);
+    stripDeprecatedFromStoreProductDoc(sp);
     await sp.save();
+
+    await sp.populate({ path: 'catalogProductId', select: CATALOG_REF_SELECT });
 
     return res.json({
       success: true,
-      data: sp,
+      data: await shapeStoreProductForApi(sp),
       variants: updatedVariants,
     });
   } catch (error) {
@@ -981,10 +883,11 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
       ? storeProduct.catalogProductId._id
       : storeProduct.catalogProductId;
 
-    const catalogProduct = await CatalogProduct.findById(catalogProductId).lean();
+    let catalogProduct = await CatalogProduct.findById(catalogProductId).lean();
     if (!catalogProduct) {
       return res.status(404).json({ success: false, message: 'Catalog product not found' });
     }
+    catalogProduct = await hydratePopulatedCatalogRef(catalogProduct);
 
     const sampleMockups = catalogProduct.design?.sampleMockups || [];
     const physicalDimensions = catalogProduct.design?.physicalDimensions || { width: 20, height: 24 };
@@ -1120,24 +1023,24 @@ router.post('/:id/generate-mockups', protect, authorize('merchant', 'superadmin'
         ...sampleMockups.filter((m) => !m.colorKey || m.colorKey === color),
       ];
 
-      if (variant && variant.viewImages) {
-        for (const view of ['front', 'back', 'left', 'right']) {
-          const variantUrl = variant.viewImages[view];
-          if (!variantUrl) continue;
-          if (colorMockups.some((m) => (m.viewKey || '').toLowerCase() === view)) continue;
+      // if (variant && variant.viewImages) {
+      //   for (const view of ['front', 'back', 'left', 'right']) {
+      //     const variantUrl = variant.viewImages[view];
+      //     if (!variantUrl) continue;
+      //     if (colorMockups.some((m) => (m.viewKey || '').toLowerCase() === view)) continue;
 
-          const masterView = Array.isArray(designData.views)
-            ? designData.views.find((v) => (v.key || '').toLowerCase() === view)
-            : null;
+      //     const masterView = Array.isArray(designData.views)
+      //       ? designData.views.find((v) => (v.key || '').toLowerCase() === view)
+      //       : null;
 
-          colorMockups.push({
-            id: `variant-${variant._id}-${view}-${colorKey}`,
-            viewKey: view,
-            imageUrl: variantUrl,
-            placeholders: (masterView && masterView.placeholders) ? masterView.placeholders : [],
-          });
-        }
-      }
+      //     colorMockups.push({
+      //       id: `variant-${variant._id}-${view}-${colorKey}`,
+      //       viewKey: view,
+      //       imageUrl: variantUrl,
+      //       placeholders: (masterView && masterView.placeholders) ? masterView.placeholders : [],
+      //     });
+      //   }
+      // }
 
       // Process all views for this color sequentially
       for (const mockup of colorMockups) {

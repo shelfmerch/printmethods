@@ -23,7 +23,7 @@ const STATIC_VARIANT_OPTIONS = {
       sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
       colors: [
         'White', 'Black', 'Navy', 'Red', 'Maroon', 'Gray', 'Charcoal', 'Silver',
-        'Olive', 'Olive Drab', 'Forest Green', 'Royal Blue', 'Sky Blue', 'Burgundy', 
+        'Olive', 'Olive Drab', 'Forest Green', 'Royal Blue', 'Sky Blue', 'Burgundy',
         'Pink', 'Yellow', 'Gold', 'Orange', 'Purple', 'Mint Green', 'Coral',
         'Beige-Gray', 'Tan', 'Crimson', 'Lavender', 'Teal'
       ],
@@ -40,14 +40,14 @@ const STATIC_VARIANT_OPTIONS = {
       'Hoodie': {
         sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
         colors: [
-          'Black', 'Gray', 'Charcoal', 'Navy', 'Maroon', 'Forest Green', 
+          'Black', 'Gray', 'Charcoal', 'Navy', 'Maroon', 'Forest Green',
           'Olive', 'Burgundy', 'Beige-Gray'
         ],
       },
       'Tank Top': {
         sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
         colors: [
-          'White', 'Black', 'Gray', 'Light Gray', 'Navy', 'Red', 
+          'White', 'Black', 'Gray', 'Light Gray', 'Navy', 'Red',
           'Pink', 'Sky Blue', 'Coral', 'Mint Green', 'Yellow'
         ],
       },
@@ -62,21 +62,21 @@ const STATIC_VARIANT_OPTIONS = {
       'Tote Bag': {
         sizes: ['Small', 'Medium', 'Large'],
         colors: [
-          'Natural', 'Black', 'Navy', 'Gray', 'Olive', 'Burgundy', 
+          'Natural', 'Black', 'Navy', 'Gray', 'Olive', 'Burgundy',
           'Beige-Gray', 'Tan', 'Cream', 'Charcoal'
         ],
       },
       'Cap': {
         sizes: ['One Size', 'Youth'],
         colors: [
-          'Black', 'Navy', 'Gray', 'Charcoal', 'White', 'Red', 
+          'Black', 'Navy', 'Gray', 'Charcoal', 'White', 'Red',
           'Olive', 'Camo', 'Tan', 'Beige-Gray'
         ],
       },
       'Phone Cover': {
         sizes: ['iPhone 14', 'iPhone 14 Pro', 'iPhone 14 Pro Max', 'iPhone 15', 'iPhone 15 Pro', 'iPhone 15 Pro Max', 'Samsung Galaxy S23', 'Samsung Galaxy S24'],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Red', 
+          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Red',
           'Pink', 'Purple', 'Green', 'Gold', 'Silver', 'Rose Gold'
         ],
       },
@@ -87,7 +87,7 @@ const STATIC_VARIANT_OPTIONS = {
       'Beanie': {
         sizes: ['One Size'],
         colors: [
-          'Black', 'Gray', 'Charcoal', 'Navy', 'Burgundy', 'Olive', 
+          'Black', 'Gray', 'Charcoal', 'Navy', 'Burgundy', 'Olive',
           'Maroon', 'Beige-Gray', 'Forest Green'
         ],
       },
@@ -102,35 +102,35 @@ const STATIC_VARIANT_OPTIONS = {
       'Mug': {
         sizes: ['11oz', '15oz', '20oz'],
         colors: [
-          'White', 'Black', 'Red', 'Blue', 'Royal Blue', 'Green', 
+          'White', 'Black', 'Red', 'Blue', 'Royal Blue', 'Green',
           'Yellow', 'Pink', 'Purple', 'Orange', 'Gray', 'Beige-Gray'
         ],
       },
       'Can': {
         sizes: ['12oz', '16oz', '20oz'],
         colors: [
-          'White', 'Black', 'Silver', 'Blue', 'Red', 'Green', 
+          'White', 'Black', 'Silver', 'Blue', 'Red', 'Green',
           'Pink', 'Purple', 'Gold', 'Teal'
         ],
       },
       'Cushion': {
         sizes: ['14x14', '16x16', '18x18', '20x20'],
         colors: [
-          'White', 'Black', 'Gray', 'Light Gray', 'Beige', 'Beige-Gray', 
+          'White', 'Black', 'Gray', 'Light Gray', 'Beige', 'Beige-Gray',
           'Navy', 'Red', 'Yellow', 'Green', 'Blue', 'Pink', 'Cream', 'Tan'
         ],
       },
       'Frame': {
         sizes: ['5x7', '8x10', '11x14', '16x20', '18x24'],
         colors: [
-          'Black', 'White', 'Wood', 'Silver', 'Gold', 'Rose Gold', 
+          'Black', 'White', 'Wood', 'Silver', 'Gold', 'Rose Gold',
           'Bronze', 'Copper', 'Charcoal', 'Beige-Gray'
         ],
       },
       'Coaster': {
         sizes: ['4x4', '4.5x4.5'],
         colors: [
-          'White', 'Black', 'Cork', 'Wood', 'Gray', 'Beige-Gray', 
+          'White', 'Black', 'Cork', 'Wood', 'Gray', 'Beige-Gray',
           'Tan', 'Natural', 'Slate'
         ],
       },
@@ -181,21 +181,21 @@ const STATIC_VARIANT_OPTIONS = {
       'Box': {
         sizes: ['4x4x4', '6x6x6', '8x8x8', '10x10x10', '12x12x12'],
         colors: [
-          'White', 'Kraft', 'Natural', 'Black', 'Brown', 
+          'White', 'Kraft', 'Natural', 'Black', 'Brown',
           'Beige-Gray', 'Tan', 'Custom Printed'
         ],
       },
       'Bottle': {
         sizes: ['50ml', '100ml', '250ml', '500ml', '1000ml'],
         colors: [
-          'Clear', 'Amber', 'Blue', 'Cobalt Blue', 'Green', 
+          'Clear', 'Amber', 'Blue', 'Cobalt Blue', 'Green',
           'White', 'Black', 'Frosted'
         ],
       },
       'Pouch': {
         sizes: ['Small (4x6)', 'Medium (6x9)', 'Large (8x12)'],
         colors: [
-          'Clear', 'White', 'Black', 'Kraft', 'Silver', 
+          'Clear', 'White', 'Black', 'Kraft', 'Silver',
           'Gold', 'Rose Gold', 'Beige-Gray'
         ],
       },
@@ -218,8 +218,8 @@ const STATIC_VARIANT_OPTIONS = {
           'iPhone 15', 'iPhone 15 Pro', 'iPhone 15 Pro Max'
         ],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red', 
-          'Pink', 'Purple', 'Green', 'Yellow', 'Orange', 'Gray', 'Silver', 
+          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red',
+          'Pink', 'Purple', 'Green', 'Yellow', 'Orange', 'Gray', 'Silver',
           'Gold', 'Rose Gold', 'Beige-Gray'
         ],
       },
@@ -228,7 +228,7 @@ const STATIC_VARIANT_OPTIONS = {
           'iPad 10.2"', 'iPad Air 10.9"', 'iPad Pro 11"', 'iPad Pro 12.9"'
         ],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red', 
+          'Clear', 'Black', 'White', 'Blue', 'Royal Blue', 'Navy', 'Red',
           'Gray', 'Silver', 'Gold', 'Rose Gold'
         ],
       },
@@ -237,14 +237,14 @@ const STATIC_VARIANT_OPTIONS = {
           'MacBook Air 13"', 'MacBook Pro 14"', 'MacBook Pro 16"'
         ],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Gray', 'Silver', 
+          'Clear', 'Black', 'White', 'Blue', 'Gray', 'Silver',
           'Charcoal', 'Beige-Gray', 'Rose Gold'
         ],
       },
       'Phone': {
         sizes: ['Small (5-6")', 'Medium (6-6.5")', 'Large (6.5"+)'],
         colors: [
-          'Clear', 'Black', 'White', 'Blue', 'Red', 'Pink', 
+          'Clear', 'Black', 'White', 'Blue', 'Red', 'Pink',
           'Purple', 'Green', 'Gray', 'Silver'
         ],
       },
@@ -259,21 +259,21 @@ const STATIC_VARIANT_OPTIONS = {
       'Ring': {
         sizes: ['5', '6', '7', '8', '9', '10', '11', 'Adjustable'],
         colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 
+          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
           'Bronze', 'Copper', 'Brass', 'Platinum'
         ],
       },
       'Necklace': {
         sizes: ['14"', '16"', '18"', '20"', '22"', '24"', 'Adjustable'],
         colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 
+          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
           'Bronze', 'Copper', 'Brass'
         ],
       },
       'Earring': {
         sizes: ['Small', 'Medium', 'Large'],
         colors: [
-          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black', 
+          'Silver', 'Gold', 'Rose Gold', 'White Gold', 'Black',
           'Bronze', 'Copper'
         ],
       },
@@ -285,8 +285,8 @@ const STATIC_VARIANT_OPTIONS = {
 const COLOR_HEX_MAP = {
   'white': '#FFFFFF',
   'black': '#000000',
-  'gray': '#808080',
-  'grey': '#808080',
+  'gray': '#808180',
+  'grey': '#808180',
   'light gray': '#D3D3D3',
   'red': '#FF0000',
   'blue': '#0000FF',
@@ -300,7 +300,7 @@ const COLOR_HEX_MAP = {
   'sky blue': '#87CEEB',
   'forest green': '#228B22',
   'mint green': '#98FF98',
-  'olive': '#808000',
+  'olive': '#808100',
   'olive drab': '#6B8E23',
   'brown': '#A52A2A',
   'tan': '#D2B48C',
@@ -317,7 +317,7 @@ const COLOR_HEX_MAP = {
   'ivory': '#FFFFF0',
   'coral': '#FF7F50',
   'lavender': '#E6E6FA',
-  'teal': '#008080',
+  'teal': '#008081',
   'natural': '#F5F5DC',
   'clear': '#FFFFFF',
   'kraft': '#D4A574',
@@ -344,7 +344,7 @@ function getColorHex(colorName) {
 async function seedVariantOptions() {
   try {
     console.log('🚀 Starting variant options seed...\n');
-    
+
     // Connect to MongoDB
     const mongoUrl = process.env.MONGO_URL;
     const dbName = process.env.DB_NAME;
@@ -365,12 +365,12 @@ async function seedVariantOptions() {
 
     console.log(`🔌 Connecting to MongoDB...`);
     console.log(`   Database will be: ${connectionString.split('/').pop().split('?')[0]}`);
-    
+
     await mongoose.connect(connectionString, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    
+
     console.log('✅ Connected to MongoDB');
     console.log(`   Database: ${mongoose.connection.name}\n`);
 
@@ -387,11 +387,11 @@ async function seedVariantOptions() {
     // Process each category
     for (const [categoryId, categoryData] of Object.entries(STATIC_VARIANT_OPTIONS)) {
       console.log(`\n📦 Processing category: ${categoryId}`);
-      
+
       // Process default options (subcategoryId = null)
       if (categoryData.default) {
         console.log(`   Processing default options...`);
-        
+
         // Process sizes
         for (const size of categoryData.default.sizes || []) {
           const existing = await VariantOptionTemplate.findOne({
@@ -400,7 +400,7 @@ async function seedVariantOptions() {
             optionType: 'size',
             value: size
           });
-          
+
           if (!existing) {
             await VariantOptionTemplate.create({
               categoryId,
@@ -416,7 +416,7 @@ async function seedVariantOptions() {
             totalSkipped++;
           }
         }
-        
+
         // Process colors
         for (const color of categoryData.default.colors || []) {
           const existing = await VariantOptionTemplate.findOne({
@@ -425,7 +425,7 @@ async function seedVariantOptions() {
             optionType: 'color',
             value: color
           });
-          
+
           if (!existing) {
             const colorHex = getColorHex(color);
             await VariantOptionTemplate.create({
@@ -444,12 +444,12 @@ async function seedVariantOptions() {
           }
         }
       }
-      
+
       // Process subcategory-specific options
       if (categoryData.bySubcategory) {
         for (const [subcategoryId, subcategoryData] of Object.entries(categoryData.bySubcategory)) {
           console.log(`   Processing subcategory: ${subcategoryId}`);
-          
+
           // Process sizes
           for (const size of subcategoryData.sizes || []) {
             const existing = await VariantOptionTemplate.findOne({
@@ -458,7 +458,7 @@ async function seedVariantOptions() {
               optionType: 'size',
               value: size
             });
-            
+
             if (!existing) {
               await VariantOptionTemplate.create({
                 categoryId,
@@ -474,7 +474,7 @@ async function seedVariantOptions() {
               totalSkipped++;
             }
           }
-          
+
           // Process colors
           for (const color of subcategoryData.colors || []) {
             const existing = await VariantOptionTemplate.findOne({
@@ -483,7 +483,7 @@ async function seedVariantOptions() {
               optionType: 'color',
               value: color
             });
-            
+
             if (!existing) {
               const colorHex = getColorHex(color);
               await VariantOptionTemplate.create({

@@ -67,7 +67,7 @@ Updated by: Codex
 - `curl http://localhost:5002/health`
 - `curl -i http://localhost:5002/api/admin/direct-orders`
 - `curl -i http://localhost:5002/api/admin/kit-fulfillment/production-queue`
-- `curl -I http://localhost:8080/`
+- `curl -I http://localhost:8081/`
 
 ## Notes
 

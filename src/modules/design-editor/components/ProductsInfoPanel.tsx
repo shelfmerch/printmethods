@@ -91,14 +91,14 @@ const getColorHex = (colorName: string): string => {
     'purple': '#800080',
     'pink': '#FFC0CB',
     'brown': '#A52A2A',
-    'grey': '#808080',
-    'gray': '#808080',
+    'grey': '#808180',
+    'gray': '#808180',
     'navy': '#000080',
     'maroon': '#800000',
-    'olive': '#808000',
+    'olive': '#808100',
     'lime': '#00FF00',
     'aqua': '#00FFFF',
-    'teal': '#008080',
+    'teal': '#008081',
     'silver': '#C0C0C0',
     'gold': '#FFD700',
     'beige': '#F5F5DC',
@@ -573,11 +573,10 @@ export const ProductInfoPanel: React.FC<{
                       key={methodId}
                       type="button"
                       onClick={() => onPrintMethodChange?.(isSelected ? null : methodId)}
-                      className={`w-full rounded-md border p-4 text-left transition-all ${
-                        isSelected
+                      className={`w-full rounded-md border p-4 text-left transition-all ${isSelected
                           ? 'border-[#22c55e] bg-[#22c55e]/5'
                           : 'border-border bg-background hover:border-[#22c55e]/70'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-base font-semibold text-foreground">

@@ -74,7 +74,7 @@ const MockupCanvasPreview: React.FC<MockupCanvasPreviewProps> = ({
         // When we fetch it here with CORS, the browser uses the cached (non-CORS) 
         // response, causing a CORS error. The timestamp forces a fresh request 
         // where S3 actually sees our Origin header and responds with CORS headers.
-        const bustUrl = url.includes('amazonaws.com') 
+        const bustUrl = url.includes('amazonaws.com')
           ? `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`
           : url;
 
@@ -236,14 +236,14 @@ const getColorHex = (colorName: string): string => {
     'purple': '#800080',
     'pink': '#FFC0CB',
     'brown': '#A52A2A',
-    'grey': '#808080',
-    'gray': '#808080',
+    'grey': '#808180',
+    'gray': '#808180',
     'navy': '#000080',
     'maroon': '#800000',
-    'olive': '#808000',
+    'olive': '#808100',
     'lime': '#00FF00',
     'aqua': '#00FFFF',
-    'teal': '#008080',
+    'teal': '#008081',
     'silver': '#C0C0C0',
     'gold': '#FFD700',
     'beige': '#F5F5DC',
@@ -291,7 +291,7 @@ function applyMultiplyTint(
     const d = id.data;
     for (let i = 0; i < d.length; i += 4) {
       if (d[i + 3] < 10) continue;
-      d[i]     = Math.round(d[i]     * r / 255);
+      d[i] = Math.round(d[i] * r / 255);
       d[i + 1] = Math.round(d[i + 1] * g / 255);
       d[i + 2] = Math.round(d[i + 2] * b / 255);
     }
@@ -884,12 +884,12 @@ const AdminOrderDetail = () => {
                               const previewUrl =
                                 savedPreviewImages[viewKey] ||
                                 savedPreviewImages[viewKeyLower];
-                                // previewsByView[viewKey] ||
-                                // previewsByView[viewKeyLower];
+                              // previewsByView[viewKey] ||
+                              // previewsByView[viewKeyLower];
                               const currentDesignElements = elements.filter((el: any) => {
-                                  const placement = (el?.placement || el?.view || 'front').toLowerCase();
-                                  return placement.includes(viewKeyLower) || (!el?.placement && !el?.view && viewKeyLower === 'front');
-                                });
+                                const placement = (el?.placement || el?.view || 'front').toLowerCase();
+                                return placement.includes(viewKeyLower) || (!el?.placement && !el?.view && viewKeyLower === 'front');
+                              });
                               const designUrls: Record<string, string> = {};
 
                               return (

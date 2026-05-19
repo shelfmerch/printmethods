@@ -1,8 +1,6 @@
 const mongoose = require('mongoose');
 
-// Operational / write-heavy inventory extracted from CatalogProduct.stocks.
-// During transition we keep CatalogProduct.stocks but treat this collection as
-// the source of truth for stock reads/writes where possible.
+// Stock policy + counts — productId → CatalogProduct; parent links via shipping.inventoryId.
 
 const CatalogProductInventorySchema = new mongoose.Schema({
   productId: {

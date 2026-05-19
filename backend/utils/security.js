@@ -3,7 +3,7 @@
  */
 
 const WHITELISTED_DOMAINS = [
-  'localhost:8080',
+  'localhost:8081',
   'localhost:8081',
   'localhost:8085',
   'localhost:3000',
@@ -47,7 +47,7 @@ const getClientUrl = (req) => {
   // 3. Fallback to environment variables
   const fallback = process.env.CLIENT_URL || (process.env.NODE_ENV === 'production'
     ? 'https://techvibz.org'
-    : 'http://localhost:8080');
+    : 'http://localhost:8081');
 
   console.log(`⚠️ Using fallback client URL: ${fallback}`);
   return fallback.endsWith('/') ? fallback.slice(0, -1) : fallback;

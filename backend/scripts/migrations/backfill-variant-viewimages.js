@@ -53,7 +53,7 @@ async function migrate() {
     }
 
     const before = { ...variant.viewImages.toObject?.() ?? variant.viewImages };
-    populateViewImages(variant, catalogProduct);
+    await populateViewImages(variant, catalogProduct);
     const after = variant.viewImages;
 
     // Only save if something actually changed

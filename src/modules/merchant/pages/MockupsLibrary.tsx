@@ -30,7 +30,7 @@ function useKonvaImage(url: string | undefined) {
         const load = (crossOrigin: boolean) => {
             const el = new window.Image();
             if (crossOrigin) el.crossOrigin = 'anonymous';
-            el.onload  = () => { if (!cancelled) setImg(el); };
+            el.onload = () => { if (!cancelled) setImg(el); };
             el.onerror = () => { if (!cancelled && crossOrigin) load(false); };
             el.src = url;
         };
@@ -47,7 +47,7 @@ function letterBox(
 ) {
     if (!img || !stage.width || !stage.height) return null;
     const scale = Math.min(stage.width / img.naturalWidth, stage.height / img.naturalHeight);
-    const w = img.naturalWidth  * scale;
+    const w = img.naturalWidth * scale;
     const h = img.naturalHeight * scale;
     return { x: (stage.width - w) / 2, y: (stage.height - h) / 2, w, h };
 }
@@ -84,7 +84,7 @@ const MockupKonva = ({
 
     const compositeImg = useKonvaImage(src);
     // Use real garment image when available; fall back to composite for self-blend
-    const garmentImg   = useKonvaImage(garmentSrc || src);
+    const garmentImg = useKonvaImage(garmentSrc || src);
 
     // Measure container via ResizeObserver
     useEffect(() => {
@@ -100,7 +100,7 @@ const MockupKonva = ({
     }, []);
 
     const compositeRect = useMemo(() => letterBox(compositeImg, stageSize), [compositeImg, stageSize]);
-    const garmentRect   = useMemo(() => letterBox(garmentImg,   stageSize), [garmentImg,   stageSize]);
+    const garmentRect = useMemo(() => letterBox(garmentImg, stageSize), [garmentImg, stageSize]);
 
     return (
         <div ref={containerRef} className={className} aria-label={alt} style={{ width: '100%', height: '100%' }}>
@@ -358,9 +358,9 @@ const MockupsLibrary = () => {
     const COLOR_MAP: Record<string, string> = {
         black: '#000000', white: '#FFFFFF', red: '#FF0000', blue: '#0000FF',
         green: '#008000', yellow: '#FFFF00', orange: '#FFA500', purple: '#800080',
-        pink: '#FFC0CB', brown: '#A52A2A', grey: '#808080', gray: '#808080',
-        navy: '#000080', maroon: '#800000', olive: '#808000', lime: '#00FF00',
-        aqua: '#00FFFF', teal: '#008080', silver: '#C0C0C0', gold: '#FFD700',
+        pink: '#FFC0CB', brown: '#A52A2A', grey: '#808180', gray: '#808180',
+        navy: '#000080', maroon: '#800000', olive: '#808100', lime: '#00FF00',
+        aqua: '#00FFFF', teal: '#008081', silver: '#C0C0C0', gold: '#FFD700',
         beige: '#F5F5DC', tan: '#D2B48C', khaki: '#F0E68C', coral: '#FF7F50',
         salmon: '#FA8072', turquoise: '#40E0D0', lavender: '#E6E6FA', ivory: '#FFFFF0',
         cream: '#FFFDD0', mint: '#98FF98', peach: '#FFE5B4',
@@ -486,7 +486,7 @@ const MockupsLibrary = () => {
             triggerColorGeneration(colorKey);
             return; // only one at a time
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allColorMockups, rowImages, generatingColors, storeProductId, triggerColorGeneration]);
 
     // ─── Retry a single color row ─────────────────────────────────────────────
@@ -685,15 +685,15 @@ const MockupsLibrary = () => {
                                                                         </div>
                                                                     )}
 
-                                                    <div className="aspect-[4/3] relative bg-white overflow-hidden">
-                                                        {imgUrl ? (
-                                                            <MockupKonva
-                                                                src={imgUrl}
-                                                                garmentSrc={mockup.imageUrl}
-                                                                alt={`${color} ${viewKey}`}
-                                                                className="w-full h-full"
-                                                            />
-                                                        ) : (
+                                                                    <div className="aspect-[4/3] relative bg-white overflow-hidden">
+                                                                        {imgUrl ? (
+                                                                            <MockupKonva
+                                                                                src={imgUrl}
+                                                                                garmentSrc={mockup.imageUrl}
+                                                                                alt={`${color} ${viewKey}`}
+                                                                                className="w-full h-full"
+                                                                            />
+                                                                        ) : (
                                                                             <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-slate-50">
                                                                                 {isGenerating ? (
                                                                                     <>

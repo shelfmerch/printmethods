@@ -36,7 +36,7 @@ const sendVerificationEmail = async (email, token, name, clientUrl = null) => {
     } else {
       // Priority 2: Fallback to environment configuration or defaults
       const isDev = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
-      const clientPort = process.env.CLIENT_PORT || 8080;
+      const clientPort = process.env.CLIENT_PORT || 8081;
       const defaultBaseUrl = isDev ? `http://localhost:${clientPort}` : 'https://shelfmerch.in';
 
       baseUrl = process.env.BASE_URL || defaultBaseUrl;

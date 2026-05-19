@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/shared/contexts/StoreContext';
 import { useAuth } from '@/shared/contexts/AuthContext';
@@ -185,7 +185,7 @@ const Settings = () => {
           <div>
             <h1 className="text-3xl font-bold">Settings</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your account, store preferences, and developer tools.
+              Manage your account and store preferences.
             </p>
           </div>
         </div>
@@ -322,29 +322,6 @@ const Settings = () => {
                 ) : (
                   'Save Changes'
                 )}
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Developer Settings shortcut */}
-        <Card className="p-6 mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold mb-1">Developer Settings</h2>
-              <p className="text-sm text-muted-foreground">
-                Access API documentation and manage Personal Access Tokens for integrations.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                onClick={() => window.open('/api/v1/docs', '_blank', 'noopener,noreferrer')}
-              >
-                View API Docs
-              </Button>
-              <Button onClick={() => navigate('/settings/developer')}>
-                Open Developer Settings
               </Button>
             </div>
           </div>

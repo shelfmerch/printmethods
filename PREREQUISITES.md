@@ -241,7 +241,7 @@ node server.js
 ### 6.1 Local Testing (Development)
 
 **For local testing, you can use path-based routing** (no DNS needed):
-- ✅ Routes work as: `http://localhost:8080/store/awesome/`
+- ✅ Routes work as: `http://localhost:8081/store/awesome/`
 - ✅ No additional setup required
 - ✅ Code automatically detects localhost and uses path-based routing
 
@@ -254,7 +254,7 @@ node server.js
 # Add:
 127.0.0.1 awesome.localhost
 
-# Then access: http://awesome.localhost:8080
+# Then access: http://awesome.localhost:8081
 ```
 
 ### 6.2 Production Testing

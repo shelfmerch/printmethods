@@ -4,6 +4,12 @@ const CatalogProductVariant = require('../models/CatalogProductVariant');
 const CatalogProduct = require('../models/CatalogProduct');
 const { protect, authorize } = require('../middleware/auth');
 const { populateViewImages } = require('../utils/populateViewImages');
+const {
+  VIEW_IMAGES_POPULATE,
+  resolveViewImagesToMockupIds,
+  hydrateViewImageUrlsForVariants,
+  applyViewImagesUrlsToVariantObject,
+} = require('../utils/viewImagesRef');
 
 // @route   POST /api/variants
 // @desc    Create a new product variant (Admin only)
@@ -49,20 +55,18 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       isActive: isActive !== undefined ? isActive : true
     });
 
-    populateViewImages(variant, product);
+    await populateViewImages(variant, product);
 
     await variant.save();
 
-    // Transform variant: basePrice -> price, skuTemplate -> sku for frontend compatibility
-    // Keep basePrice in response for production cost calculation (required by ListingEditor)
-    const variantObj = variant.toObject ? variant.toObject() : variant;
+    const variantObj = applyViewImagesUrlsToVariantObject(variant.toObject());
+    await hydrateViewImageUrlsForVariants([variantObj]);
     const transformedVariant = {
       ...variantObj,
       sku: variantObj.skuTemplate || variantObj.sku,
-      price: variantObj.basePrice, // For backward compatibility
-      // Keep basePrice for production cost calculation (ListingEditor requirement)
+      price: variantObj.basePrice,
       basePrice: variantObj.basePrice,
-      skuTemplate: undefined // Remove skuTemplate to avoid confusion
+      skuTemplate: undefined,
     };
 
     res.status(201).json({
@@ -134,9 +138,12 @@ router.post('/bulk', protect, authorize('superadmin'), async (req, res) => {
         basePrice: v.price !== undefined ? v.price : undefined,
         isActive: v.isActive !== false
       });
-      populateViewImages(variant, product);
       return variant;
     });
+
+    for (const variant of catalogVariants) {
+      await populateViewImages(variant, product);
+    }
 
     // Create all catalog variants
     const createdVariants = await CatalogProductVariant.insertMany(catalogVariants, {
@@ -145,17 +152,17 @@ router.post('/bulk', protect, authorize('superadmin'), async (req, res) => {
 
     // Transform variants: basePrice -> price, skuTemplate -> sku for frontend compatibility
     // Keep basePrice in response for production cost calculation (required by ListingEditor)
-    const transformedVariants = createdVariants.map(v => {
-      const variant = v.toObject ? v.toObject() : v;
-      return {
-        ...variant,
-        sku: variant.skuTemplate || variant.sku,
-        price: variant.basePrice, // For backward compatibility
-        // Keep basePrice for production cost calculation (ListingEditor requirement)
-        basePrice: variant.basePrice,
-        skuTemplate: undefined // Remove skuTemplate to avoid confusion
-      };
-    });
+    const variantObjects = createdVariants.map((v) =>
+      applyViewImagesUrlsToVariantObject(v.toObject ? v.toObject() : v)
+    );
+    await hydrateViewImageUrlsForVariants(variantObjects);
+    const transformedVariants = variantObjects.map((variant) => ({
+      ...variant,
+      sku: variant.skuTemplate || variant.sku,
+      price: variant.basePrice,
+      basePrice: variant.basePrice,
+      skuTemplate: undefined,
+    }));
 
     res.status(201).json({
       success: true,
@@ -189,23 +196,25 @@ router.post('/bulk', protect, authorize('superadmin'), async (req, res) => {
 router.get('/product/:productId', protect, async (req, res) => {
   try {
     const [variants, parentProduct] = await Promise.all([
-      CatalogProductVariant.find({ catalogProductId: req.params.productId }).sort({ size: 1, color: 1 }),
+      CatalogProductVariant.find({ catalogProductId: req.params.productId })
+        .populate(VIEW_IMAGES_POPULATE)
+        .sort({ size: 1, color: 1 }),
       CatalogProduct.findById(req.params.productId).select('basePrice').lean(),
     ]);
 
     const catalogBasePrice = parentProduct?.basePrice;
 
-    const transformedVariants = variants.map(v => {
-      const variant = v.toObject ? v.toObject() : v;
-      return {
-        ...variant,
-        sku: variant.skuTemplate || variant.sku,
-        price: variant.basePrice,
-        basePrice: variant.basePrice,
-        catalogBasePrice, // parent product basePrice — fallback when variant has no basePrice
-        skuTemplate: undefined
-      };
-    });
+    const variantObjects = variants.map((v) => applyViewImagesUrlsToVariantObject(v.toObject ? v.toObject() : v));
+    await hydrateViewImageUrlsForVariants(variantObjects);
+
+    const transformedVariants = variantObjects.map((variant) => ({
+      ...variant,
+      sku: variant.skuTemplate || variant.sku,
+      price: variant.basePrice,
+      basePrice: variant.basePrice,
+      catalogBasePrice,
+      skuTemplate: undefined,
+    }));
 
     res.json({
       success: true,
@@ -228,7 +237,8 @@ router.get('/product/:productId', protect, async (req, res) => {
 router.get('/:id', protect, async (req, res) => {
   try {
     const variant = await CatalogProductVariant.findById(req.params.id)
-      .populate('catalogProductId', 'name');
+      .populate('catalogProductId', 'name')
+      .populate(VIEW_IMAGES_POPULATE);
 
     if (!variant) {
       return res.status(404).json({
@@ -239,14 +249,16 @@ router.get('/:id', protect, async (req, res) => {
 
     // Transform variant: basePrice -> price, skuTemplate -> sku for frontend compatibility
     // Keep basePrice in response for production cost calculation (required by ListingEditor)
-    const variantObj = variant.toObject ? variant.toObject() : variant;
+    let variantObj = variant.toObject ? variant.toObject() : variant;
+    variantObj = applyViewImagesUrlsToVariantObject(variantObj);
+    await hydrateViewImageUrlsForVariants([variantObj]);
+
     const transformedVariant = {
       ...variantObj,
       sku: variantObj.skuTemplate || variantObj.sku,
-      price: variantObj.basePrice, // For backward compatibility
-      // Keep basePrice for production cost calculation (ListingEditor requirement)
+      price: variantObj.basePrice,
       basePrice: variantObj.basePrice,
-      skuTemplate: undefined // Remove skuTemplate to avoid confusion
+      skuTemplate: undefined,
     };
 
     res.json({
@@ -278,7 +290,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     }
 
     // Update fields
-    const { size, color, colorHex, sku, price, isActive } = req.body;
+    const { size, color, colorHex, sku, price, isActive, viewImages } = req.body;
 
     if (size !== undefined) variant.size = size;
     if (color !== undefined) variant.color = color;
@@ -287,17 +299,29 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (price !== undefined) variant.basePrice = price;
     if (isActive !== undefined) variant.isActive = isActive;
 
+    if (viewImages !== undefined) {
+      variant.viewImages = await resolveViewImagesToMockupIds(viewImages, {
+        catalogProductId: variant.catalogProductId,
+        color: color !== undefined ? color : variant.color,
+      });
+    }
+
     variant.updatedAt = Date.now();
 
-    const product = await CatalogProduct.findById(variant.catalogProductId).select('design.sampleMockups').lean();
-    populateViewImages(variant, product);
+    await populateViewImages(variant, variant.catalogProductId);
 
     await variant.save();
+
+    const saved = await CatalogProductVariant.findById(variant._id)
+      .populate(VIEW_IMAGES_POPULATE);
+    let data = saved.toObject();
+    data = applyViewImagesUrlsToVariantObject(data);
+    await hydrateViewImageUrlsForVariants([data]);
 
     res.json({
       success: true,
       message: 'Variant updated successfully',
-      data: variant
+      data,
     });
   } catch (error) {
     console.error('Error updating variant:', error);

@@ -163,7 +163,7 @@ extractTenantFromHost(window.location.hostname);
 
 #### Test 2: Path Fallback
 ```javascript
-// In browser console on localhost:8080/store/xyz
+// In browser console on localhost:8081/store/xyz
 import { getTenantSlugFromLocation } from '@/utils/tenantUtils';
 getTenantSlugFromLocation(window.location, { subdomain: 'xyz' });
 // Expected: "xyz"

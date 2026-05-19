@@ -1,43 +1,46 @@
+const CatalogProductMockup = require('../models/CatalogProductMockup');
+const { VIEW_KEYS } = require('./viewImagesRef');
+
 /**
  * populateViewImages
  *
- * Given a variant and its parent catalog product, fills any empty
- * viewImages slots from the first matching sampleMockup.
+ * Fills empty viewImages slots on a variant with ObjectId refs to
+ * CatalogProductMockup documents (product + color + view).
  *
  * Rules:
- * - Only fills slots that are currently null / "" — never overwrites
- *   a manually set image.
- * - Color matching is case-insensitive.
- * - Uses the sampleMockup with the lowest metadata.order for each view.
- * - If no match found for a viewKey, slot stays null (not an error).
+ * - Only fills slots that are currently null / "" — never overwrites manual refs.
+ * - Color matching is case-insensitive (colorKey on mockup vs variant.color).
+ * - Uses the mockup with the lowest metadata.order for each view.
  */
-function populateViewImages(variant, catalogProduct) {
-  const mockups = catalogProduct?.design?.sampleMockups;
-  if (!mockups?.length) return;
+async function populateViewImages(variant, catalogProductOrId) {
+  const productId = catalogProductOrId?._id || catalogProductOrId || variant.catalogProductId;
+  if (!productId || !variant?.color) return;
 
-  const views = ['front', 'back', 'left', 'right'];
+  const mockups = await CatalogProductMockup.find({ productId })
+    .select('_id viewKey colorKey metadata.order')
+    .lean();
 
-  views.forEach(viewKey => {
+  if (!mockups.length) return;
+
+  const colorLower = variant.color.toLowerCase();
+
+  for (const viewKey of VIEW_KEYS) {
     const current = variant.viewImages?.[viewKey];
+    if (current && current !== '') continue;
 
-    // Only fill if empty
-    if (current && current !== '') return;
-
-    // Find all mockups matching this color + view, sort by order
     const matches = mockups
-      .filter(m =>
-        m.colorKey.toLowerCase() === variant.color.toLowerCase() &&
-        m.viewKey === viewKey
+      .filter(
+        (m) =>
+          (m.colorKey || '').toLowerCase() === colorLower && m.viewKey === viewKey
       )
       .sort((a, b) => (a.metadata?.order ?? 0) - (b.metadata?.order ?? 0));
 
     if (matches.length > 0) {
-      if (!variant.viewImages) {
-        variant.viewImages = {};
-      }
-      variant.viewImages[viewKey] = matches[0].imageUrl;
+      if (!variant.viewImages) variant.viewImages = {};
+      variant.viewImages[viewKey] = matches[0]._id;
+      variant.markModified?.('viewImages');
     }
-  });
+  }
 }
 
 module.exports = { populateViewImages };

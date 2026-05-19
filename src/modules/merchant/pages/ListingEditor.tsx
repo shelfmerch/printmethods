@@ -289,7 +289,7 @@ const ListingEditor = () => {
   // Preserve user-entered retailPrice using ref
   useEffect(() => {
     const incoming = state?.variants || [];
-    const draftVariants = (draftData?.variantsSummary || draftData?.variants || []) as any[];
+    const draftVariants = (draftData?.variants || []) as any[];
 
     console.log('[ListingEditor] Recompute variantRows:', {
       incomingCount: incoming.length,

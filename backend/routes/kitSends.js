@@ -6,6 +6,7 @@ const Kit = require('../models/Kit');
 const KitSend = require('../models/KitSend');
 const KitRedemption = require('../models/KitRedemption');
 const CatalogProduct = require('../models/CatalogProduct');
+const { hydrateCatalogProductRelationsBatch, getCatalogMinimumQuantity } = require('../utils/catalogProductRefs');
 const CatalogProductVariant = require('../models/CatalogProductVariant');
 const { assertBrandAccess } = require('../utils/brandAccess');
 const razorpayService = require('../services/razorpayService');
@@ -35,7 +36,7 @@ function cleanEmail(value) {
 }
 
 function buildRedemptionLink(token) {
-  const baseUrl = process.env.CLIENT_URL || process.env.BASE_URL || `http://localhost:${process.env.CLIENT_PORT || 8080}`;
+  const baseUrl = process.env.CLIENT_URL || process.env.BASE_URL || `http://localhost:${process.env.CLIENT_PORT || 8081}`;
   return `${baseUrl.replace(/\/$/, '')}/redeem/${token}`;
 }
 
@@ -49,9 +50,21 @@ async function computeKitSendPricing(kit, payload) {
       isActive: true,
     }).lean(),
   ]);
+  await hydrateCatalogProductRelationsBatch(baseProducts, {
+    includeInventory: true,
+    includeMockups: false,
+    includeAttributes: false,
+  });
   const packagingProduct = packagingProductId
     ? await CatalogProduct.findById(packagingProductId).lean()
     : null;
+  if (packagingProduct) {
+    await hydrateCatalogProductRelationsBatch([packagingProduct], {
+      includeInventory: true,
+      includeMockups: false,
+      includeAttributes: false,
+    });
+  }
   const products = attachVariantsToProducts(baseProducts, variants);
   const productById = new Map(products.map((product) => [String(product._id), product]));
   const packaging = validatePackagingChoice({
@@ -106,7 +119,7 @@ async function computeKitSendPricing(kit, payload) {
       throw Object.assign(new Error('One or more kit products could not be loaded'), { status: 400 });
     }
 
-    const minimumQuantity = product.stocks?.minimumQuantity || 1;
+    const minimumQuantity = getCatalogMinimumQuantity(product);
     let chargeQty = singleLocation
       ? Number(singleLocationQtyByProduct.get(String(product._id)) || recipientCount)
       : recipientCount;

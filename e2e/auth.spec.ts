@@ -30,7 +30,7 @@ test.describe('Unauthenticated Redirect (Section 22)', () => {
     // Intentionally use a fresh context with NO storage state
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto('http://localhost:8080/dashboard');
+    await page.goto('http://localhost:8081/dashboard');
     await expect(page).toHaveURL(/\/auth/);
     await context.close();
   });

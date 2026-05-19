@@ -97,10 +97,15 @@ function toCatalogDetailDTO(doc) {
       mode: doc.gst?.mode,
       hsn: doc.gst?.hsn || null,
     },
-    stocks: {
-      minimum_quantity: doc.stocks?.minimumQuantity || 1,
-      out_of_stock_behavior: doc.stocks?.outOfStockBehavior || 'default',
-    },
+    inventory: doc.shipping?.inventory
+      ? {
+        minimum_quantity: doc.shipping.inventory.minimumQuantity || 1,
+        out_of_stock_behavior: doc.shipping.inventory.outOfStockBehavior || 'default',
+      }
+      : {
+        minimum_quantity: doc.stocks?.minimumQuantity || 1,
+        out_of_stock_behavior: doc.stocks?.outOfStockBehavior || 'default',
+      },
   };
 }
 
@@ -118,11 +123,12 @@ function toCatalogVariantDTO(doc) {
     currency: doc.currency || 'INR',
     sku_template: doc.skuTemplate,
     stock_status: doc.stockStatus || 'unlimited',
+    // viewImages are hydrated to image URL strings before DTO mapping
     view_images: {
-      front: doc.viewImages?.front || null,
-      back: doc.viewImages?.back || null,
-      left: doc.viewImages?.left || null,
-      right: doc.viewImages?.right || null,
+      front: doc.viewImages?.front ?? null,
+      back: doc.viewImages?.back ?? null,
+      left: doc.viewImages?.left ?? null,
+      right: doc.viewImages?.right ?? null,
     },
     is_active: doc.isActive,
   };

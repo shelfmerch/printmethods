@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/shared/components/layout/DashboardLayout';
 import { useStore } from '@/shared/contexts/StoreContext';
@@ -10,7 +10,6 @@ import { storeProductsApi } from '@/lib/api';
 import { getStoreUrl } from '@/shared/utils/storeUrl';
 import {
   ArrowRight,
-  Code2,
   ExternalLink,
   Paintbrush,
   Package,
@@ -167,33 +166,6 @@ const Stores = () => {
             </div>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
-                  <Code2 className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl font-semibold">API docs</h2>
-                    <Badge variant="outline">For custom builds</Badge>
-                  </div>
-                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                    Use the API for a custom storefront, internal portal, ERP workflow, or deeper automation.
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => navigate('/settings/developer')}>
-                  Developer settings
-                </Button>
-                <Button onClick={() => window.open('/api/v1/docs', '_blank', 'noopener,noreferrer')}>
-                  View API docs
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
     </DashboardLayout>

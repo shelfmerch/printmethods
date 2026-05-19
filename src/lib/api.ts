@@ -54,7 +54,6 @@ export const storeProductsApi = {
     description?: string;
     tags?: string[];
     status?: 'draft' | 'published';
-    galleryImages?: Array<{ id: string; url: string; position: number; isPrimary?: boolean; imageType?: string; altText?: string }>;
     designData?: any;
     variants?: Array<{ catalogProductVariantId: string; sku: string; sellingPrice?: number; isActive?: boolean }>;
   }) => {
@@ -184,10 +183,11 @@ export const storeProductsApi = {
     return json as { success: boolean; message: string; data: any };
   },
 
-  // Save flat mockup preview URL only (model mockups are server-generated via generateMockups).
+  // Save mockup preview with type separation (flat vs model)
   saveMockup: async (id: string, payload: {
-    mockupType: 'flat';
+    mockupType: 'flat' | 'model';
     viewKey: string;
+    colorKey?: string;  // Required for model mockups
     imageUrl: string;
   }) => {
     const token = getToken();
@@ -3335,122 +3335,5 @@ export const shopifyApi = {
     body: JSON.stringify(payload),
   }),
 };
-
-// Developer Shops API (Public API v1)
-// Uses the stored PAT (sm_pat_...) from localStorage to call /api/v1/shops
-
-const getPublicApiToken = (): string | null =>
-  localStorage.getItem('sm_pat') || localStorage.getItem('sm_api_key');
-
-const publicApiRequest = async <T = any>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> => {
-  const publicApiToken = getPublicApiToken();
-  const authToken = getToken();
-  const response = await fetch(`${API_BASE_URL.replace('/api', '/api/v1')}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-      ...(publicApiToken ? { 'X-API-Key': publicApiToken } : {}),
-      ...(!publicApiToken && authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      ...(options.headers as Record<string, string> || {}),
-    },
-    credentials: 'include',
-  });
-
-  const json = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new ApiError(
-      (json as any)?.error?.message || (json as any)?.message || 'API error',
-      response.status
-    );
-  }
-
-  // Public API wraps data in { data: ... }
-  return ((json as any)?.data ?? json) as T;
-};
-
-export interface Shop {
-  id: string;
-  name: string;
-  slug: string;
-  currency: string;
-  country: string;
-  status: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-export const developerShopsApi = {
-  list: async (): Promise<Shop[]> => {
-    const result = await publicApiRequest<Shop[] | { items: Shop[] }>('/shops');
-    return Array.isArray(result) ? result : (result as any).items ?? [];
-  },
-
-  create: async (payload: { name: string; currency?: string; country?: string }): Promise<Shop> => {
-    // Public API currently does not expose POST /shops.
-    // Create via authenticated merchant route, then rely on list() to read via Public API.
-    return apiRequest<Shop>('/stores', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-};
-
-// Developer Personal Access Tokens API (Public API v1)
-export interface PersonalAccessToken {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  scopes: string[];
-  type: 'personal_access_token';
-  planCode: string;
-  lastUsedAt?: string;
-  createdAt: string;
-  expiresAt?: string;
-  revokedAt?: string;
-}
-
-export interface CreatePatResponse {
-  id: string;
-  name: string;
-  key: string; // Full PAT value (returned once)
-  keyPrefix: string;
-  scopes: string[];
-  type: 'personal_access_token';
-  createdAt: string;
-  expiresAt?: string;
-}
-
-export const developerPatApi = {
-  list: async (): Promise<PersonalAccessToken[]> => {
-    return apiRequest<PersonalAccessToken[]>('/auth/tokens/personal');
-  },
-
-  create: async (payload: { name: string; scopes: string[]; expiresInDays?: number }): Promise<CreatePatResponse> => {
-    const body: any = {
-      name: payload.name,
-      scopes: payload.scopes,
-    };
-    if (payload.expiresInDays && payload.expiresInDays > 0) {
-      body.expires_in_days = payload.expiresInDays;
-    }
-
-    return apiRequest<CreatePatResponse>('/auth/tokens/personal', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-  },
-
-  revoke: async (id: string): Promise<void> => {
-    await apiRequest(`/auth/tokens/personal/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    });
-  },
-};
-
 
 export { getToken, removeTokens, apiRequest };

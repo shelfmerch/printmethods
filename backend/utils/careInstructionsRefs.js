@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const CareIcon = require('../models/CareIcon');
+const CatalogProduct = require('../models/CatalogProduct');
 
 /**
  * Resolve a single care icon row in `careicons` from legacy or ref payload.
@@ -115,8 +116,29 @@ async function expandCareInstructionsForApi(ci) {
   return { text, icons };
 }
 
+function resolveCatalogProductId(ref) {
+  if (!ref) return null;
+  if (mongoose.Types.ObjectId.isValid(String(ref))) {
+    return new mongoose.Types.ObjectId(String(ref));
+  }
+  if (typeof ref === 'object' && ref._id) {
+    return new mongoose.Types.ObjectId(String(ref._id));
+  }
+  return null;
+}
+
+/** Ref-only care instructions from `catalogproducts.careInstructions` (careIconId → careicons). */
+async function loadCatalogCareInstructionRefs(catalogProductId) {
+  const id = resolveCatalogProductId(catalogProductId);
+  if (!id) return { text: '', icons: [] };
+
+  const cat = await CatalogProduct.findById(id).select('careInstructions').lean();
+  return toCatalogCareInstructionsRefs(cat?.careInstructions || { text: '', icons: [] });
+}
+
 module.exports = {
   resolveCareIconIdFromLegacy,
   toCatalogCareInstructionsRefs,
   expandCareInstructionsForApi,
+  loadCatalogCareInstructionRefs,
 };

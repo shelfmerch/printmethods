@@ -65,8 +65,8 @@ VITE_API_URL=http://localhost:5000/api  # Only needed in dev
 
 ✅ **Works out of the box on localhost!**
 
-- **Path-based (default)**: `http://localhost:8080/store/xyz` - works immediately, no setup needed
-- **Subdomain-based (optional)**: `http://xyz.localhost:8080` - requires hosts file configuration
+- **Path-based (default)**: `http://localhost:8081/store/xyz` - works immediately, no setup needed
+- **Subdomain-based (optional)**: `http://xyz.localhost:8081` - requires hosts file configuration
 
 See `LOCALHOST_SETUP.md` for detailed setup instructions.
 

@@ -1,17 +1,53 @@
 const mongoose = require('mongoose');
 
-const StoreProductGalleryImageSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  url: { type: String, required: true },
-  position: { type: Number, required: true },
-  isPrimary: { type: Boolean, default: false },
-  imageType: {
-    type: String,
-    enum: ['lifestyle', 'flat-front', 'flat-back', 'size-chart', 'detail', 'mockup', 'other'],
-    default: 'other',
-  },
-  altText: { type: String, default: '' },
+/** careIconId → careicons (same ref shape as catalogproducts). */
+const StoreProductCareInstructionIconSchema = new mongoose.Schema({
+  careIconId: { type: mongoose.Schema.Types.ObjectId, ref: 'CareIcon', required: true },
+  label: { type: String, default: '' },
 }, { _id: false });
+
+/** Top-level fields removed from storeproducts — variants live in storeproductvariants. */
+const DEPRECATED_STORE_PRODUCT_UNSET = {
+  variantsSummary: 1,
+  galleryImages: 1,
+  source: 1,
+  tags: 1,
+  catalogSnapshot: 1,
+  channel: 1,
+  'designData.galleryImages': 1,
+};
+
+const DEPRECATED_STORE_PRODUCT_TOP_LEVEL = Object.keys(DEPRECATED_STORE_PRODUCT_UNSET).filter(
+  (k) => !k.includes('.'),
+);
+
+function stripDeprecatedFromStoreProductDoc(doc) {
+  if (!doc) return;
+  for (const key of DEPRECATED_STORE_PRODUCT_TOP_LEVEL) {
+    if (doc.get?.(key) !== undefined) {
+      doc.set(key, undefined);
+    } else if (doc[key] !== undefined) {
+      delete doc[key];
+    }
+  }
+  const designData = doc.get?.('designData') ?? doc.designData;
+  if (designData && typeof designData === 'object' && designData.galleryImages !== undefined) {
+    const next = { ...designData };
+    delete next.galleryImages;
+    if (doc.set) {
+      doc.set('designData', next);
+      doc.markModified?.('designData');
+    } else {
+      doc.designData = next;
+    }
+  }
+}
+
+function mergeDeprecatedUnset(update) {
+  const next = update && typeof update === 'object' ? { ...update } : {};
+  next.$unset = { ...DEPRECATED_STORE_PRODUCT_UNSET, ...(next.$unset || {}) };
+  return next;
+}
 
 const StoreProductSchema = new mongoose.Schema({
   storeId: {
@@ -26,88 +62,25 @@ const StoreProductSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  // Optional: store-specific overrides
   title: {
-    type: String, // If null, use CatalogProduct.name
+    type: String,
     trim: true
   },
   description: {
-    type: String // If null, use CatalogProduct.description
+    type: String
   },
-  // Merchant's selling price (what customers pay)
   sellingPrice: {
     type: Number,
     required: true,
     min: 0
   },
-  // Optional: compare at price (for showing discounts)
   compareAtPrice: {
     type: Number,
     min: 0
   },
-  tags: { type: [String], default: [] },
-  // Optional: summary of variant-level pricing embedded on the StoreProduct
-  // This mirrors data from StoreProductVariant + CatalogProductVariant so that
-  // storefronts and dashboards can quickly read per-variant size/color/pricing
-  // without needing an additional query.
-  variantsSummary: [{
-    catalogProductVariantId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'CatalogProductVariant',
-      required: true,
-    },
-    size: {
-      type: String,
-    },
-    color: {
-      type: String,
-    },
-    colorHex: {
-      type: String,
-    },
-    sku: {
-      type: String,
-    },
-    // Variant-level selling price for this store product
-    sellingPrice: {
-      type: Number,
-      min: 0,
-    },
-    // Production cost for this variant (CatalogProductVariant.basePrice)
-    basePrice: {
-      type: Number,
-      min: 0,
-    },
-    // Whether this variant is currently in stock (derived from catalog + store variant isActive)
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  }],
-
-  // Custom design and properties saved from the design editor
   designData: {
     type: Object,
   },
-
-  galleryImages: { type: [StoreProductGalleryImageSchema], default: [] },
-
-  catalogSnapshot: {
-    name: { type: String },
-    category: { type: String },
-    material: { type: String },
-    shipping_weight_grams: { type: Number },
-    gst_slab: { type: Number },
-    dpi: { type: Number, default: 300 },
-  },
-
-  source: {
-    type: String,
-    enum: ['native', 'api'],
-    default: 'native',
-    index: true,
-  },
-  // Publication status
   status: {
     type: String,
     enum: ['draft', 'published'],
@@ -115,35 +88,41 @@ const StoreProductSchema = new mongoose.Schema({
     index: true
   },
   publishedAt: { type: Date },
-  // Active status in this store
   isActive: {
     type: Boolean,
     default: true
   },
-  // For connected stores: external product ID
   externalProductId: {
     type: String,
     sparse: true
   },
-  // Last sync with external platform
   lastSyncAt: {
     type: Date
   },
   careInstructions: {
-    icons: [{
-      type: { type: String, enum: ['predefined', 'custom'], default: 'predefined' },
-      iconKey: String,
-      iconUrl: String,
-      label: String,
-    }],
-    text: { type: String, default: '' }
-  }
+    icons: { type: [StoreProductCareInstructionIconSchema], default: [] },
+    text: { type: String, default: '' },
+  },
 }, {
-  timestamps: true
+  timestamps: true,
+  strict: true,
 });
 
-// Compound index: allow multiple StoreProducts per store+catalogProduct
-// This enables merchants to have multiple separate listings of the same base item
+StoreProductSchema.pre('save', function preSaveStripDeprecated(next) {
+  stripDeprecatedFromStoreProductDoc(this);
+  next();
+});
+
+const updateMiddleware = function preUpdateStripDeprecated(next) {
+  this.setUpdate(mergeDeprecatedUnset(this.getUpdate()));
+  next();
+};
+
+StoreProductSchema.pre('findOneAndUpdate', updateMiddleware);
+StoreProductSchema.pre('updateOne', updateMiddleware);
+StoreProductSchema.pre('updateMany', updateMiddleware);
+StoreProductSchema.pre('findByIdAndUpdate', updateMiddleware);
+
 StoreProductSchema.index(
   { storeId: 1, catalogProductId: 1 },
   { unique: false }
@@ -152,7 +131,10 @@ StoreProductSchema.index(
 StoreProductSchema.index({ isActive: 1 });
 StoreProductSchema.index({ createdAt: -1 });
 StoreProductSchema.index({ storeId: 1, status: 1 });
-StoreProductSchema.index({ storeId: 1, source: 1 });
-StoreProductSchema.index({ 'variantsSummary.catalogProductVariantId': 1 });
 
-module.exports = mongoose.model('StoreProduct', StoreProductSchema);
+const StoreProduct = mongoose.model('StoreProduct', StoreProductSchema);
+
+module.exports = StoreProduct;
+module.exports.DEPRECATED_STORE_PRODUCT_UNSET = DEPRECATED_STORE_PRODUCT_UNSET;
+module.exports.stripDeprecatedFromStoreProductDoc = stripDeprecatedFromStoreProductDoc;
+module.exports.mergeDeprecatedUnset = mergeDeprecatedUnset;

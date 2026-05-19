@@ -3,7 +3,7 @@
 // import { users } from './fixtures/test-data';
 
 // const BACKEND_URL = 'http://localhost:5002';
-// const FRONTEND_URL = 'http://localhost:8080';
+// const FRONTEND_URL = 'http://localhost:8081';
 // const AUTH_DIR = path.join(__dirname, '.auth');
 
 // async function getTestToken(email: string, role?: string): Promise<{ token: string; refreshToken: string }> {
@@ -85,7 +85,7 @@ async function globalSetup() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto('http://localhost:8080');
+  await page.goto('http://localhost:8081');
   await page.waitForLoadState('networkidle');
 
   // Inject both tokens exactly as AuthContext expects
@@ -95,7 +95,7 @@ async function globalSetup() {
   }, { token: data.token, refreshToken: data.refreshToken || data.token });
 
   // Navigate to dashboard and wait for auth check to complete
-  await page.goto('http://localhost:8080/dashboard');
+  await page.goto('http://localhost:8081/dashboard');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(2000);
 

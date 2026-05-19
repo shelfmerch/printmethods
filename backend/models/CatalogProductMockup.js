@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
-// Reuse the exact shape currently embedded in CatalogProduct.design.sampleMockups.
-// This model is a non-breaking extraction target for those subdocuments.
+// Sample mockups — productId → CatalogProduct; parent lists mockupIds[] on catalogproducts.
 
 const PlaceholderSchema = new mongoose.Schema({
   id: { type: String, required: true },

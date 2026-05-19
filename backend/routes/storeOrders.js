@@ -89,7 +89,7 @@ router.get('/:id', protect, authorize('merchant', 'superadmin'), async (req, res
       .populate('storeId', 'name')
       .populate({
         path: 'items.storeProductId',
-        select: 'title description designData galleryImages sellingPrice'
+        select: 'title description designData sellingPrice'
       });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });

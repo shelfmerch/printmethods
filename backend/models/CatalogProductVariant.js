@@ -1,4 +1,8 @@
 const mongoose = require('mongoose');
+const {
+  viewImagesSchemaDefinition,
+  normalizeViewImagesEmptyStrings,
+} = require('../utils/viewImagesRef');
 
 const CatalogProductVariantSchema = new mongoose.Schema({
   catalogProductId: {
@@ -41,25 +45,14 @@ const CatalogProductVariantSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  // Per-view base images for this variant
-  viewImages: {
-    front: { type: String, default: null },
-    back: { type: String, default: null },
-    left: { type: String, default: null },
-    right: { type: String, default: null }
-  }
+  // Per-view refs into catalogproductmockups (resolved to imageUrl on read)
+  viewImages: viewImagesSchemaDefinition,
 }, {
   timestamps: true
 });
 
 CatalogProductVariantSchema.pre('save', function (next) {
-  const imgs = this.viewImages;
-  if (imgs) {
-    if (imgs.front === '') imgs.front = null;
-    if (imgs.back === '') imgs.back = null;
-    if (imgs.left === '') imgs.left = null;
-    if (imgs.right === '') imgs.right = null;
-  }
+  normalizeViewImagesEmptyStrings(this.viewImages);
   next();
 });
 

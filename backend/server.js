@@ -65,20 +65,9 @@ const careIconsRoutes = require('./routes/careIcons');
 const { tenantResolver } = require('./middleware/tenantResolver');
 const storeRedirect = require('./middleware/storeRedirect');
 const shopifyPublishRoutes = require('./routes/shopifyPublishRoutes');
-const publicApiV1Router = require('./public-api/v1');
-const swaggerUi = require('swagger-ui-express');
-const { specs: publicApiSpecs } = require('./public-api/openapi/swagger');
 const shopifyGdprRoutes = require('./routes/shopifyGdprRoutes');
 
 const { WHITELISTED_DOMAINS } = require('./utils/security');
-
-// Serve OpenAPI and Swagger UI early (avoid middleware interference)
-app.get('/api/v1/openapi.json', (req, res) => {
-  console.log('Serving OpenAPI spec');
-  res.json(publicApiSpecs);
-});
-
-app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(publicApiSpecs));
 
 // CORS configuration - MUST BE FIRST
 // Supports wildcard subdomains for multi-tenant architecture
@@ -300,9 +289,6 @@ app.get('/api/_debug/version', (req, res) => {
 // Must be before API routes but after health check
 app.use(storeRedirect);
 
-// Public API v1 routes (PAT-only, Phase 1)
-app.use('/api/v1', publicApiV1Router);
-
 // API Routes
 // Store-scoped routes that need tenant resolution
 app.use('/api/store-products', tenantResolver, storeProductsRoutes);
@@ -370,7 +356,7 @@ app.use('/api/shopify', shopifyPublishRoutes);
 app.use('/api/shopify', require('./routes/shopifyRoutes'));
 app.use('/api/ai', require('./routes/ai'));
 
-// Log registered endpoints (including /api/v1/*) at startup for verification
+// Log registered endpoints at startup for verification
 try {
   // Lazy-require to avoid hard dependency in environments where it's not installed
   // eslint-disable-next-line global-require, import/no-extraneous-dependencies

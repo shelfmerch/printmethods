@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { getTenantSlugFromLocation, buildStorePath } from '@/shared/utils/tenantUtils';
 import { getProductImageGroups } from '@/shared/utils/productImageUtils';
@@ -197,10 +197,13 @@ const StoreProductPage = () => {
                   ? sp.price
                   : 0;
 
-            const primaryImage =
-              sp.galleryImages?.find((img: any) => img.isPrimary)?.url ||
-              (Array.isArray(sp.galleryImages) && sp.galleryImages[0]?.url) ||
-              undefined;
+            const catalogProductForList =
+              sp.catalogProductId && typeof sp.catalogProductId === 'object'
+                ? sp.catalogProductId
+                : null;
+            const spWithCatalog = { ...sp, catalogProduct: catalogProductForList };
+            const { allImages } = getProductImageGroups(spWithCatalog);
+            const primaryImage = allImages[0] || undefined;
 
             const colors =
               sp.designData?.selectedColors && sp.designData.selectedColors.length > 0
@@ -221,7 +224,7 @@ const StoreProductPage = () => {
               compareAtPrice:
                 typeof sp.compareAtPrice === 'number' ? sp.compareAtPrice : undefined,
               mockupUrl: primaryImage,
-              mockupUrls: Array.isArray(sp.previewImagesUrl)
+              mockupUrls: allImages.length > 0 ? allImages : Array.isArray(sp.previewImagesUrl)
                 ? sp.previewImagesUrl.map((img: any) => img.url).filter(Boolean)
                 : [],
               designs: sp.designData?.designs || {},
@@ -272,11 +275,7 @@ const StoreProductPage = () => {
           // Backend returns populated StoreProductVariant documents in sp.variants array
           // Each variant has: { catalogProductVariantId: { size, color, colorHex, ... }, sellingPrice, sku, ... }
           // Only active variants (isActive: true) are returned by the backend
-          const variantDocs: any[] = Array.isArray(sp.variants)
-            ? sp.variants
-            : Array.isArray(sp.variantsSummary)
-              ? sp.variantsSummary
-              : [];
+          const variantDocs: any[] = Array.isArray(sp.variants) ? sp.variants : [];
 
           const colorSet = new Set<string>();
           const sizeSet = new Set<string>();
@@ -377,7 +376,6 @@ const StoreProductPage = () => {
               sizes: sizes.length ? sizes : ['One Size'],
             },
             previewImagesUrl: sp.previewImagesUrl,
-            galleryImages: sp.galleryImages,
             createdAt: sp.createdAt || new Date().toISOString(),
             updatedAt: sp.updatedAt || new Date().toISOString(),
           };
