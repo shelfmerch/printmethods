@@ -28,6 +28,8 @@ const CatalogProductInventory = require('../models/CatalogProductInventory');
 const { mirrorCatalogAttributes, unsetLegacyCatalogProductAttributeFields } = require('../utils/catalogAttributesMirror');
 const {
   designInputWithoutSampleMockups,
+  pricingInputWithoutSpecificPrices,
+  persistCatalogSpecificPrices,
   stripDeprecatedEmbeddedFields,
   hydrateCatalogProductRelations,
   hydrateCatalogProductRelationsBatch,
@@ -269,7 +271,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       productionHours: Number(productionHours || stocks?.productionHours || 120),
       galleryImages: Array.isArray(galleryImages) ? galleryImages : [],
       details: details || {},
-      pricing: pricing || {}, // Preserve pricing object if sent from frontend
+      pricing: pricingInputWithoutSpecificPrices(pricing) || {},
       gst: (pricing && pricing.gst) ? pricing.gst : { slab: 18, mode: 'EXCLUSIVE', hsn: '' },
       allowedPrintMethodIds: Array.isArray(allowedPrintMethodIds) ? allowedPrintMethodIds : [],
       createdBy: req.user.id,
@@ -301,6 +303,12 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
       if (stocks !== undefined) await upsertInventoryForProduct(product._id, stocks);
     } catch (iErr) {
       console.error('Error upserting catalog product inventory:', iErr);
+    }
+
+    try {
+      await persistCatalogSpecificPrices(product._id, pricing);
+    } catch (pErr) {
+      console.error('Error upserting catalog product prices:', pErr);
     }
 
     try {
@@ -379,6 +387,7 @@ router.post('/', protect, authorize('superadmin'), async (req, res) => {
     const productResponse = product.toObject();
     await hydrateCatalogProductRelations(productResponse, {
       includeMockups: true,
+      includePrices: true,
       includeInventory: true,
       includeAttributes: true,
     });
@@ -831,6 +840,7 @@ router.get('/:id', async (req, res) => {
     const productResponse = product.toObject();
     await hydrateCatalogProductRelations(productResponse, {
       includeMockups: true,
+      includePrices: true,
       includeInventory: true,
       includeAttributes: true,
     });
@@ -852,7 +862,7 @@ router.get('/:id', async (req, res) => {
     productResponse.variants = await transformVariantsForApi(variants);
     productResponse.pricing = {
       ...(productResponse.pricing || {}),
-      gst: product.gst
+      gst: product.gst,
     };
     productResponse.availableSizes = [...new Set(variants.map(v => v.size))];
     productResponse.availableColors = [...new Set(variants.map(v => v.color))];
@@ -931,7 +941,16 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     if (productionHours !== undefined || stocks?.productionHours !== undefined) {
       product.productionHours = Number(productionHours || stocks?.productionHours || 120);
     }
-    if (pricing) product.pricing = pricing;
+    if (pricing) {
+      const nextPricing = pricingInputWithoutSpecificPrices(pricing);
+      const currentPricing = product.pricing?.toObject?.() || product.pricing || {};
+      product.pricing = { ...currentPricing, ...nextPricing };
+      if (product.pricing.specificPrices !== undefined) {
+        product.set('pricing.specificPrices', undefined);
+        delete product.pricing.specificPrices;
+        product.markModified('pricing');
+      }
+    }
     if (galleryImages) product.galleryImages = galleryImages;
     if (isActive !== undefined) product.isActive = isActive;
     if (isPublished !== undefined) product.isPublished = isPublished;
@@ -969,6 +988,12 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
       if (stocks !== undefined) await upsertInventoryForProduct(product._id, stocks);
     } catch (iErr) {
       console.error('Error upserting catalog product inventory:', iErr);
+    }
+
+    try {
+      await persistCatalogSpecificPrices(product._id, pricing);
+    } catch (pErr) {
+      console.error('Error upserting catalog product prices:', pErr);
     }
 
     try {
@@ -1083,6 +1108,7 @@ router.put('/:id', protect, authorize('superadmin'), async (req, res) => {
     const productResponse = product.toObject();
     await hydrateCatalogProductRelations(productResponse, {
       includeMockups: true,
+      includePrices: true,
       includeInventory: true,
       includeAttributes: true,
     });

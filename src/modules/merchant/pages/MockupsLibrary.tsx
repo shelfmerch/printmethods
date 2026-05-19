@@ -7,6 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/sha
 import { AlertTriangle, ArrowLeft, Check, Loader2, Sparkles, ChevronRight, Package, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithApiAuth } from '@/lib/api';
+import {
+    extractCatalogSampleMockups,
+    mockupMatchesColor,
+    resolveCatalogProductId,
+    type CatalogSampleMockup,
+} from '@/shared/utils/catalogMockups';
 import { Badge } from '@/shared/components/ui/badge';
 import { Progress } from '@/shared/components/ui/progress';
 
@@ -169,7 +175,7 @@ const MockupsLibrary = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [storeProduct, setStoreProduct] = useState<any | null>(null);
-    const [sampleMockups, setSampleMockups] = useState<any[]>([]);
+    const [sampleMockups, setSampleMockups] = useState<CatalogSampleMockup[]>([]);
     const [variants, setVariants] = useState<any[]>([]);
     const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
 
@@ -307,18 +313,36 @@ const MockupsLibrary = () => {
 
     // ─── Load catalog data (sampleMockups, variants) ─────────────────────────
     useEffect(() => {
-        if (!storeProduct?.catalogProductId) return;
+        const catalogRef = storeProduct?.catalogProductId;
+        if (!catalogRef) return;
+
+        const applyCatalog = (cat: Record<string, unknown>) => {
+            if (Array.isArray(cat.availableColors)) {
+                setAvailableColors(cat.availableColors as string[]);
+            }
+            if (Array.isArray(cat.variants)) {
+                setVariants(cat.variants as typeof variants);
+            }
+            const mockups = extractCatalogSampleMockups(cat);
+            if (mockups.length > 0) setSampleMockups(mockups);
+        };
+
         const load = async () => {
             try {
                 setIsLoadingCatalog(true);
-                const resp = await productApi.getById(storeProduct.catalogProductId);
-                if (resp?.success !== false && resp?.data) {
-                    const cat = resp.data;
-                    if (Array.isArray(cat.availableColors)) setAvailableColors(cat.availableColors);
-                    if (Array.isArray(cat.variants)) setVariants(cat.variants);
-                    setSampleMockups(cat.design?.sampleMockups || []);
+
+                if (typeof catalogRef === 'object' && catalogRef !== null) {
+                    applyCatalog(catalogRef as Record<string, unknown>);
                 }
-            } catch (e: any) {
+
+                const catalogId = resolveCatalogProductId(catalogRef);
+                if (!catalogId) return;
+
+                const resp = await productApi.getById(catalogId);
+                if (resp?.success !== false && resp?.data) {
+                    applyCatalog(resp.data as Record<string, unknown>);
+                }
+            } catch (e: unknown) {
                 console.error('Error loading catalog:', e);
             } finally {
                 setIsLoadingCatalog(false);
@@ -376,7 +400,7 @@ const MockupsLibrary = () => {
     const colorsToDisplay = selectedColors.length > 0 ? selectedColors : availableColors;
 
     const getMockupsForColor = useCallback((color: string) => {
-        const result = sampleMockups.filter((m: any) => !m.colorKey || m.colorKey === color);
+        const result = sampleMockups.filter((m) => mockupMatchesColor(m, color));
         const activeVariant = variants.find((v: any) => v.color === color);
         if (activeVariant?.viewImages) {
             (['front', 'back', 'left', 'right'] as const).forEach(view => {

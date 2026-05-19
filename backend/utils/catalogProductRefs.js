@@ -4,6 +4,7 @@
  * | Field on CatalogProduct      | Collection                  | Cardinality |
  * |------------------------------|-----------------------------|-------------|
  * | mockupIds[]                  | catalogproductmockups       | 1:N         |
+ * | pricing.specificPrices[]     | catalogproductprices        | 1:N         |
  * | shipping.inventoryId         | catalogproductinventories   | 1:1         |
  * | attributeId                  | catalogproductattributes    | 1:1         |
  *
@@ -15,6 +16,15 @@ const CatalogProductMockup = require('../models/CatalogProductMockup');
 const CatalogProductInventory = require('../models/CatalogProductInventory');
 const CatalogProductAttribute = require('../models/CatalogProductAttribute');
 const { attributesFromNormalizedDoc } = require('./catalogAttributesMirror');
+const {
+  loadPricesByRef,
+  attachPricesToPricingForApi,
+  persistCatalogSpecificPrices,
+  pricingInputWithoutSpecificPrices,
+  stripEmbeddedSpecificPricesFromProduct,
+  syncPricingSpecificPriceRefs,
+  getSpecificPriceRefIds,
+} = require('./catalogProductPriceRefs');
 
 function resolveProductId(ref) {
   if (!ref) return null;
@@ -168,13 +178,9 @@ async function syncCatalogProductRelationRefs(productOrId) {
   if (attr?._id) $set.attributeId = attr._id;
   if (inv?._id) $set['shipping.inventoryId'] = inv._id;
 
-  const updated = await CatalogProduct.findByIdAndUpdate(
-    id,
-    { $set },
-    { new: true },
-  ).lean();
+  await CatalogProduct.findByIdAndUpdate(id, { $set }, { new: true });
 
-  return updated;
+  return syncPricingSpecificPriceRefs(id);
 }
 
 function attachInventoryToShipping(product, inv) {
@@ -191,6 +197,7 @@ function attachInventoryToShipping(product, inv) {
 async function hydrateCatalogProductRelations(product, options = {}) {
   const {
     includeMockups = true,
+    includePrices = true,
     includeInventory = true,
     includeAttributes = false,
     legacyStocksAlias = true,
@@ -198,8 +205,9 @@ async function hydrateCatalogProductRelations(product, options = {}) {
 
   if (!product || !product._id) return product;
 
-  const [mockups, inv, attrDoc] = await Promise.all([
+  const [mockups, prices, inv, attrDoc] = await Promise.all([
     includeMockups ? loadMockupsByRef(product) : Promise.resolve([]),
+    includePrices ? loadPricesByRef(product) : Promise.resolve([]),
     includeInventory ? loadInventoryByRef(product) : Promise.resolve(null),
     includeAttributes ? loadAttributeByRef(product) : Promise.resolve(null),
   ]);
@@ -208,6 +216,10 @@ async function hydrateCatalogProductRelations(product, options = {}) {
     product.mockupIds = mockups.map((m) => m._id);
     product.design = product.design || {};
     product.design.sampleMockups = mockups.map(mockupDocToLegacyShape);
+  }
+
+  if (includePrices) {
+    attachPricesToPricingForApi(product, prices);
   }
 
   if (includeInventory) {
@@ -233,6 +245,7 @@ async function hydrateCatalogProductRelationsBatch(products, options = {}) {
 
   const {
     includeMockups = true,
+    includePrices = true,
     includeInventory = true,
     includeAttributes = false,
     legacyStocksAlias = true,
@@ -247,20 +260,31 @@ async function hydrateCatalogProductRelationsBatch(products, options = {}) {
   const mockupIdLists = includeMockups
     ? products.flatMap((p) => (p.mockupIds || []).map(resolveObjectId).filter(Boolean))
     : [];
+  const priceIdLists = includePrices
+    ? products.flatMap((p) => getSpecificPriceRefIds(p))
+    : [];
   const needsProductIdFallback = products.filter(
     (p) =>
       (includeInventory && !resolveObjectId(p.shipping?.inventoryId))
       || (includeAttributes && !resolveObjectId(p.attributeId))
-      || (includeMockups && !(p.mockupIds || []).length),
+      || (includeMockups && !(p.mockupIds || []).length)
+      || (includePrices && getSpecificPriceRefIds(p).length === 0),
   );
   const fallbackProductIds = needsProductIdFallback.map((p) => p._id).filter(Boolean);
 
-  const [mockupsById, inventoriesById, attrsById, mockupsByProduct, inventoriesByProduct, attrsByProduct] =
+  const CatalogProductPrice = require('../models/CatalogProductPrice');
+  const PRICE_SELECT =
+    'ruleId combination currency country group store customer applyToAllCustomers minQuantity startDate endDate isUnlimited useDiscount discountValue discountType discountTaxMode useSpecificPrice specificPriceTaxExcl specificPriceTaxIncl discountTaxIncl metadata';
+
+  const [mockupsById, pricesById, inventoriesById, attrsById, mockupsByProduct, pricesByProduct, inventoriesByProduct, attrsByProduct] =
     await Promise.all([
       includeMockups && mockupIdLists.length
         ? CatalogProductMockup.find({ _id: { $in: mockupIdLists } })
           .select('viewKey colorKey imageUrl placeholders displacementSettings metadata')
           .lean()
+        : Promise.resolve([]),
+      includePrices && priceIdLists.length
+        ? CatalogProductPrice.find({ _id: { $in: priceIdLists } }).select(PRICE_SELECT).lean()
         : Promise.resolve([]),
       includeInventory && inventoryIds.length
         ? CatalogProductInventory.find({ _id: { $in: inventoryIds } }).lean()
@@ -273,6 +297,9 @@ async function hydrateCatalogProductRelationsBatch(products, options = {}) {
           .select('productId viewKey colorKey imageUrl placeholders displacementSettings metadata')
           .lean()
         : Promise.resolve([]),
+      includePrices && fallbackProductIds.length
+        ? CatalogProductPrice.find({ productId: { $in: fallbackProductIds } }).select(PRICE_SELECT).lean()
+        : Promise.resolve([]),
       includeInventory && fallbackProductIds.length
         ? CatalogProductInventory.find({ productId: { $in: fallbackProductIds } }).lean()
         : Promise.resolve([]),
@@ -282,6 +309,7 @@ async function hydrateCatalogProductRelationsBatch(products, options = {}) {
     ]);
 
   const mockupDocById = new Map(mockupsById.map((m) => [String(m._id), m]));
+  const priceDocById = new Map(pricesById.map((p) => [String(p._id), p]));
   const invById = new Map(inventoriesById.map((i) => [String(i._id), i]));
   const attrById = new Map(attrsById.map((a) => [String(a._id), a]));
 
@@ -291,6 +319,13 @@ async function hydrateCatalogProductRelationsBatch(products, options = {}) {
     const arr = mockupsByProductId.get(key) || [];
     arr.push(m);
     mockupsByProductId.set(key, arr);
+  }
+  const pricesByProductId = new Map();
+  for (const pr of pricesByProduct) {
+    const key = String(pr.productId);
+    const arr = pricesByProductId.get(key) || [];
+    arr.push(pr);
+    pricesByProductId.set(key, arr);
   }
   const invByProductId = new Map(inventoriesByProduct.map((i) => [String(i.productId), i]));
   const attrByProductId = new Map(attrsByProduct.map((a) => [String(a.productId), a]));
@@ -310,6 +345,18 @@ async function hydrateCatalogProductRelationsBatch(products, options = {}) {
       p.mockupIds = mockups.map((m) => m._id);
       p.design = p.design || {};
       p.design.sampleMockups = mockups.map(mockupDocToLegacyShape);
+    }
+
+    if (includePrices) {
+      let priceDocs = [];
+      const refIds = getSpecificPriceRefIds(p);
+      if (refIds.length) {
+        priceDocs = refIds.map((id) => priceDocById.get(String(id))).filter(Boolean);
+      }
+      if (!priceDocs.length) {
+        priceDocs = pricesByProductId.get(key) || [];
+      }
+      attachPricesToPricingForApi(p, priceDocs);
     }
 
     if (includeInventory) {
@@ -357,6 +404,7 @@ function stripDeprecatedEmbeddedFields(product) {
     product.design = design;
     product.markModified?.('design');
   }
+  stripEmbeddedSpecificPricesFromProduct(product);
 }
 
 function designInputWithoutSampleMockups(design) {
@@ -390,4 +438,8 @@ module.exports = {
   loadCatalogProductWithRelations,
   stripDeprecatedEmbeddedFields,
   designInputWithoutSampleMockups,
+  pricingInputWithoutSpecificPrices,
+  persistCatalogSpecificPrices,
+  loadPricesByRef,
+  attachPricesToPricingForApi,
 };

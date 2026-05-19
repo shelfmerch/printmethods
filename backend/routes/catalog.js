@@ -30,6 +30,14 @@ router.get('/', async (req, res) => {
 
     const productIds = products.map(p => p._id);
 
+    await hydrateCatalogProductRelations(products, {
+      includeMockups: false,
+      includePrices: true,
+      includeInventory: false,
+      includeAttributes: false,
+      legacyStocksAlias: false,
+    });
+
     // Attach unique colors per product (from variants)
     const variants = await CatalogProductVariant.find(
       { catalogProductId: { $in: productIds }, isActive: true },
@@ -107,6 +115,7 @@ router.get('/:id', async (req, res) => {
 
     await hydrateCatalogProductRelations(product, {
       includeMockups: true,
+      includePrices: true,
       includeInventory: true,
       includeAttributes: false,
     });
